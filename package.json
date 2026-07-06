@@ -1,0 +1,17 @@
+{
+  "name": "collectivevoice-web-app",
+  "version": "1.0.0",
+  "description": "Responsive CollectiveVoice frontend and backend prototype.",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "backend": "node backend/server.js"
+  },
+  "keywords": [
+    "collectivevoice",
+    "qna",
+    "meetings"
+  ],
+  "author": "",
+  "license": "MIT"
+}
