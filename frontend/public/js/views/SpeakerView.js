@@ -1,24 +1,29 @@
 /* ============================================================
    SpeakerView — Speaker-facing live session surface
-   Components: NextQuestionCard, LiveOverviewStats, CurrentQuestionPanel,
-               SpeakerNotesInput, TipsPanel, UpcomingQueueList
+   
+   The speaker is a session-level designation (chosen by moderator
+   from the participants panel). They see the full live ranked
+   question queue — the top question is highlighted as "Focus Now",
+   the rest show as "Up Next". No per-question assignment needed.
    ============================================================ */
 import { icons } from "../utils/icons.js";
 import {
-  getSessionState, selectRankedQuestions, selectPendingQuestions,
+  getSessionState, selectRankedQuestions,
   dispatch, subscribe, formatTimer
 } from "../store/SessionStore.js";
+import { getSocket } from "../hooks/socket.js";
+import { state } from "../state.js";
 
 const NOTES_KEY = "cv_speaker_notes";
 
-// ── NextQuestionCard ──────────────────────────────────────────
-function renderNextQuestionCard(assignedQuestion) {
-  if (!assignedQuestion) {
+// ── Focus Question Card (top-ranked active question) ───────────
+function renderFocusCard(topQuestion, sessionTimer) {
+  if (!topQuestion) {
     return `
       <div class="spk-panel spk-next-card spk-next-empty">
         <div class="spk-empty-icon">${icons.mic}</div>
-        <h2>No Question Assigned Yet</h2>
-        <p>The moderator will send you a question when ready.</p>
+        <h2>Waiting for Questions</h2>
+        <p>As the audience asks questions they'll appear here, ranked by score. You'll see the most important one first.</p>
         <div class="spk-waiting-dots">
           <span></span><span></span><span></span>
         </div>
@@ -26,44 +31,43 @@ function renderNextQuestionCard(assignedQuestion) {
     `;
   }
 
-  const q = assignedQuestion;
-  const pct = Math.round((q.score || 0) * 100);
+  const pct = Math.round((topQuestion.score || 0) * 100);
 
   return `
     <div class="spk-panel spk-next-card">
       <div class="spk-next-header">
-        <span class="spk-selected-badge">${icons.mic} Selected by Moderator</span>
+        <span class="spk-selected-badge">${icons.zap} Top Question — Focus Now</span>
         <span class="spk-score-pill">Score ${pct}</span>
       </div>
 
-      <h2 class="spk-next-question">${q.text}</h2>
+      <h2 class="spk-next-question">${topQuestion.text}</h2>
 
       <div class="spk-next-meta">
-        <span>${icons.thumbsUp} ${q.votes} upvotes</span>
-        <span>${icons.users} ${q.similar || 0} similar questions</span>
-        <span>${icons.clock} asked ${q.asked}</span>
+        <span>${icons.thumbsUp} ${topQuestion.votes} upvotes</span>
+        <span>${icons.users} ${topQuestion.similar || topQuestion.clusterSize || 1} similar</span>
+        <span>${icons.clock} asked ${topQuestion.asked || "recently"}</span>
       </div>
 
-      ${q.summary ? `
+      ${topQuestion.summary ? `
         <div class="spk-ai-summary">
           <div class="spk-ai-label">${icons.zap} AI Context Summary</div>
-          <p>${q.summary}</p>
+          <p>${topQuestion.summary}</p>
         </div>
       ` : ""}
 
       <div class="spk-next-actions">
-        <button class="spk-start-btn" onclick="speakerStartAnswering()">
-          ${icons.mic} Start Answering
+        <button class="spk-start-btn" onclick="speakerMarkAnswered('${topQuestion.id}')">
+          ${icons.check} Mark Answered
         </button>
-        <button class="spk-skip-btn" onclick="speakerSkipQuestion()">
-          ${icons.skipForward} Skip
+        <button class="spk-skip-btn" onclick="speakerDeferQuestion('${topQuestion.id}')">
+          ${icons.skipForward} Defer
         </button>
       </div>
     </div>
   `;
 }
 
-// ── LiveOverviewStats ─────────────────────────────────────────
+// ── Live Overview Stats ────────────────────────────────────────
 function renderSpeakerStats(stats) {
   const cards = [
     { icon: icons.messageCircle, label: "Questions",    value: stats.questionsCount,   color: "#6366f1" },
@@ -87,42 +91,61 @@ function renderSpeakerStats(stats) {
   `;
 }
 
-// ── CurrentQuestionPanel ──────────────────────────────────────
-function renderCurrentPanel(assignedQuestion) {
-  if (!assignedQuestion) return "";
+// ── Up-Next Queue (questions 2–6) ──────────────────────────────
+function renderUpcomingQueue(ranked) {
+  // Skip the top question (already shown in focus card), show next 5
+  const upcoming = ranked
+    .filter(q => q.status !== "Answered" && q.status !== "Deferred" && q.status !== "Skipped")
+    .slice(1, 6);
+
   return `
-    <div class="spk-panel spk-current-panel">
-      <div class="spk-panel-title">${icons.eye} <h2>Currently Answering</h2></div>
-      <div class="spk-current-row">
-        <div class="spk-current-rank">Q</div>
-        <div>
-          <p class="spk-current-text">${assignedQuestion.text}</p>
-          <div class="spk-current-meta">
-            ${icons.thumbsUp} ${assignedQuestion.votes} upvotes &nbsp;·&nbsp;
-            ${icons.star} Score ${((assignedQuestion.score || 0) * 100).toFixed(0)}
+    <div class="spk-panel spk-queue-panel">
+      <div class="spk-panel-header">
+        <div class="spk-panel-title">${icons.skipForward} <h2>Up Next</h2></div>
+        <span class="spk-queue-count">${upcoming.length} queued</span>
+      </div>
+      ${upcoming.length === 0 ? `<p class="spk-empty">No more questions in the queue.</p>` : ""}
+      <div class="spk-upcoming-list">
+        ${upcoming.map((q, i) => `
+          <div class="spk-upcoming-item">
+            <span class="spk-upcoming-rank">${i + 2}</span>
+            <div class="spk-upcoming-body">
+              <p class="spk-upcoming-text">${q.text}</p>
+              <span class="spk-upcoming-meta">
+                ${icons.thumbsUp} ${q.votes}
+                &nbsp;·&nbsp;
+                Score ${((q.score || 0) * 100).toFixed(0)}
+                &nbsp;·&nbsp;
+                ${q.similar || 1} similar
+              </span>
+            </div>
+            <div class="spk-upcoming-actions">
+              <button class="spk-mini-btn" onclick="speakerMarkAnswered('${q.id}')" title="Mark answered">${icons.check}</button>
+              <button class="spk-mini-btn spk-mini-defer" onclick="speakerDeferQuestion('${q.id}')" title="Defer">${icons.skipForward}</button>
+            </div>
           </div>
-        </div>
+        `).join("")}
       </div>
     </div>
   `;
 }
 
-// ── SpeakerNotesInput ─────────────────────────────────────────
+// ── Speaker Notes ──────────────────────────────────────────────
 function renderSpeakerNotes() {
   const saved = localStorage.getItem(NOTES_KEY) || "";
   return `
     <div class="spk-panel spk-notes-panel">
       <div class="spk-panel-title">${icons.edit} <h2>Speaker Notes <span class="spk-private-tag">Private</span></h2></div>
-      <p class="spk-notes-sub">These notes are only visible to you and auto-saved locally.</p>
+      <p class="spk-notes-sub">Only visible to you — auto-saved locally.</p>
       <textarea id="speakerNotesTextarea" class="spk-notes-textarea"
-        placeholder="Jot down key points, references, or reminders…"
+        placeholder="Key points, references, reminders…"
         oninput="speakerSaveNotes(this.value)">${saved}</textarea>
       <span class="spk-notes-saved" id="speakerNotesSavedTag">✓ Auto-saved</span>
     </div>
   `;
 }
 
-// ── TipsForSpeakersPanel ──────────────────────────────────────
+// ── Tips Panel ─────────────────────────────────────────────────
 const TIPS = [
   { icon: icons.mic,       text: "Answer clearly and concisely — aim for 2-3 minutes." },
   { icon: icons.star,      text: "Give a concrete example or real-world analogy." },
@@ -147,81 +170,67 @@ function renderTipsPanel() {
   `;
 }
 
-// ── UpcomingQueueList ─────────────────────────────────────────
-function renderUpcomingQueue(questions) {
-  const pending = questions.filter(q =>
-    q.status !== "Answered" && q.status !== "under_review" && q.status !== "Deferred"
-  ).slice(0, 3);
-
-  return `
-    <div class="spk-panel spk-queue-panel">
-      <div class="spk-panel-header">
-        <div class="spk-panel-title">${icons.skipForward} <h2>Up Next</h2></div>
-        <button class="spk-view-all" onclick="go('/moderator')">View All ${icons.arrowRight}</button>
-      </div>
-      ${pending.length === 0 ? `<p class="spk-empty">Queue is empty.</p>` : ""}
-      <div class="spk-upcoming-list">
-        ${pending.map((q, i) => `
-          <div class="spk-upcoming-item">
-            <span class="spk-upcoming-rank">${i + 1}</span>
-            <div class="spk-upcoming-body">
-              <p class="spk-upcoming-text">${q.text}</p>
-              <span class="spk-upcoming-meta">${icons.thumbsUp} ${q.votes} &nbsp;·&nbsp; Score ${((q.score || 0) * 100).toFixed(0)}</span>
-            </div>
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `;
-}
-
-// ── Main Render ───────────────────────────────────────────────
+// ── Main Render ────────────────────────────────────────────────
 let _unsubscribe = null;
 
 export function renderSpeakerView(container) {
   const ss = getSessionState();
   if (ss.questions.length === 0) {
-    fetch("/api/session/live")
+    const meetingId = state.session?.sessionId || "m_ai_education";
+    fetch(`/api/session/live?meetingId=${meetingId}`)
       .then(r => r.json())
       .then(data => dispatch({ type: "SESSION_LOADED", payload: data }));
   }
 
   if (_unsubscribe) _unsubscribe();
-  _unsubscribe = subscribe((state) => paintSpeakerView(container, state));
+  _unsubscribe = subscribe((s) => paintSpeakerView(container, s));
   paintSpeakerView(container, ss);
 }
 
-function paintSpeakerView(container, state) {
-  const ranked = selectRankedQuestions(state);
+function paintSpeakerView(container, s) {
+  const ranked = selectRankedQuestions(s).filter(
+    q => q.status !== "Answered" && q.status !== "Deferred" && q.status !== "Skipped"
+  );
+  const topQuestion = ranked[0] || null;
+
+  // Speaker name from store (set when moderator clicks "Make Speaker")
+  const speakerName = s.currentSpeaker?.name || state.profile?.user?.name || "Speaker";
 
   container.innerHTML = `
     <!-- Session Header -->
     <div class="spk-header">
       <div>
         <h1 class="spk-page-title">Speaker View</h1>
-        <p class="spk-page-sub">AI in Education: Opportunities &amp; Challenges</p>
+        <p class="spk-page-sub">
+          ${icons.mic} ${speakerName}
+          &nbsp;·&nbsp;
+          ${state.joinTarget?.title || "Live Session"}
+        </p>
       </div>
       <span class="spk-live-badge">
-        <span class="mod-live-dot"></span> Live · ${formatTimer(state.sessionTimer)}
+        <span class="mod-live-dot"></span> Live · ${formatTimer(s.sessionTimer)}
       </span>
     </div>
 
     <div class="spk-main-grid">
-      <!-- Left: next question + current + queue -->
+      <!-- Left: focus question + upcoming queue -->
       <div class="spk-left-col">
-        ${renderNextQuestionCard(state.assignedQuestion)}
-        ${renderCurrentPanel(state.assignedQuestion)}
+        ${renderFocusCard(topQuestion)}
         ${renderUpcomingQueue(ranked)}
       </div>
 
       <!-- Right: stats + notes + tips -->
       <div class="spk-right-col">
-        ${renderSpeakerStats(state.stats)}
+        ${renderSpeakerStats(s.stats)}
         ${renderSpeakerNotes()}
         ${renderTipsPanel()}
       </div>
     </div>
   `;
+
+  // Register inline handlers after innerHTML update
+  window.speakerMarkAnswered = speakerMarkAnswered;
+  window.speakerDeferQuestion = speakerDeferQuestion;
 }
 
 export function teardownSpeakerView() {
@@ -229,28 +238,47 @@ export function teardownSpeakerView() {
 }
 
 // ── Global Handlers ───────────────────────────────────────────
+
 export function speakerSaveNotes(value) {
   localStorage.setItem(NOTES_KEY, value);
   const tag = document.querySelector("#speakerNotesSavedTag");
   if (tag) { tag.style.opacity = "1"; setTimeout(() => { tag.style.opacity = "0"; }, 1500); }
 }
 
+/**
+ * Speaker marks a question as answered.
+ * Emits via WebSocket → server broadcasts → all tabs update.
+ */
+export function speakerMarkAnswered(questionId) {
+  if (!questionId) return;
+  const meetingId = state.session?.sessionId || "m_ai_education";
+  getSocket().emit("mark_answered", { meetingId, questionId });
+  dispatch({ type: "QUESTION_ANSWERED", payload: { id: questionId } });
+}
+
+/**
+ * Speaker defers a question (pushes it lower in the queue).
+ */
+export function speakerDeferQuestion(questionId) {
+  if (!questionId) return;
+  const meetingId = state.session?.sessionId || "m_ai_education";
+  getSocket().emit("mark_deferred", { meetingId, questionId });
+  dispatch({ type: "QUESTION_STATUS", payload: { id: questionId, status: "Deferred" } });
+}
+
+/**
+ * Legacy exports — still wired in app.js but replaced by new handlers above.
+ * Kept so existing window registrations don't break.
+ */
 export function speakerStartAnswering() {
-  const ss = getSessionState();
-  if (!ss.assignedQuestion) return;
-  // Mark as under_review visually and emit to server
-  fetch(`/api/questions/${ss.assignedQuestion.id}/status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status: "under_review" })
-  });
-  dispatch({ type: "QUESTION_STATUS", payload: { id: ss.assignedQuestion.id, status: "under_review" } });
-  // Show detail
-  window.go(`/question/${ss.assignedQuestion.id}`);
+  // No-op: replaced by speakerMarkAnswered on focus card
 }
 
 export function speakerSkipQuestion() {
+  // Defer the top question
   const ss = getSessionState();
-  if (!ss.assignedQuestion) return;
-  dispatch({ type: "QUESTION_ASSIGNED", payload: { questionId: null, speakerId: null } });
+  const top = selectRankedQuestions(ss).find(q =>
+    q.status !== "Answered" && q.status !== "Deferred" && q.status !== "Skipped"
+  );
+  if (top) speakerDeferQuestion(top.id);
 }

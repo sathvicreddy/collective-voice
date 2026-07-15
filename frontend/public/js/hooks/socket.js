@@ -1,40 +1,45 @@
 /* ============================================================
    SessionSocket — Native WebSocket wrapper with auto-reconnect
-   Maps to useSocket() hook concept from the spec
+   Phase 4: handles all new server events, provides emit() for
+   client-side writes (submit_question, upvote, mark_* etc.)
    ============================================================ */
-
+"use strict";
 import { dispatch } from "../store/SessionStore.js";
+import { state }    from "../state.js";
 
 const WS_URL = `ws://${location.host}`;
-const RECONNECT_DELAY_MS = 3000;
+const RECONNECT_DELAY_MS   = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 
 class SessionSocket {
   constructor() {
-    this._ws = null;
+    this._ws               = null;
     this._reconnectAttempts = 0;
-    this._reconnectTimer = null;
+    this._reconnectTimer   = null;
     this._intentionalClose = false;
-    this._eventHandlers = new Map(); // custom handlers from views
+    this._eventHandlers    = new Map();
     this._connect();
   }
 
   _connect() {
     if (this._ws && (this._ws.readyState === WebSocket.OPEN || this._ws.readyState === WebSocket.CONNECTING)) return;
-
     dispatch({ type: "HEALTH_UPDATED", payload: { connection: "connecting" } });
-
     try {
       this._ws = new WebSocket(WS_URL);
     } catch {
-      this._scheduleReconnect();
-      return;
+      this._scheduleReconnect(); return;
     }
 
     this._ws.onopen = () => {
       this._reconnectAttempts = 0;
       dispatch({ type: "HEALTH_UPDATED", payload: { connection: "connected", sync: "synced" } });
       console.log("[WS] Connected");
+
+      // Auto-join the current meeting if we know the sessionId
+      const meetingId = state.session?.sessionId;
+      if (meetingId) {
+        this.joinMeeting(meetingId);
+      }
     };
 
     this._ws.onmessage = (ev) => {
@@ -48,9 +53,7 @@ class SessionSocket {
 
     this._ws.onclose = () => {
       dispatch({ type: "HEALTH_UPDATED", payload: { connection: "disconnected" } });
-      if (!this._intentionalClose) {
-        this._scheduleReconnect();
-      }
+      if (!this._intentionalClose) this._scheduleReconnect();
     };
 
     this._ws.onerror = () => {
@@ -73,35 +76,69 @@ class SessionSocket {
   _handleServerEvent(msg) {
     const { event, data } = msg;
 
-    // Dispatch to SessionStore
     switch (event) {
+      // Full snapshot on connect or rejoin
+      case "session_snapshot":
+        dispatch({ type: "SESSION_LOADED", payload: data });
+        break;
+
+      // Question lifecycle
       case "question_submitted":
         dispatch({ type: "QUESTION_ADDED", payload: data });
         break;
+
+      case "questions_reranked":
+        // Replace entire question list with the server-reranked version
+        dispatch({ type: "SESSION_LOADED", payload: { questions: data } });
+        break;
+
       case "question_upvoted":
         dispatch({ type: "QUESTION_UPVOTED", payload: data });
         break;
+
       case "question_assigned":
         dispatch({ type: "QUESTION_ASSIGNED", payload: data });
         break;
+
       case "question_answered":
         dispatch({ type: "QUESTION_ANSWERED", payload: data });
         break;
+
+      case "question_status_changed":
+        // Generic status update for deferred/flagged/skipped/answered
+        dispatch({ type: "QUESTION_STATUS", payload: data });
+        break;
+
+      // Polls
       case "poll_created":
         dispatch({ type: "POLL_CREATED", payload: data });
         break;
+
       case "poll_updated":
         dispatch({ type: "POLL_UPDATED", payload: data });
         break;
+
+      // Participants
       case "participant_joined":
         dispatch({ type: "PARTICIPANT_JOINED", payload: data });
         break;
-      case "speaker_changed":
-        dispatch({ type: "QUESTION_ASSIGNED", payload: data });
-        break;
+
+      // Stats (sent after every structural change)
       case "session_stats":
         dispatch({ type: "STATS_UPDATED", payload: data });
         break;
+
+      // Speaker assignment — triggers view switch in all tabs
+      case "speaker_changed":
+        dispatch({ type: "SPEAKER_ASSIGNED", payload: data });
+        // Fire any custom handler registered by session.js
+        break;
+
+      // Announcements
+      case "announcement":
+        dispatch({ type: "ANNOUNCEMENT", payload: data });
+        break;
+
       default:
         break;
     }
@@ -117,7 +154,8 @@ class SessionSocket {
     dispatch({ type: "HEALTH_UPDATED", payload: { connection: "connected", sync: "syncing" } });
     this._pollingInterval = setInterval(async () => {
       try {
-        const res = await fetch("/api/session/live");
+        const meetingId = state.session?.sessionId || "m_ai_education";
+        const res  = await fetch(`/api/session/live?meetingId=${meetingId}`);
         if (!res.ok) return;
         const data = await res.json();
         dispatch({ type: "SESSION_LOADED", payload: data });
@@ -125,17 +163,28 @@ class SessionSocket {
     }, 3000);
   }
 
-  /** Emit an event to the server */
+  /** Emit a typed event to the server (Phase 4 write path) */
   emit(event, data) {
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
       this._ws.send(JSON.stringify({ event, data }));
     } else {
-      // Fallback: REST for critical writes
-      console.warn("[WS] Not connected, event not sent:", event);
+      console.warn("[WS] Not connected, event queued:", event);
     }
   }
 
-  /** Register a one-off custom event handler */
+  /**
+   * joinMeeting — tells the server which meeting this client belongs to.
+   * Server will send session_snapshot and start routing events to this client.
+   */
+  joinMeeting(meetingId, userId = null, userName = null) {
+    this.emit("join_meeting", {
+      meetingId,
+      userId:   userId   || state.session?.userId || null,
+      userName: userName || state.profile?.user?.name || "Guest"
+    });
+  }
+
+  /** Register a custom event handler (for view-specific reactions) */
   on(event, handler) {
     this._eventHandlers.set(event, handler);
   }
@@ -152,15 +201,10 @@ class SessionSocket {
 let _socket = null;
 
 export function getSocket() {
-  if (!_socket) {
-    _socket = new SessionSocket();
-  }
+  if (!_socket) _socket = new SessionSocket();
   return _socket;
 }
 
 export function destroySocket() {
-  if (_socket) {
-    _socket.close();
-    _socket = null;
-  }
+  if (_socket) { _socket.close(); _socket = null; }
 }

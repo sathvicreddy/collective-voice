@@ -294,7 +294,8 @@ export function renderMeetings() {
 
 /* --- Join Flow --------------------------------------------- */
 export function renderJoin(step = "start") {
-  const meeting = state.meetings[0];
+  // Use the meeting looked-up via code, fall back to first meeting for demo
+  const meeting = state.joinTarget || state.meetings[0] || {};
   const screens = {
     start: `
       <h1 class="screen-title">Join Meeting</h1>
@@ -433,9 +434,16 @@ export function renderCreate(step = "type") {
         </div>
         <div class="field"><label>Description (Optional)</label><textarea id="description">${draft.description}</textarea></div>
         <h2 class="screen-title" style="margin-top:8px">Meeting Settings</h2>
-        ${["Allow Participants to Ask Questions","Enable Chat","Record Meeting","Allow Screen Sharing"].map((item,i) => `
-          <div class="toggle-row"><span>${item}</span><span class="switch ${i===2?"":"on"}"></span></div>
-        `).join("")}
+        ${["Allow Participants to Ask Questions","Enable Chat","Record Meeting","Allow Screen Sharing"].map((item, i) => {
+          const ids = ["settingAllowQuestions","settingEnableChat","settingRecordMeeting","settingAllowScreenShare"];
+          const checked = state.createDraft.settings ? Object.values(state.createDraft.settings)[i] : (i !== 2);
+          return `
+            <div class="toggle-row">
+              <span>${item}</span>
+              <input type="checkbox" id="${ids[i]}" ${checked ? "checked" : ""} style="width:18px;height:18px;cursor:pointer">
+            </div>
+          `;
+        }).join("")}
         <button class="btn" style="width:100%;margin-top:8px" onclick="saveDetails()">${icons.arrowRight} Next</button>
       </div>
     `,

@@ -9,6 +9,7 @@ import {
   dispatch, subscribe, formatTimer
 } from "../store/SessionStore.js";
 import { getSocket } from "../hooks/socket.js";
+import { state } from "../state.js";
 
 // ── AskQuestionForm ───────────────────────────────────────────
 function renderAskForm(isPaused) {
@@ -205,7 +206,7 @@ export function participantUpdateCharCount(textarea) {
   if (el) el.textContent = `${textarea.value.length} / 500`;
 }
 
-export async function participantSubmitQuestion() {
+export function participantSubmitQuestion() {
   const input = document.querySelector("#participantQuestionInput");
   const text  = input?.value.trim();
   if (!text) return;
@@ -214,26 +215,24 @@ export async function participantSubmitQuestion() {
   const tempId = `q_opt_${Date.now()}`;
   const tempQ  = {
     id: tempId, text, votes: 1, asked: "Just now",
-    score: 0.4, status: "Pending", similar: 0, askedBy: "You"
+    score: 0.4, status: "Pending", similar: 1,
+    clusterSize: 1, askedBy: "You"
   };
   dispatch({ type: "QUESTION_ADDED", payload: tempQ });
   if (input) input.value = "";
 
-  try {
-    const res  = await fetch("/api/questions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
-    });
-    const data = await res.json();
-    // Remove optimistic + add real question via WS broadcast
-    dispatch({ type: "SESSION_LOADED", payload: { questions: data.questions } });
-  } catch {
-    // Leave optimistic on failure
-  }
+  // Phase 4: emit via WebSocket (server handles NLP + scoring + broadcast)
+  const meetingId = state.session?.sessionId || "m_ai_education";
+  const socket = getSocket();
+  socket.emit("submit_question", {
+    meetingId,
+    text,
+    askedBy: state.profile?.user?.name || "Anonymous"
+  });
+  // Server will broadcast questions_reranked → SESSION_LOADED which replaces the optimistic entry
 }
 
-export async function participantUpvote(id, btn) {
+export function participantUpvote(id, btn) {
   if (_optimisticUpvotes[id]) return; // already voted
   _optimisticUpvotes[id] = true;
 
@@ -242,13 +241,11 @@ export async function participantUpvote(id, btn) {
   if (el) el.textContent = parseInt(el.textContent) + 1;
   if (btn) btn.classList.add("ptc-upvoted");
 
-  try {
-    const res  = await fetch(`/api/questions/${id}/upvote`, { method: "POST" });
-    const data = await res.json();
-    dispatch({ type: "QUESTION_UPVOTED", payload: { id, votes: data.question.votes, score: data.question.score } });
-  } catch {
-    // keep optimistic
-  }
+  // Phase 4: emit via WebSocket
+  const meetingId = state.session?.sessionId || "m_ai_education";
+  const socket = getSocket();
+  socket.emit("upvote", { meetingId, questionId: id });
+  // Server broadcasts question_upvoted → QUESTION_UPVOTED dispatch
 }
 
 export async function participantVotePoll(pollId, optionId) {

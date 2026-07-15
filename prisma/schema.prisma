@@ -1,0 +1,156 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite for local dev — swap DATABASE_URL to postgres://... for production
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String?  // null for Google-only accounts
+  googleId     String?  @unique
+  picture      String?  // Google profile photo URL
+  createdAt    DateTime @default(now())
+
+  // Relations
+  meetings     Meeting[]
+  questions    Question[]    @relation("QuestionAskedBy")
+  participants Participant[]
+  notifications Notification[]
+  resetTokens  ResetToken[]
+  refreshTokens RefreshToken[]
+}
+
+// ── Meetings ──────────────────────────────────────────────────────────────────
+
+model Meeting {
+  id          String   @id @default(cuid())
+  code        String   @unique // 6-digit join code
+  title       String
+  speaker     String
+  status      String   @default("upcoming") // upcoming | live | conducted | past
+  date        String   @default("")
+  time        String   @default("")
+  duration    String   @default("")
+  description String   @default("")
+  category    String   @default("")
+  settingsJson String  @default("{}") // JSON blob for extra settings
+  createdAt   DateTime @default(now())
+
+  // Owner relation
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+
+  // Children
+  questions   Question[]
+  polls       Poll[]
+  participants Participant[]
+}
+
+// ── Questions ─────────────────────────────────────────────────────────────────
+
+model Question {
+  id                String   @id @default(cuid())
+  text              String
+  canonicalText     String
+  membersJson       String   @default("[]")  // JSON array of member question strings
+  votes             Int      @default(0)
+  score             Float    @default(0)
+  status            String   @default("Pending") // Pending | Under Review | Answered | Flagged
+  askedByName       String   @default("")  // display name snapshot
+  assignedSpeakerId String?
+  summaryText       String   @default("")
+  timelineJson      String   @default("[]") // JSON array of timeline strings
+  createdAt         DateTime @default(now())
+
+  meetingId  String
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  askedById  String?
+  askedBy    User?   @relation("QuestionAskedBy", fields: [askedById], references: [id])
+}
+
+// ── Polls ─────────────────────────────────────────────────────────────────────
+
+model Poll {
+  id         String   @id @default(cuid())
+  question   String
+  active     Boolean  @default(true)
+  endsAt     DateTime?
+  totalVotes Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  meetingId  String
+  meeting    Meeting    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  options    PollOption[]
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  label  String
+  votes  Int    @default(0)
+
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+}
+
+// ── Participants ───────────────────────────────────────────────────────────────
+
+model Participant {
+  id             String @id @default(cuid())
+  name           String
+  initials       String @default("")
+  upvotes        Int    @default(0)
+  questionsCount Int    @default(0)
+  role           String @default("participant") // owner | speaker | participant
+
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  userId  String?
+  user    User?   @relation(fields: [userId], references: [id])
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // Meeting Updates | Questions | System
+  title     String
+  body      String
+  time      String   @default("")
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── Auth tokens ───────────────────────────────────────────────────────────────
+
+model ResetToken {
+  // Store the SHA-256 hash of the raw token (never the raw token itself)
+  tokenHash String   @id
+  expiresAt DateTime
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  tokenHash String   @id
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

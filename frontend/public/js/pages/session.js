@@ -93,26 +93,47 @@ function mountSession() {
   const role = _deriveRole();
 
   state.session = state.session || {};
-  state.session.role      = role;
-  state.session.canSpeak  = false;
+  state.session.role       = role;
+  state.session.canSpeak   = false;
   state.session.activeView = role === "moderator" ? "moderator"
                            : role === "speaker"   ? "speaker"
                            : "participant";
 
+  // Resolve meetingId: from joinTarget, created meeting, or fallback to live demo
+  const meetingId = state.session.sessionId
+    || state.joinTarget?.id
+    || state.meetings?.find(m => m.status === "live")?.id
+    || "m_ai_education";
+  state.session.sessionId = meetingId;
+
   app.innerHTML = sessionShell(role);
   const container = document.querySelector("#sessionViewContent");
 
-  // Boot realtime layer
-  getSocket();
+  // Boot realtime layer — also auto-joins the meeting (see socket.js onopen)
+  const socket = getSocket();
   startSessionTimer();
 
-  // Load session data
-  fetch("/api/session/live")
+  // Emit join_meeting so server routes events to this client and sends snapshot
+  socket.joinMeeting(
+    meetingId,
+    state.profile?.user?.id   || null,
+    state.profile?.user?.name || "Guest"
+  );
+
+  // Fallback REST load in case WS snapshot is delayed
+  fetch(`/api/session/live?meetingId=${meetingId}`)
     .then(r => r.json())
-    .then(data => dispatch({ type: "SESSION_LOADED", payload: data }));
+    .then(data => dispatch({ type: "SESSION_LOADED", payload: data }))
+    .catch(() => {});
+
+  // Listen for speaker_changed events to auto-promote this tab if needed
+  socket.on("speaker_changed", (data) => {
+    sessionPromoteToSpeaker(data.speakerId);
+  });
 
   _renderActiveView(container);
 }
+
 
 function _renderActiveView(container) {
   if (!container) return;

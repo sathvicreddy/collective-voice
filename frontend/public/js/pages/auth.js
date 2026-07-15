@@ -1,12 +1,116 @@
-/* ============================================================
-   Authentication Pages — Landing, Login, Signup, Forgot, Reset
-   Design: matches provided CollectiveVoice UI screenshots exactly
-   ============================================================ */
 import { icons } from "../utils/icons.js";
 import { state } from "../state.js";
 import { go } from "../utils/api.js";
 
 const app = document.querySelector("#app");
+
+/* ============================================================
+   AUTH HANDLER FUNCTIONS (Phase 5)
+   Called by form submit buttons — replace onclick="go('/home')".
+   ============================================================ */
+
+function _showAuthError(msg) {
+  let el = document.querySelector("#authError");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "authError";
+    el.style.cssText = "color:#e54040;font-size:13px;padding:8px 12px;background:#fff0f0;border-radius:8px;margin-bottom:8px";
+    const form = document.querySelector(".mobile-auth-form, .auth-form-box");
+    if (form) form.prepend(el);
+  }
+  el.textContent = msg;
+}
+
+function _storeToken(accessToken, refreshToken = null) {
+  state.token = accessToken;
+  try { localStorage.setItem("cv_token", accessToken); } catch {}
+  if (refreshToken) {
+    state.refreshToken = refreshToken;
+    try { localStorage.setItem("cv_refresh_token", refreshToken); } catch {}
+  }
+}
+
+/** Handle login / signup submit */
+export async function authSubmit() {
+  const isSignup = state.route === "/signup";
+  const nameEl   = document.querySelector("#authName, input[placeholder*='name'], input[placeholder*='Name']");
+  const emailEl  = document.querySelector("#authEmail, input[type='email']");
+  const passEl   = document.querySelector("#authPassword, input[type='password']");
+  const confEl   = document.querySelector("#authConfirm");
+
+  const email    = emailEl?.value.trim();
+  const password = passEl?.value;
+  const name     = nameEl?.value.trim();
+  const confirm  = confEl?.value;
+
+  if (!email || !password) { _showAuthError("Email and password are required."); return; }
+  if (isSignup && !name)   { _showAuthError("Full name is required."); return; }
+  if (isSignup && password !== confirm) { _showAuthError("Passwords do not match."); return; }
+
+  const submitBtn = document.querySelector("#authSubmit, .auth-submit-btn");
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isSignup ? "Creating…" : "Signing in…"; }
+
+  try {
+    const endpoint = isSignup ? "/api/auth/signup" : "/api/auth/login";
+    const body     = isSignup ? { name, email, password } : { email, password };
+    const res      = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { _showAuthError(data.error || "Something went wrong."); return; }
+
+    _storeToken(data.token, data.refreshToken);
+    state.profile = { user: data.user };
+    go("/home");
+
+  } catch (err) {
+    _showAuthError("Network error — please try again.");
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isSignup ? "Create Account" : "Log in"; }
+  }
+}
+
+/** Handle forgot-password submit */
+export async function authForgot() {
+  const emailEl = document.querySelector("input[type='email']");
+  const email   = emailEl?.value.trim();
+  if (!email) { _showAuthError("Please enter your email."); return; }
+  try {
+    const res  = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    alert(data.message || "Reset instructions sent.");
+    go("/login");
+  } catch { _showAuthError("Network error."); }
+}
+
+/** Handle reset-password submit */
+export async function authReset() {
+  const passEls = document.querySelectorAll("input[type='password']");
+  const password = passEls[0]?.value;
+  const confirm  = passEls[1]?.value;
+  if (!password || password.length < 6) { _showAuthError("Password must be at least 6 characters."); return; }
+  if (password !== confirm)              { _showAuthError("Passwords do not match."); return; }
+  // Token would come from URL hash in a real app — prototype uses a hardcoded prompt
+  const token = prompt("Enter the reset token from the email:");
+  if (!token) return;
+  try {
+    const res  = await fetch("/api/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { _showAuthError(data.error || "Reset failed."); return; }
+    alert("Password updated! Please log in.");
+    go("/login");
+  } catch { _showAuthError("Network error."); }
+}
 
 /* ============================================================
    AUTH LEFT PANEL — uses the real dark purple branding image
@@ -411,7 +515,7 @@ export function renderLogin(kind = "login") {
               </div>
             `}
 
-            <button class="auth-submit-btn" id="authSubmit" onclick="go('/home')">
+            <button class="auth-submit-btn" id="authSubmit" onclick="authSubmit()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
               ${isSignup ? "Create Account" : "Log in"}
             </button>
@@ -425,7 +529,7 @@ export function renderLogin(kind = "login") {
 
             <!-- Social Buttons -->
             <div class="auth-social-row">
-              <button class="auth-social-btn" id="googleBtn" onclick="go('/home')">
+              <button class="auth-social-btn" id="googleBtn" onclick="window.location.href='/api/auth/google'">
                 <svg viewBox="0 0 24 24" width="18" height="18">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -534,7 +638,7 @@ export function renderLogin(kind = "login") {
             </div>
           `}
 
-          <button class="auth-submit-btn" onclick="go('/home')">
+          <button class="auth-submit-btn" onclick="authSubmit()">
             ${isSignup ? "Create Account" : "Log in"}
           </button>
 
@@ -545,7 +649,7 @@ export function renderLogin(kind = "login") {
           </div>
 
           <div class="auth-social-row">
-            <button class="auth-social-btn" onclick="go('/home')">
+            <button class="auth-social-btn" onclick="window.location.href='/api/auth/google'">
               <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
               Google
             </button>
@@ -638,7 +742,7 @@ export function renderForgot() {
               <input class="auth-input" placeholder="Enter your email" type="email">
             </div>
           </div>
-          <button class="auth-submit-btn" onclick="go('/reset')">Send Reset Link</button>
+          <button class="auth-submit-btn" onclick="authForgot()">Send Reset Link</button>
           <p class="auth-switch">
             Remember your password?
             <button class="auth-switch-link" onclick="go('/login')">Log in</button>
@@ -686,7 +790,7 @@ export function renderReset() {
             <span>${icons.checkCircle} Include a number</span>
             <span>${icons.checkCircle} Include an uppercase letter</span>
           </div>
-          <button class="auth-submit-btn" onclick="go('/login')">Reset Password</button>
+          <button class="auth-submit-btn" onclick="authReset()">Reset Password</button>
         </div>
       </div>
     </div>

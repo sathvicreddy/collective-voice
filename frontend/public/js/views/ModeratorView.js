@@ -10,6 +10,8 @@ import {
   dispatch, subscribe, formatTimer
 } from "../store/SessionStore.js";
 import { getSocket } from "../hooks/socket.js";
+import { state } from "../state.js";
+import { sessionSwitchView } from "../pages/session.js";
 
 // ── Helpers ───────────────────────────────────────────────────
 const BAR_COLORS = ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe"];
@@ -132,9 +134,10 @@ function renderQuestionQueue(questions, search = "", sortBy = "score") {
                 <td>${statusBadge(q.status)}</td>
                 <td class="mod-actions-cell">
                   <button class="mod-action-btn mod-btn-answer"
-                    onclick="moderatorAssignQuestion('${q.id}')"
+                    onclick="moderatorAnswerQuestion('${q.id}')"
+                    title="Mark this question as answered"
                     ${q.status === "Answered" ? "disabled" : ""}>
-                    ${icons.mic} Answer
+                    ${icons.check} Answer
                   </button>
                   <button class="mod-action-btn mod-btn-defer"
                     onclick="moderatorDeferQuestion('${q.id}')"
@@ -492,7 +495,11 @@ export function moderatorAssignQuestion(questionId) {
 }
 
 export function moderatorConfirmAssign(questionId, speakerId, speakerName, initials) {
-  fetch(`/api/questions/${questionId}/assign`, {
+  const meetingId = state.session?.sessionId || "m_ai_education";
+  // Emit via WebSocket — server updates status + broadcasts to all tabs
+  const socket = getSocket();
+  socket.emit("mark_answered", { meetingId, questionId }); // not answer — just assign (use REST for assign)
+  fetch(`/api/questions/${questionId}/assign?meetingId=${meetingId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ speakerId })
@@ -510,12 +517,10 @@ export function moderatorCloseModal(e) {
 }
 
 export function moderatorDeferQuestion(id) {
+  const meetingId = state.session?.sessionId || "m_ai_education";
+  // Phase 4: emit via WebSocket — reaches all connected tabs
+  getSocket().emit("mark_deferred", { meetingId, questionId: id });
   dispatch({ type: "QUESTION_STATUS", payload: { id, status: "Deferred" } });
-  fetch(`/api/questions/${id}/status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status: "Deferred" })
-  });
 }
 
 export function moderatorShowQuestionMenu(id, btn) {
@@ -535,12 +540,16 @@ export function moderatorShowQuestionMenu(id, btn) {
 }
 
 export function moderatorFlagQuestion(id) {
+  const meetingId = state.session?.sessionId || "m_ai_education";
+  getSocket().emit("mark_flagged", { meetingId, questionId: id });
   dispatch({ type: "QUESTION_STATUS", payload: { id, status: "Flagged" } });
 }
 
 export function moderatorAnswerQuestion(id) {
+  const meetingId = state.session?.sessionId || "m_ai_education";
+  // Phase 4: emit via WebSocket — server broadcasts to all tabs, re-scores
+  getSocket().emit("mark_answered", { meetingId, questionId: id });
   dispatch({ type: "QUESTION_ANSWERED", payload: { id } });
-  fetch(`/api/questions/${id}/answer`, { method: "POST" });
 }
 
 export function moderatorTogglePause() {
@@ -588,18 +597,24 @@ export function moderatorMakeSpeaker(id, name, initials) {
   const ss = getSessionState();
   if (container) paintModeratorView(container, ss);
 
-  // If we just assigned a speaker, switch the moderator's view to the "speaker" tab
-  // so they can immediately see what the speaker will experience
-  if (_currentSpeakerId && typeof sessionSwitchView === "function") {
-    // Brief delay so the moderator sees the highlight flash first
+  // If we just assigned a speaker, switch the moderator's own tab to Speaker View
+  if (_currentSpeakerId) {
     setTimeout(() => sessionSwitchView("speaker"), 300);
   }
 
-  // Emit to session store so SpeakerView knows who is active
+  // Dispatch to local store
   if (_currentSpeakerId) {
     dispatch({
       type: "SPEAKER_ASSIGNED",
       payload: { speakerId: id, speakerName: name, speakerInitials: initials }
     });
   }
+
+  // Phase 4: emit speaker_changed via WebSocket so ALL other tabs receive it too
+  const meetingId = state.session?.sessionId || "m_ai_education";
+  getSocket().emit("speaker_changed", {
+    meetingId,
+    speakerId:   _currentSpeakerId,
+    speakerName: _currentSpeakerName
+  });
 }
