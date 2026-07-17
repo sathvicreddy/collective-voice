@@ -349,8 +349,8 @@ async function handleAuthRequest(req, res) {
 
   // ── GET /api/auth/google ── Redirect to Google ────────────
   if (req.method === "GET" && url.pathname === "/api/auth/google") {
-    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === "REPLACE_ME") {
-      return json(res, 503, { error: "Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env" });
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || GOOGLE_CLIENT_ID === "REPLACE_ME") {
+      return json(res, 501, { error: "Google OAuth is not configured on this server." });
     }
     const authUrl = googleAuthUrl(url.searchParams.get("state") || "");
     res.writeHead(302, { Location: authUrl });
@@ -412,10 +412,11 @@ async function handleAuthRequest(req, res) {
         }
       });
 
-      // 5. Redirect to frontend with tokens in URL hash
-      //    Frontend reads window.location.hash and stores them in localStorage
+      // 5. Redirect to frontend SPA with tokens in query string.
+      //    The SPA uses hash-based routing (#/route), so we redirect to /#/auth-callback
+      //    and pass tokens as query params that handleGoogleCallback() reads from location.search.
       const params = new URLSearchParams({ token: accessToken, refreshToken, name: user.name });
-      res.writeHead(302, { Location: `/auth-callback?${params}` });
+      res.writeHead(302, { Location: `/?${params}#/auth-callback` });
       res.end();
 
     } catch (err) {

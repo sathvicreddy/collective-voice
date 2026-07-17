@@ -1,118 +1,20 @@
 const crypto = require("crypto");
 
 /* ============================================================
-   Backend In-Memory State
-   - meetings: flat array (unchanged shape)
-   - questions / polls / participants: keyed by meetingId
-   - users: array for auth
+   Backend In-Memory NLP Cache
+   
+   After DB migration (Prisma), this module only holds the live
+   per-meeting question/poll/participant data used by the NLP hot
+   path. Everything else (users, meetings, notifications, auth
+   tokens) is stored in and read from the Prisma DB.
+
+   Data here is:
+     • Rehydrated from DB on first access per meeting (via api.js getCache)
+     • Written-through to DB on every mutation (fire-and-forget)
+     • Never the source of truth for persistent reads — always Prisma
    ============================================================ */
 
 const state = {
-  user: {
-    id: "u_ananya",
-    name: "Ananya Sharma",
-    email: "ananya.sharma@email.com",
-    role: "Audience",
-    joined: "May 18, 2025",
-    location: "New Delhi, India",
-    bio: "Curious mind, better questions, stronger conversations.",
-    stats: {
-      questionsAsked: 23,
-      upvotesReceived: 128,
-      answersGiven: 17,
-      meetingsJoined: 8
-    }
-  },
-
-  meetings: [
-    {
-      id: "m_ai_education",
-      code: "482916",
-      title: "AI in Education: Opportunities & Challenges",
-      speaker: "Dr. Sarah Johnson",
-      date: "May 30, 2025",
-      time: "02:00 PM - 03:30 PM",
-      duration: "1h 30m",
-      status: "live",
-      ownerId: "u_ananya",
-      participants: 128,
-      description: "Let's discuss how AI is transforming education and the challenges we face.",
-      category: "AI in Education"
-    },
-    {
-      id: "m_remote",
-      code: "275190",
-      title: "Future of Remote Learning",
-      speaker: "Dr. Michael Lee",
-      date: "May 25, 2025",
-      time: "02:00 PM - 03:30 PM",
-      duration: "1h 30m",
-      status: "upcoming",
-      ownerId: null,
-      startsIn: "In 2h",
-      participants: 80,
-      category: "Remote Learning"
-    },
-    {
-      id: "m_privacy",
-      code: "733512",
-      title: "Data Privacy in EdTech",
-      speaker: "Priya Sharma",
-      date: "May 26, 2025",
-      time: "11:00 AM - 12:00 PM",
-      duration: "1h",
-      status: "upcoming",
-      ownerId: null,
-      startsIn: "In 1 day",
-      participants: 65,
-      category: "Data Privacy"
-    },
-    {
-      id: "m_innovations",
-      code: "918224",
-      title: "EdTech Innovations 2025",
-      speaker: "James Wilson",
-      date: "May 28, 2025",
-      time: "04:00 PM - 05:00 PM",
-      duration: "1h",
-      status: "upcoming",
-      ownerId: null,
-      startsIn: "In 3 days",
-      participants: 90,
-      category: "EdTech Innovations"
-    },
-    {
-      id: "m_engagement",
-      code: "611204",
-      title: "Student Engagement Strategies",
-      speaker: "Ananya Sharma",
-      date: "May 18, 2025",
-      time: "04:00 PM - 06:00 PM",
-      duration: "2h",
-      status: "conducted",
-      ownerId: "u_ananya",
-      participants: 95,
-      questionsCount: 34,
-      upvotes: 210,
-      category: "Teaching Methods"
-    },
-    {
-      id: "m_policy",
-      code: "812640",
-      title: "Education Policy Discussion",
-      speaker: "Ananya Sharma",
-      date: "May 12, 2025",
-      time: "10:00 AM - 11:30 AM",
-      duration: "1h 30m",
-      status: "past",
-      ownerId: "u_ananya",
-      participants: 142,
-      questionsCount: 48,
-      upvotes: 356,
-      category: "Policy"
-    }
-  ],
-
   // Per-meeting question clusters, keyed by meetingId
   // Each entry is an NLP cluster object (see nlp/engine.js)
   _questions: {
@@ -240,30 +142,16 @@ const state = {
     ]
   },
 
-  // Per-user notifications, keyed by userId — Bug #3 fix
-  // Previously a single global array; now isolated per user.
-  _notifications: {
-    "u_ananya": [
-      { id: "n1", type: "Meeting Updates", title: "Education Policy Discussion is starting soon", body: "Your meeting starts in 15 minutes", time: "9:45 AM" },
-      { id: "n2", type: "Questions", title: "New question in Education Policy Discussion", body: "How can AI be used ethically in education?", time: "9:30 AM" },
-      { id: "n3", type: "System", title: "Meeting report is ready", body: "View insights from Education Policy Discussion", time: "May 27" }
-    ]
-  },
+  // Per-user notifications cache (keyed by userId).
+  // Source of truth is the Notification DB table — this cache is used
+  // only by the NLP self-tests which need a state fallback.
+  _notifications: {},
 
-  // Users for auth
-  users: [
-    {
-      id: "u_ananya",
-      name: "Ananya Sharma",
-      email: "ananya.sharma@email.com",
-      passwordHash: null, // set on first login/signup
-      ownedMeetingIds: ["m_ai_education", "m_engagement", "m_policy"],
-      createdAt: Date.now()
-    }
-  ],
-
-  // Password reset tokens: { token -> { userId, expiresAt } }
-  resetTokens: {}
+  // Per-meeting vote records (keyed by meetingId).
+  // Each entry: { questionId, voterId, createdAt }
+  // Written through to the Vote DB table (fire-and-forget) on every toggle.
+  // Used as the fast-path de-dup check so we avoid a DB round-trip per upvote.
+  _votes: {}
 };
 
 // ── Per-meeting helpers ────────────────────────────────────────
@@ -286,13 +174,22 @@ state.getParticipantsForMeeting = function(meetingId) {
   return this._participants[meetingId];
 };
 
-/** Returns the notifications array for a given userId (creates if missing) — Bug #3 fix */
+/** Returns the notifications array for a given userId (creates if missing) */
 state.getNotificationsForUser = function(userId) {
   if (!this._notifications[userId]) this._notifications[userId] = [];
   return this._notifications[userId];
 };
 
-// Legacy compatibility shim — code that uses state.questions gets ai_education data
+/**
+ * Returns the votes array for a given meetingId (creates if missing).
+ * Each entry: { questionId: string, voterId: string, createdAt: number }
+ */
+state.getVotesForMeeting = function(meetingId) {
+  if (!this._votes[meetingId]) this._votes[meetingId] = [];
+  return this._votes[meetingId];
+};
+
+// Legacy compatibility shims — code that uses state.questions gets ai_education data
 Object.defineProperty(state, "questions", {
   get() { return this.getQuestionsForMeeting("m_ai_education"); },
   set(v) { this._questions["m_ai_education"] = v; }

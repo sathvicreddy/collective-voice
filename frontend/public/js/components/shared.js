@@ -29,6 +29,10 @@ export function statusBar() {
 
 /* --- Top Bar (mobile) --------------------------------------- */
 export function topbar(showBack = false) {
+  const user = state.profile?.user || {};
+  const userName = user.name || "";
+  const avatarLetter = userName ? userName[0].toUpperCase() : "A";
+  const notifCount = state.notifications?.length || 0;
   return `
     ${statusBar()}
     <div class="topbar">
@@ -36,8 +40,11 @@ export function topbar(showBack = false) {
         ? `<button class="icon-btn ghost-icon" onclick="history.back()" aria-label="Go back">${icons.arrowLeft}</button>`
         : brand()}
       <div class="topbar-actions">
-        <button class="icon-btn ghost-icon" onclick="go('/notifications')" aria-label="Notifications">${icons.bell}</button>
-        <button class="icon-btn" onclick="go('/profile')" aria-label="Profile">A</button>
+        <button class="icon-btn ghost-icon" style="position:relative" onclick="go('/notifications')" aria-label="Notifications">
+          ${icons.bell}
+          ${notifCount > 0 ? `<span style="position:absolute;top:-4px;right:-4px;background:#e54040;color:#fff;font-size:10px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}
+        </button>
+        <button class="icon-btn" onclick="go('/profile')" aria-label="Profile">${avatarLetter}</button>
       </div>
     </div>
   `;
@@ -45,10 +52,11 @@ export function topbar(showBack = false) {
 
 /* --- Desktop Top Bar --------------------------------------- */
 export function desktopTopbar(title = "", subtitle = "", dateRange = "") {
-  const user = state.profile?.user || {};
-  const name = user.name || "Ananya Sharma";
-  const role = user.role || "Audience";
+  const user     = state.profile?.user || {};
+  const name     = user.name || "Guest";
+  const role     = user.role || "Member";
   const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const notifCount = state.notifications?.length || 0;
   return `
     <div class="desktop-topbar">
       <div>
@@ -61,9 +69,9 @@ export function desktopTopbar(title = "", subtitle = "", dateRange = "") {
             ${icons.calendar} ${dateRange} ${icons.chevronDown}
           </button>
         ` : ""}
-        <div class="desktop-notif-btn" onclick="go('/notifications')">
+        <div class="desktop-notif-btn" onclick="go('/notifications')" style="position:relative">
           ${icons.bell}
-          <span class="desktop-notif-badge">3</span>
+          ${notifCount > 0 ? `<span class="desktop-notif-badge">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}
         </div>
         <div class="desktop-user-pill" onclick="go('/profile')">
           <div class="desktop-avatar">${initials}</div>
@@ -116,7 +124,6 @@ export function sidebar() {
   const topNav = [
     ["/home",     "Home",         icons.home],
     ["/meetings", "Meetings",     icons.calendar],
-    ["/activity", "Activity",     icons.activity],
     ["/profile",  "Profile",      icons.user]
   ];
   const bottomNavItems = [
@@ -276,7 +283,7 @@ export function meetingCard(meeting, action = "") {
       <div>
         <h3>${meeting.title}</h3>
         <p class="subtle">${icons.calendar} ${meeting.date} &nbsp; ${icons.clock} ${meeting.time}</p>
-        <p class="subtle">${icons.users} ${meeting.participants} participants</p>
+        <p class="subtle">${icons.users} ${meeting.participants || 0} participants</p>
       </div>
       ${action || `<span class="badge${isLive ? " success" : ""}">${isLive ? `<span class="live-dot"></span>Live` : meeting.startsIn || meeting.status}</span>`}
     </article>

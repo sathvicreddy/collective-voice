@@ -1,11 +1,21 @@
 /* ============================================================
-   NLP Engine Unit Tests (Jest)
+   NLP Engine Unit Tests (Jest) — v2 (embedding-aware)
+   
    Covers:
-   - diceCoefficient: edge cases and similarity values
-   - processQuestion: merge on similar text, new cluster on dissimilar
+   - diceCoefficient: edge cases and similarity values (standalone, sync)
+   - processQuestion: async — merge on similar text, new cluster on dissimilar
    - recomputeScores: ordering assertion (higher votes → higher score)
+   - Semantic test cases: paraphrases that Dice misses but MiniLM catches
+   
+   NOTE: processQuestion is now async. Tests use await throughout.
+   The embedding pipeline falls back to Dice when offline/first-run, so
+   Tests 4–6 (semantic) are marked as best-effort and won't fail CI.
+   The original 3 tests (Tests 1, 2, 3) must always pass regardless.
    ============================================================ */
 "use strict";
+
+// Increase timeout for tests that may trigger model download on first CI run
+jest.setTimeout(60000);
 
 let engine, scoring, state;
 
@@ -17,91 +27,162 @@ beforeEach(() => {
 });
 
 // ── diceCoefficient ───────────────────────────────────────────
+// diceCoefficient stays synchronous — it's a standalone fallback utility
 describe("diceCoefficient", () => {
-  const { diceCoefficient } = require("../src/nlp/engine");
-
   test("identical strings return 1", () => {
-    expect(diceCoefficient("hello world", "hello world")).toBe(1);
+    expect(engine.diceCoefficient("hello world", "hello world")).toBe(1);
   });
 
   test("completely different strings return 0", () => {
-    // No shared bigrams between short random words
-    expect(diceCoefficient("xyz", "abc")).toBe(0);
+    expect(engine.diceCoefficient("xyz", "abc")).toBe(0);
   });
 
   test("empty strings return 0", () => {
-    expect(diceCoefficient("", "hello")).toBe(0);
-    expect(diceCoefficient("hello", "")).toBe(0);
+    expect(engine.diceCoefficient("", "hello")).toBe(0);
+    expect(engine.diceCoefficient("hello", "")).toBe(0);
   });
 
   test("null/undefined handled gracefully", () => {
-    expect(diceCoefficient(null, "hello")).toBe(0);
-    expect(diceCoefficient("hello", undefined)).toBe(0);
+    expect(engine.diceCoefficient(null, "hello")).toBe(0);
+    expect(engine.diceCoefficient("hello", undefined)).toBe(0);
   });
 
-  test("similar questions score above 0.4 threshold", () => {
+  test("similar questions score above 0.4 Dice threshold", () => {
     const a = "How can AI be used ethically in education?";
     const b = "What is the ethical use of AI in education?";
-    expect(diceCoefficient(a, b)).toBeGreaterThan(0.4);
+    expect(engine.diceCoefficient(a, b)).toBeGreaterThan(0.4);
   });
 
-  test("unrelated questions score below 0.4 threshold", () => {
+  test("unrelated questions score below 0.4 Dice threshold", () => {
     const a = "What is the capital of France?";
     const b = "How can AI be used in education?";
-    expect(diceCoefficient(a, b)).toBeLessThan(0.4);
+    expect(engine.diceCoefficient(a, b)).toBeLessThan(0.4);
   });
 });
 
-// ── processQuestion: clustering ───────────────────────────────
-describe("processQuestion — clustering", () => {
+// ── cosineSimilarity (unit — no model needed) ─────────────────
+describe("cosineSimilarity", () => {
+  test("identical vectors return 1", () => {
+    const v = [1, 0, 0];
+    expect(engine.cosineSimilarity(v, v)).toBeCloseTo(1, 5);
+  });
+
+  test("orthogonal vectors return 0", () => {
+    expect(engine.cosineSimilarity([1, 0], [0, 1])).toBeCloseTo(0, 5);
+  });
+
+  test("null/undefined input returns 0", () => {
+    expect(engine.cosineSimilarity(null, [1, 0])).toBe(0);
+    expect(engine.cosineSimilarity([1, 0], null)).toBe(0);
+  });
+
+  test("mismatched lengths return 0", () => {
+    expect(engine.cosineSimilarity([1, 0], [1, 0, 0])).toBe(0);
+  });
+});
+
+// ── processQuestion: clustering (async) ───────────────────────
+describe("processQuestion — clustering (async)", () => {
   const MID = `m_test_${Date.now()}`;
 
-  test("identical questions merge into one cluster", () => {
-    engine = require("../src/nlp/engine");
-    const q1 = engine.processQuestion(MID + "_a", "How can AI be used ethically in education?", "Alice");
-    const q2 = engine.processQuestion(MID + "_a", "How can AI be used ethically in education?", "Bob");
+  // Test 1: identical questions must ALWAYS merge
+  test("identical questions merge into one cluster", async () => {
+    const mid = MID + "_a";
+    const q1 = await engine.processQuestion(mid, "How can AI be used ethically in education?", "Alice");
+    const q2 = await engine.processQuestion(mid, "How can AI be used ethically in education?", "Bob");
     expect(q1.id).toBe(q2.id);
     expect(q2.votes).toBe(2);
     expect(q2.members).toHaveLength(2);
   });
 
-  test("similar questions merge into one cluster", () => {
-    engine = require("../src/nlp/engine");
-    const mid2 = MID + "_b";
-    const q1 = engine.processQuestion(mid2, "How can AI be used ethically in education?", "Alice");
-    const q2 = engine.processQuestion(mid2, "What is the ethical use of AI in education?", "Bob");
-    // May or may not merge depending on exact Dice — just verify no crash
+  // Test 2: near-duplicate (same-meaning, slightly different words)
+  test("near-duplicate questions produce defined clusters (may merge)", async () => {
+    const mid = MID + "_b";
+    const q1 = await engine.processQuestion(mid, "How can AI be used ethically in education?", "Alice");
+    const q2 = await engine.processQuestion(mid, "What is the ethical use of AI in education?", "Bob");
+    // Both must always produce a valid cluster object (no crash)
     expect(q1.id).toBeDefined();
     expect(q2.id).toBeDefined();
   });
 
-  test("unrelated questions create separate clusters", () => {
-    engine = require("../src/nlp/engine");
-    const mid3 = MID + "_c";
-    const q1 = engine.processQuestion(mid3, "How can AI be used ethically in education?", "Alice");
-    const q2 = engine.processQuestion(mid3, "What is the capital of France?", "Dave");
+  // Test 3: clearly unrelated topics must ALWAYS create separate clusters
+  test("unrelated questions create separate clusters", async () => {
+    const mid = MID + "_c";
+    const q1 = await engine.processQuestion(mid, "How can AI be used ethically in education?", "Alice");
+    const q2 = await engine.processQuestion(mid, "What is the capital of France?", "Dave");
     expect(q1.id).not.toBe(q2.id);
-    const clusters = state.getQuestionsForMeeting(mid3);
+    const clusters = state.getQuestionsForMeeting(mid);
     expect(clusters).toHaveLength(2);
   });
 
-  test("new cluster has correct initial state", () => {
-    engine = require("../src/nlp/engine");
-    const mid4 = MID + "_d";
-    const q = engine.processQuestion(mid4, "Brand new unique question?", "Eve");
+  test("new cluster has correct initial state", async () => {
+    const mid = MID + "_d";
+    const q = await engine.processQuestion(mid, "Brand new unique question?", "Eve");
     expect(q.status).toBe("Pending");
     expect(q.votes).toBe(1);
     expect(q.members).toHaveLength(1);
     expect(q.id).toMatch(/^q_/);
-    expect(q.meetingId).toBe(mid4);
+    expect(q.meetingId).toBe(mid);
+  });
+});
+
+// ── Semantic test cases (Tests 4–6) ──────────────────────────
+// These require the MiniLM model. They are run with a long timeout
+// and are NOT hard failures if the pipeline is in Dice fallback mode
+// (first-run model download or offline CI). In fallback mode they
+// log a skip notice and pass vacuously.
+describe("processQuestion — semantic paraphrase detection", () => {
+  // Helper: checks whether the embedding pipeline is active
+  async function usingEmbeddings() {
+    // Submit a question and check if _embedding is set (model was used)
+    const mid = `m_emb_check_${Date.now()}`;
+    const q = await engine.processQuestion(mid, "test embedding probe", "probe");
+    return q._embedding !== null && q._embedding !== undefined;
+  }
+
+  // Test 4: data privacy paraphrase — should merge with MiniLM
+  test("semantic paraphrase: data privacy ↔ student information (merge expected)", async () => {
+    const embActive = await usingEmbeddings();
+    if (!embActive) {
+      console.log("  [SKIP] Embedding pipeline not active (Dice fallback mode) — skipping semantic merge test");
+      return; // vacuous pass
+    }
+    const mid = `m_sem4_${Date.now()}`;
+    const qa = await engine.processQuestion(mid, "How do we ensure data privacy in edtech platforms?", "A");
+    const qb = await engine.processQuestion(mid, "What about protecting student information on these apps?", "B");
+    expect(qa.id).toBe(qb.id); // should merge
+  });
+
+  // Test 5: AI grading paraphrase — should merge with MiniLM
+  test("semantic paraphrase: AI grading ↔ AI assessment (merge expected)", async () => {
+    const embActive = await usingEmbeddings();
+    if (!embActive) {
+      console.log("  [SKIP] Embedding pipeline not active — skipping semantic merge test");
+      return;
+    }
+    const mid = `m_sem5_${Date.now()}`;
+    const qc = await engine.processQuestion(mid, "Can AI grade student work fairly?", "C");
+    const qd = await engine.processQuestion(mid, "Is it fair for AI to assess assignments?", "D");
+    expect(qc.id).toBe(qd.id); // should merge
+  });
+
+  // Test 6: cost vs. class time — different topics, overlapping words → separate clusters
+  test("distinct topics with overlapping words stay separate clusters", async () => {
+    const embActive = await usingEmbeddings();
+    if (!embActive) {
+      console.log("  [SKIP] Embedding pipeline not active — skipping semantic separation test");
+      return;
+    }
+    const mid = `m_sem6_${Date.now()}`;
+    const qe = await engine.processQuestion(mid, "How much does the AI software cost per student license?", "E");
+    const qf = await engine.processQuestion(mid, "How much class time should AI take up per lesson?", "F");
+    expect(qe.id).not.toBe(qf.id); // must NOT merge
   });
 });
 
 // ── recomputeScores: ordering ─────────────────────────────────
 describe("recomputeScores — ordering", () => {
   test("higher-vote question scores higher than lower-vote question", () => {
-    scoring = require("../src/nlp/scoring");
-    state   = require("../src/data/state");
     const mid = `m_score_${Date.now()}`;
     state._questions[mid] = [
       { id: "sq1", text: "High votes question", canonical_text: "High votes question",
@@ -110,15 +191,13 @@ describe("recomputeScores — ordering", () => {
         votes: 2,  createdAt: Date.now() - 1000, score: 0, status: "Pending", members: ["Low votes question"] }
     ];
     scoring.recomputeScores(mid);
-    const qs = state.getQuestionsForMeeting(mid);
+    const qs  = state.getQuestionsForMeeting(mid);
     const sq1 = qs.find(q => q.id === "sq1");
     const sq2 = qs.find(q => q.id === "sq2");
     expect(sq1.score).toBeGreaterThan(sq2.score);
   });
 
   test("all scores are in [0, 1] range", () => {
-    scoring = require("../src/nlp/scoring");
-    state   = require("../src/data/state");
     const mid = `m_range_${Date.now()}`;
     state._questions[mid] = [
       { id: "r1", text: "Question A", canonical_text: "Question A",
@@ -137,8 +216,6 @@ describe("recomputeScores — ordering", () => {
   });
 
   test("answered questions are excluded from recompute", () => {
-    scoring = require("../src/nlp/scoring");
-    state   = require("../src/data/state");
     const mid = `m_excluded_${Date.now()}`;
     const initialScore = 0.99;
     state._questions[mid] = [
@@ -150,7 +227,6 @@ describe("recomputeScores — ordering", () => {
     scoring.recomputeScores(mid);
     const qs  = state.getQuestionsForMeeting(mid);
     const ans = qs.find(q => q.id === "a2");
-    // Answered question score should not change
     expect(ans.score).toBe(initialScore);
   });
 });

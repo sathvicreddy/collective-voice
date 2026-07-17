@@ -310,26 +310,33 @@ export function renderActivity(tab = "questions") {
           <button class="link-btn" onclick="go('/meetings')">View all</button>
         </div>
         <div class="activity-meetings-list">
-          ${[
-            { icon: icons.radio,    color: "orange", title: "AI in Education: Opportunities & Challenges", date: "May 30, 2025", time: "02:00 PM", participants: 128, isLive: true,  badge: "In 30m" },
-            { icon: icons.calendar, color: "",       title: "Future of Remote Learning",                   date: "May 30, 2025", time: "04:00 PM", participants: 80,  isLive: false, badge: "In 2h"  },
-            { icon: icons.calendar, color: "orange", title: "Data Privacy in EdTech",                      date: "May 31, 2025", time: "11:00 AM", participants: 65,  isLive: false, badge: "In 1 day"},
-            { icon: icons.calendar, color: "",       title: "EdTech Innovations 2025",                     date: "Jun 1, 2025",  time: "10:00 AM", participants: 60,  isLive: false, badge: "In 2 days"}
-          ].map(m => `
-            <div class="activity-meeting-item">
-              <div class="icon-box ${m.color}" style="width:34px;height:34px;flex-shrink:0">${m.icon}</div>
-              <div style="flex:1;min-width:0">
-                <p style="font-size:12px;font-weight:600;margin:0 0 4px;line-height:1.3;color:var(--ink)">${m.title}</p>
-                <div class="home-meeting-meta">${icons.calendar} ${m.date} • ${m.time}</div>
-                <div class="home-meeting-meta" style="margin-top:2px">${icons.users} ${m.participants} participants</div>
+          ${(() => {
+            const upcoming = (state.meetings || [])
+              .filter(m => m.status === "upcoming" || m.status === "live")
+              .slice(0, 4);
+            if (!upcoming.length) {
+              return `<p class="subtle" style="padding:12px 0;text-align:center">No upcoming meetings. <button class="link-btn" onclick="go('/meetings/create')">Create one \u2192</button></p>`;
+            }
+            return upcoming.map(m => `
+              <div class="activity-meeting-item">
+                <div class="icon-box ${m.status === 'live' ? 'orange' : ''}" style="width:34px;height:34px;flex-shrink:0">
+                  ${m.status === 'live' ? icons.radio : icons.calendar}
+                </div>
+                <div style="flex:1;min-width:0">
+                  <p style="font-size:12px;font-weight:600;margin:0 0 4px;line-height:1.3;color:var(--ink)">${m.title}</p>
+                  <div class="home-meeting-meta">${icons.calendar} ${m.date || (m.scheduledAt ? new Date(m.scheduledAt).toLocaleDateString() : 'TBD')} &bull; ${m.time || ''}</div>
+                  <div class="home-meeting-meta" style="margin-top:2px">${icons.users} ${m.participants || 0} participants</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+                  ${m.status === 'live'
+                    ? '<span class="badge success" style="font-size:10px;padding:2px 7px"><span class="live-dot"></span>Live</span>'
+                    : `<span class="badge" style="font-size:10px;padding:2px 7px">${m.status}</span>`}
+                </div>
               </div>
-              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-                ${m.isLive ? `<span class="badge success" style="font-size:10px;padding:2px 7px"><span class="live-dot"></span>Live</span>` : ""}
-                <span class="badge" style="font-size:10px;padding:2px 7px">${m.badge}</span>
-              </div>
-            </div>
-          `).join("")}
+            `).join('');
+          })()}
         </div>
+
       </div>
 
       <!-- Top Categories -->

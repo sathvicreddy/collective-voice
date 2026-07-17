@@ -1,5 +1,5 @@
 /* ============================================================
-   API Routes — Phase 2 (Prisma DB) + Phase 3+4+5 hardening
+   API Routes — Phase 2 (Prisma DB) + Phase 3+4+5 + Phase 6 realtime
    All persistent data (meetings, questions, polls, participants,
    notifications) is now read/written via Prisma.
    The NLP engine still runs in-memory (per active meeting) for
@@ -7,6 +7,7 @@
    ============================================================ */
 "use strict";
 const crypto  = require("crypto");
+const qrcode  = require("qrcode");
 const db      = require("../db/client");
 const { json, readBody } = require("../utils/helpers");
 const { processQuestion } = require("../nlp/engine");
@@ -52,7 +53,9 @@ function dbRowToCluster(row) {
     timeline:          safeJson(row.timelineJson, []),
     clusterSize:       safeJson(row.membersJson, []).length,
     similar:           Math.max(0, safeJson(row.membersJson, []).length - 1),
-    createdAt:         row.createdAt?.getTime?.() ?? Date.now()
+    createdAt:         row.createdAt?.getTime?.() ?? Date.now(),
+    // Restore cached embedding for scoring.js reuse (NOT exposed to frontend)
+    _embedding:        row.embeddingJson ? safeJson(row.embeddingJson, null) : null
   };
 }
 
@@ -71,7 +74,8 @@ async function persistCluster(cluster) {
       askedById:         cluster.askedById || null,
       assignedSpeakerId: cluster.assignedSpeakerId || null,
       summaryText:       cluster.summary || "",
-      timelineJson:      JSON.stringify(cluster.timeline || [])
+      timelineJson:      JSON.stringify(cluster.timeline || []),
+      embeddingJson:     cluster._embedding ? JSON.stringify(cluster._embedding) : undefined
     },
     create: {
       id:                cluster.id,
@@ -85,7 +89,8 @@ async function persistCluster(cluster) {
       askedByName:       cluster.askedBy || "",
       askedById:         cluster.askedById || null,
       summaryText:       cluster.summary || "",
-      timelineJson:      JSON.stringify(cluster.timeline || [])
+      timelineJson:      JSON.stringify(cluster.timeline || []),
+      embeddingJson:     cluster._embedding ? JSON.stringify(cluster._embedding) : null
     }
   });
 }
@@ -183,12 +188,44 @@ async function livePayload(meetingId) {
   };
 }
 
-const ALLOWED_SETTINGS = new Set(["allowQuestions", "enableChat", "recordMeeting", "allowScreenShare"]);
+async function submitQuestionShared(meetingId, text, askedBy, askedById) {
+  const cache   = await getCache(meetingId);
+  const cluster = await processQuestion(meetingId, text.trim(), askedBy || "Anonymous", cache);
+  cluster.askedById = askedById || null;
+
+  // Persist asynchronously — don't block the response
+  persistCluster(cluster).catch(err => console.error("[API] persistCluster error:", err.message));
+
+  // Strip internal _embedding before sending to clients
+  const { _embedding, ...clusterForClient } = cluster;
+  const ranked = [...cache]
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .map(({ _embedding: _e, ...c }) => c);
+
+  broadcast("question_submitted",  clusterForClient, meetingId);
+  broadcast("questions_reranked",  ranked,           meetingId);
+
+  // Async stats update — don't await so we don't block the caller
+  livePayload(meetingId)
+    .then(snap => broadcast("session_stats", snap.stats, meetingId))
+    .catch(() => {});
+
+  return clusterForClient;
+}
+
+const ALLOWED_SETTINGS = new Set([
+  "allowQuestions", "enableChat", "recordMeeting",
+  // Extended settings from the new create form
+  "upvoteReact", "showParticipants", "requireApproval", "qaMode", "language"
+]);
 function sanitizeSettings(raw) {
   if (!raw || typeof raw !== "object") return {};
   const safe = {};
   for (const key of ALLOWED_SETTINGS) {
-    if (key in raw) safe[key] = Boolean(raw[key]);
+    if (key in raw) {
+      // Boolean toggles → coerce; string fields → keep as string
+      safe[key] = typeof raw[key] === "boolean" ? raw[key] : raw[key];
+    }
   }
   return safe;
 }
@@ -236,6 +273,35 @@ async function handleApiRequest(req, res) {
     return json(res, 200, { meetings });
   }
 
+  // ── GET /api/sessions/:id/qrcode ─────────────────────────
+  if (req.method === "GET" && url.pathname.match(/^\/api\/sessions\/[^/]+\/qrcode$/)) {
+    const id      = url.pathname.split("/")[3];
+    const meeting = await db.meeting.findUnique({ where: { id } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found" });
+
+    const proto    = req.headers["x-forwarded-proto"] || "http";
+    const joinLink = `${proto}://${req.headers.host}/#/join/${meeting.code}`;
+
+    try {
+      const svg = await qrcode.toString(joinLink, {
+        type:   "svg",
+        width:  300,
+        margin: 1,
+        color:  { dark: "#5b34ff", light: "#ffffff" }
+      });
+      res.writeHead(200, {
+        "Content-Type":  "image/svg+xml",
+        "Cache-Control": "public, max-age=3600",
+        "X-Join-Link":   joinLink
+      });
+      res.end(svg);
+    } catch (err) {
+      console.error("[QR] Failed to generate QR code:", err.message);
+      return json(res, 500, { error: "QR generation failed" });
+    }
+    return;
+  }
+
   // ── GET /api/sessions/code/:code ────────────────────────
   if (req.method === "GET" && url.pathname.startsWith("/api/sessions/code/")) {
     const code    = url.pathname.split("/").pop();
@@ -278,18 +344,15 @@ async function handleApiRequest(req, res) {
     const askedBy = body.askedBy || auth?.user?.name || "Anonymous";
     const askedById = auth?.user?.id || null;
 
-    // NLP: cluster or create (in-memory)
+    const cluster = await submitQuestionShared(meetingId, text, askedBy, askedById);
     const cache   = await getCache(meetingId);
-    const cluster = processQuestion(meetingId, text, askedBy, cache);
-    cluster.askedById = askedById;
 
-    // Persist to DB
-    await persistCluster(cluster);
-
-    const ranked = [...cache].sort((a, b) => (b.score || 0) - (a.score || 0));
-    broadcast("question_submitted", cluster, meetingId);
+    const { _embedding: _emb, ...clusterForClient } = cluster;
+    const ranked = [...cache].sort((a, b) => (b.score || 0) - (a.score || 0))
+      .map(({ _embedding, ...c }) => c);
+    broadcast("question_submitted", clusterForClient, meetingId);
     broadcast("session_stats",      (await livePayload(meetingId)).stats, meetingId);
-    return json(res, 201, { question: cluster, questions: ranked });
+    return json(res, 201, { question: clusterForClient, questions: ranked });
   }
 
   // ── POST /api/questions/:id/upvote ──────────────────────
@@ -298,21 +361,41 @@ async function handleApiRequest(req, res) {
     const body      = await readBody(req);
     const meetingId = getMeetingId(url, body) || "m_ai_education";
 
+    const auth    = await requireAuth(req);
+    const voterId = auth?.user?.id || body.guestToken || null;
+    if (!voterId) return json(res, 401, { error: "A voter identity (login or guestToken) is required to upvote." });
+
+    const question = await db.question.findUnique({ where: { id } }).catch(() => null);
+    if (!question) return json(res, 404, { error: "Question not found" });
+
+    const existingVote = await db.vote.findUnique({
+      where: { questionId_voterId: { questionId: id, voterId } }
+    }).catch(() => null);
+
+    let newVotes;
+    if (existingVote) {
+      await db.vote.delete({ where: { questionId_voterId: { questionId: id, voterId } } }).catch(() => {});
+      newVotes = Math.max(0, question.votes - 1);
+    } else {
+      await db.vote.create({ data: { questionId: id, voterId } }).catch(() => {});
+      newVotes = question.votes + 1;
+    }
+
     const row = await db.question.update({
       where: { id },
-      data:  { votes: { increment: 1 } }
+      data:  { votes: newVotes }
     }).catch(() => null);
-    if (!row) return json(res, 404, { error: "Question not found" });
+    if (!row) return json(res, 500, { error: "Failed to update vote count" });
 
-    // Sync cache
-    const cache = await getCache(meetingId);
+    const cache  = await getCache(meetingId);
     const cached = cache.find(q => q.id === id);
     if (cached) cached.votes = row.votes;
     recomputeScores(meetingId, cache);
-    if (cached) await db.question.update({ where: { id }, data: { score: cached.score } });
+    if (cached) await db.question.update({ where: { id }, data: { score: cached.score } }).catch(() => {});
 
-    broadcast("question_upvoted", { id, votes: row.votes, score: cached?.score ?? row.score }, meetingId);
-    return json(res, 200, { question: cached ?? dbRowToCluster(row) });
+    const { _embedding: _emb2, ...cachedForClient } = cached ?? dbRowToCluster(row);
+    broadcast("question_upvoted", { id, votes: row.votes, score: cachedForClient.score ?? row.score }, meetingId);
+    return json(res, 200, { question: cachedForClient, voted: !existingVote });
   }
 
   // ── POST /api/questions/:id/assign ──────────────────────
@@ -332,7 +415,6 @@ async function handleApiRequest(req, res) {
     }).catch(() => null);
     if (!row) return json(res, 404, { error: "Question not found" });
 
-    // Sync cache
     const cache = await getCache(meetingId);
     const cached = cache.find(q => q.id === id);
     if (cached) { cached.status = "Under Review"; cached.assignedSpeakerId = speakerId; }
@@ -458,31 +540,60 @@ async function handleApiRequest(req, res) {
 
   // ── POST /api/sessions ───────────────────────────────────
   if (req.method === "POST" && url.pathname === "/api/sessions") {
-    const body    = await readBody(req);
-    const auth    = await requireAuth(req);
+    const body = await readBody(req);
+    const auth = await requireAuth(req);
     if (!auth) return json(res, 401, { error: "Unauthorized. Please log in to create a meeting." });
 
     const { user } = auth;
     const defaultSpeaker = user.name || "Host";
-    const code = String(Math.floor(100000 + Math.random() * 899999));
+
+    let code;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const digits = attempt < 9 ? 6 : 8;
+      const min    = 10 ** (digits - 1);
+      const range  = 9 * min;
+      const candidate = String(Math.floor(min + Math.random() * range));
+      const clash = await db.meeting.findUnique({ where: { code: candidate }, select: { id: true } });
+      if (!clash) { code = candidate; break; }
+    }
+    if (!code) {
+      code = crypto.randomBytes(4).toString("hex");
+    }
+
+    const scheduled = body.scheduledAt ? new Date(body.scheduledAt) : new Date();
+    const isValid   = !isNaN(scheduled.getTime());
+    const dateStr   = isValid
+      ? scheduled.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+      : new Date().toLocaleDateString();
+    const timeStr   = isValid
+      ? scheduled.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+      : "";
+    const durMin    = Number(body.duration) || 60;
+    const durLabel  = durMin >= 60
+      ? `${Math.floor(durMin / 60)}h${durMin % 60 ? ` ${durMin % 60}m` : ""}`
+      : `${durMin}m`;
+    const statusIn  = ["live","upcoming","conducted","past"].includes(body.status)
+      ? body.status : "upcoming";
 
     const meeting = await db.meeting.create({
       data: {
         code,
-        title:       String(body.title || "Untitled Meeting").slice(0, 200),
-        speaker:     String(body.speaker || defaultSpeaker).slice(0, 100),
-        date:        body.date      || new Date().toLocaleDateString(),
-        time:        body.time      || "02:00 PM - 03:30 PM",
-        duration:    body.duration  || "1h 30m",
-        status:      "upcoming",
-        ownerId:     user.id,
-        description: String(body.description || "").slice(0, 1000),
+        title:        String(body.title || "Untitled Meeting").slice(0, 200),
+        speaker:      String(body.speaker || defaultSpeaker).slice(0, 100),
+        date:         dateStr,
+        time:         timeStr,
+        duration:     durLabel,
+        scheduledAt:  isValid ? scheduled : new Date(),
+        status:       statusIn,
+        ownerId:      user.id,
+        description:  String(body.description || "").slice(0, 1000),
         settingsJson: JSON.stringify(sanitizeSettings(body.settings)),
-        category:    body.category  || "Custom"
+        category:     body.category || "Custom"
       }
     });
     return json(res, 201, { meeting });
   }
+
 
   // ── PATCH /api/meetings/:id ──────────────────────────────
   if (req.method === "PATCH" && url.pathname.match(/^\/api\/meetings\/[^/]+$/) &&
@@ -535,7 +646,7 @@ async function handleApiRequest(req, res) {
     if (authErr === "403") return json(res, 403, { error: "Forbidden." });
 
     await db.meeting.delete({ where: { id } });
-    delete _nlpCache[id]; // evict NLP cache
+    delete _nlpCache[id];
     return json(res, 200, { deleted: true });
   }
 
@@ -554,26 +665,58 @@ async function handleApiRequest(req, res) {
 
   // ── GET /api/analytics ───────────────────────────────────
   if (req.method === "GET" && url.pathname === "/api/analytics") {
-    const auth      = await requireAuth(req);
-    const meetingId = url.searchParams.get("meetingId") || "m_ai_education";
-    const questions = await getCache(meetingId);
-    const meeting   = await db.meeting.findUnique({ where: { id: meetingId } })
-      || await db.meeting.findFirst({ orderBy: { createdAt: "desc" } });
+    const auth = await requireAuth(req);
+    const data = await analytics(auth?.user?.id || null);
+    return json(res, 200, data);
+  }
+
+  // ── GET /api/analytics/meeting/:id ───────────────────────
+  if (req.method === "GET" && url.pathname.match(/^\/api\/analytics\/meeting\/[^/]+$/)) {
+    const meetingId = url.pathname.split("/").pop();
+    const meeting   = await db.meeting.findUnique({ where: { id: meetingId } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found" });
+
+    const questions    = await db.question.findMany({ where: { meetingId }, orderBy: { score: "desc" } });
     const participants = await db.participant.findMany({ where: { meetingId } });
+    const polls        = await db.poll.findMany({ where: { meetingId }, include: { options: true } });
+
+    const totalUpvotes   = questions.reduce((s, q) => s + (q.votes || 0), 0);
+    const answeredCount  = questions.filter(q => q.status === "Answered").length;
+    const pendingCount   = questions.filter(q => q.status === "Pending").length;
+    const deferredCount  = questions.filter(q => q.status === "Deferred").length;
 
     return json(res, 200, {
-      session:   meeting,
+      meeting,
       analytics: {
-        ...await analytics(auth?.user?.id ?? null),
         totals: {
-          participants:   participants.length || 128,
+          participants:   participants.length,
           questions:      questions.length,
+          upvotes:        totalUpvotes,
+          answered:       answeredCount,
+          pending:        pendingCount,
+          deferred:       deferredCount,
+          polls:          polls.length,
           uniqueClusters: questions.length,
-          upvotes:        questions.reduce((s, q) => s + (q.votes || 0), 0),
-          queueReduction: "63%",
           averageLatency: "38ms"
         },
-        aiSummary: "Most discussion centered on responsible AI use, student privacy, remote-learning outcomes, and institutional policy."
+        topQuestions: questions.slice(0, 5).map(q => ({
+          id:     q.id,
+          text:   q.text,
+          votes:  q.votes,
+          status: q.status
+        })),
+        statusBreakdown: {
+          answered: answeredCount,
+          pending:  pendingCount,
+          deferred: deferredCount,
+          review:   questions.filter(q => q.status === "Under Review").length
+        },
+        trend: questions.reduce((acc, q) => {
+          const hour = new Date(q.createdAt).getHours();
+          acc[hour % 10] = (acc[hour % 10] || 0) + 1;
+          return acc;
+        }, Array(10).fill(0)),
+        aiSummary: `This session had ${questions.length} question${questions.length !== 1 ? "s" : ""} from ${participants.length} participant${participants.length !== 1 ? "s" : ""}. ${answeredCount} were answered and ${pendingCount} are still pending.`
       }
     });
   }
@@ -625,4 +768,24 @@ async function handleApiRequest(req, res) {
   return json(res, 404, { error: "API route not found" });
 }
 
-module.exports = handleApiRequest;
+/**
+ * Thin wrapper that catches errors thrown by readBody (413 / 400) and
+ * responds before any route logic runs. All other errors bubble up to
+ * the server.js top-level try/catch.
+ */
+async function handleApiRequestSafe(req, res) {
+  try {
+    await handleApiRequest(req, res);
+  } catch (err) {
+    if (err.status === 413) return json(res, 413, { error: "Payload too large (max 1 MiB)." });
+    if (err.status === 400) return json(res, 400, { error: err.message || "Invalid JSON in request body." });
+    throw err; // re-throw so server.js top-level handler logs and responds 500
+  }
+}
+
+module.exports = handleApiRequestSafe;
+// Export NLP internals so server.js WS handler can share the same code path
+module.exports._nlpCache         = _nlpCache;
+module.exports.persistCluster    = persistCluster;
+module.exports.submitQuestionShared = submitQuestionShared;
+

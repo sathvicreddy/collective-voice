@@ -8,10 +8,16 @@ import { shell, phone, meetingCard } from "../components/shared.js";
 
 export function renderHome() {
   const data = state.home;
+  const user = state.profile?.user || {};
+  const userName = user.name ? user.name.split(" ")[0] : "there";
+  const userInitials = (user.name || "G")
+    .split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const live = data?.live;
+  const notifCount = state.notifications?.length || 0;
 
   /* ---- Mobile content (phone frame) ---- */
   const mobileContent = `
-    <h1 class="screen-title">Hello, Ananya! 👋</h1>
+    <h1 class="screen-title">Hello, ${userName}! 👋</h1>
     <p class="subtle">Welcome back! Let's make conversations count.</p>
 
     <div class="quick-grid">
@@ -31,13 +37,14 @@ export function renderHome() {
     <section class="live-card stack">
       <div class="row">
         <span class="badge success"><span class="live-dot"></span> Live Now</span>
-        <span class="subtle">${data.live.participants} joined</span>
+        <span class="subtle">${live ? live.participants || 0 : 0} joined</span>
       </div>
-      <h2 style="font-size:16px;font-weight:700">${data.live.title}</h2>
-      <p class="subtle">${icons.user} Speaker: ${data.live.speaker}</p>
+      <h2 style="font-size:16px;font-weight:700">${live ? live.title : 'No live session'}</h2>
+      <p class="subtle">${icons.user} Speaker: ${live ? (live.speaker || 'Host') : '—'}</p>
       <div class="row">
         <span class="subtle">${icons.clock} Started 10 min ago</span>
-        <button class="btn small" onclick="go('/join/preview')">${icons.arrowRight} Join Now</button>
+        ${live ? `<button class="btn small" onclick="homejoinLive('${live.id}')">${icons.arrowRight} Join Now</button>`
+          : `<button class="btn small" onclick="go('/meetings/create')">${icons.plus} Create</button>`}
       </div>
     </section>
 
@@ -45,7 +52,7 @@ export function renderHome() {
       <h2 class="screen-title">Upcoming Meetings</h2>
       <button class="link-btn" onclick="go('/meetings')">View all</button>
     </div>
-    <div class="stack">${data.upcoming.slice(0, 3).map(m => meetingCard(m)).join("")}</div>
+    <div class="stack">${(data.upcoming || []).slice(0, 3).map(m => meetingCard(m)).join("")}</div>
 
     <div class="empty-space"></div>
 
@@ -63,12 +70,12 @@ export function renderHome() {
     </article>
   `;
 
-  /* ---- Desktop main area (left of right panel) ---- */
+  /* ---- Desktop main column ---- */
   const desktopMain = `
     <div class="home-desktop-main">
       <!-- Greeting -->
       <div class="home-greeting">
-        <h1 class="home-greeting-title">Hello, Ananya! 👋</h1>
+        <h1 class="home-greeting-title">Hello, ${userName}! 👋</h1>
         <p class="home-greeting-sub">Welcome back! Let's make conversations count.</p>
       </div>
 
@@ -92,16 +99,17 @@ export function renderHome() {
       </div>
 
       <!-- Live Now Banner -->
+      ${live ? `
       <div class="home-live-banner">
         <div class="home-live-left">
           <div class="home-live-top-row">
             <span class="badge success"><span class="live-dot"></span> Live Now</span>
           </div>
-          <h2 class="home-live-title">${data.live.title}</h2>
-          <p class="home-live-speaker">Speaker: ${data.live.speaker}</p>
+          <h2 class="home-live-title">${live.title}</h2>
+          <p class="home-live-speaker">Speaker: ${live.speaker || "Host"}</p>
           <div class="home-live-meta">
-            <span>${icons.users} ${data.live.participants} joined</span>
-            <span>${icons.clock} Ends in 20m</span>
+            <span>${icons.users} ${live.participants || 0} joined</span>
+            <span>${icons.clock} Session active</span>
           </div>
         </div>
         <div class="home-live-right">
@@ -110,9 +118,21 @@ export function renderHome() {
               <div class="home-live-bar" style="height:${h * 0.7}px;opacity:${0.4 + i * 0.07}"></div>
             `).join("")}
           </div>
-          <button class="btn home-live-join-btn" onclick="go('/join/preview')">Join Now</button>
+          <button class="btn home-live-join-btn" onclick="homejoinLive('${live.id}')">Join Now</button>
         </div>
       </div>
+      ` : `
+      <div class="home-live-banner" style="background:linear-gradient(135deg,#f1f5f9,#e8eaf6);border:1px dashed #c7d2fe">
+        <div class="home-live-left">
+          <div class="home-live-top-row"><span class="badge" style="background:#f1f5f9;color:#6b7280">No Live Session</span></div>
+          <h2 class="home-live-title" style="color:#6b7280">No meeting is live right now</h2>
+          <p class="home-live-speaker" style="color:#9ca3af">Create or join a meeting when it starts</p>
+        </div>
+        <div class="home-live-right">
+          <button class="btn home-live-join-btn" onclick="go('/meetings/create')">Create Meeting</button>
+        </div>
+      </div>
+      `}
 
       <!-- Upcoming Meetings -->
       <div class="home-section-header">
@@ -131,7 +151,7 @@ export function renderHome() {
                 <span>${m.time}</span>
               </div>
               <div class="home-meeting-meta">
-                <span>${icons.users} ${m.participants} participants</span>
+                <span>${icons.users} ${m.participants || 0} participants</span>
               </div>
             </div>
             <span class="home-meeting-badge ${m.status === 'live' ? 'live' : ''}">${m.startsIn || m.status || 'Upcoming'}</span>
@@ -191,4 +211,13 @@ export function renderHome() {
     desktopMain,
     desktopRight
   );
+}
+
+/** Called by "Join Now" on the home live banner.
+ *  Sets state.joinTarget so the join preview screen has meeting info. */
+export function homejoinLive(meetingId) {
+  const m = state.meetings?.find(x => x.id === meetingId)
+    || (state.home?.live?.id === meetingId ? state.home.live : null);
+  if (m) { state.joinTarget = m; state.isHost = false; }
+  go('/join/preview');
 }

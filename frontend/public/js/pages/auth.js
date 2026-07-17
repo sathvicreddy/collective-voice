@@ -2,6 +2,14 @@ import { icons } from "../utils/icons.js";
 import { state } from "../state.js";
 import { go } from "../utils/api.js";
 
+// loadData is imported lazily to avoid circular imports (app.js imports auth.js)
+async function _reloadAppData() {
+  try {
+    const { loadData } = await import("../app.js");
+    await loadData();
+  } catch { /* non-fatal — home will show whatever data is already loaded */ }
+}
+
 const app = document.querySelector("#app");
 
 /* ============================================================
@@ -63,6 +71,9 @@ export async function authSubmit() {
 
     _storeToken(data.token, data.refreshToken);
     state.profile = { user: data.user };
+    // Re-load all app data (meetings, notifications, profile) so home page
+    // renders with the real user name and data immediately.
+    await _reloadAppData();
     go("/home");
 
   } catch (err) {

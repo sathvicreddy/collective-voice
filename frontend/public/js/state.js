@@ -16,18 +16,42 @@ const state = {
   token: (() => { try { return localStorage.getItem("cv_token"); } catch { return null; } })(),
   // Refresh token — persisted to localStorage (30d lifetime), used to renew access tokens
   refreshToken: (() => { try { return localStorage.getItem("cv_refresh_token"); } catch { return null; } })(),
+  // Authenticated user's ID (decoded from the JWT — set by app.js on auth success)
+  currentUserId: null,
+  // Stable browser-scoped identity for anonymous attendees.
+  // Generated once per browser, persisted in localStorage, survives refreshes and reconnects.
+  // Only used when the user is NOT logged in (i.e. state.token is null).
+  guestToken: (() => {
+    try {
+      let t = localStorage.getItem("cv_guest_token");
+      if (!t) {
+        t = crypto.randomUUID();
+        localStorage.setItem("cv_guest_token", t);
+      }
+      return t;
+    } catch { return null; }
+  })(),
+  // Set of questionIds this user has upvoted in the current session.
+  // Seeded from session_snapshot.myVotes on join; updated by your_vote_changed events.
+  myVotes: new Set(),
   createDraft: {
-    title: "AI in Education: Opportunities & Challenges",
-    date: "May 30, 2025",
-    time: "02:00 PM - 03:30 PM",
-    duration: "1h 30m",
-    description: "Let's discuss how AI is transforming education and the challenges we face.",
-    participants: ["Sarah Johnson", "Dr. Michael Lee", "Priya Sharma", "James Wilson"],
+    title:       "",
+    date:        "",
+    time:        "",
+    duration:    "60",
+    description: "",
+    speaker:     "",
+    type:        "instant",  // "instant" | "scheduled"
+    roomId:      "",
+    timezone:    "",
+    access:      "open",
     settings: {
       allowQuestions:   true,
       enableChat:       true,
+      upvoteReact:      true,
       recordMeeting:    false,
-      allowScreenShare: true,
+      showParticipants: true,
+      requireApproval:  false,
     }
   },
   // isHost is set to true when the user creates a meeting, and re-derived from

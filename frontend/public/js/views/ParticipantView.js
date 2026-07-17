@@ -98,6 +98,22 @@ const STATUS_COLORS = {
   "Deferred":     { bg: "#f9fafb", border: "#e5e7eb", text: "#6b7280" },
 };
 
+/**
+ * Determine whether the current user has voted for a given question.
+ * Merges the server-authoritative state.myVotes Set with the local optimistic map.
+ * The optimistic map may be ahead of the server on the same tick, but server
+ * corrections arrive via your_vote_changed and update state.myVotes before
+ * the next render.
+ */
+function isVotedFor(questionId, optimisticUpvotes) {
+  // If the optimistic map explicitly set false, that means a pending toggle-off
+  if (optimisticUpvotes[questionId] === false) return false;
+  // If the optimistic map set true, we're showing a pending toggle-on
+  if (optimisticUpvotes[questionId] === true)  return true;
+  // Otherwise fall back to server truth
+  return state.myVotes.has(questionId);
+}
+
 function renderQuestionFeed(questions, optimisticUpvotes = {}) {
   return `
     <div class="ptc-panel ptc-feed-panel">
@@ -114,8 +130,12 @@ function renderQuestionFeed(questions, optimisticUpvotes = {}) {
           </div>
         ` : ""}
         ${questions.map((q, i) => {
-          const votes = optimisticUpvotes[q.id] ?? q.votes;
-          const sc = STATUS_COLORS[q.status] || STATUS_COLORS["Pending"];
+          // Use optimistic count if pending, otherwise server count
+          const votes  = optimisticUpvotes[q.id] != null
+            ? q.votes + (optimisticUpvotes[q.id] === true ? 1 : -1)
+            : q.votes;
+          const voted  = isVotedFor(q.id, optimisticUpvotes);
+          const sc     = STATUS_COLORS[q.status] || STATUS_COLORS["Pending"];
           return `
             <div class="ptc-question-card" style="border-color:${sc.border}">
               <div class="ptc-q-rank">${i + 1}</div>
@@ -128,8 +148,10 @@ function renderQuestionFeed(questions, optimisticUpvotes = {}) {
                 </div>
               </div>
               <div class="ptc-q-actions">
-                <button class="ptc-upvote-btn ${optimisticUpvotes[q.id] ? "ptc-upvoted" : ""}"
-                  onclick="participantUpvote('${q.id}', this)">
+                <button class="ptc-upvote-btn ${voted ? "ptc-upvoted" : ""}"
+                  onclick="participantUpvote('${q.id}', this)"
+                  title="${voted ? "Remove upvote" : "Upvote this question"}"
+                  aria-pressed="${voted}">
                   ${icons.arrowUp}
                   <span id="votes_${q.id}">${votes}</span>
                 </button>
@@ -164,7 +186,8 @@ let _votedPollOptions  = {};
 export function renderParticipantView(container) {
   const ss = getSessionState();
   if (ss.questions.length === 0) {
-    fetch("/api/session/live")
+    const mid = state.session?.sessionId || "";
+    fetch(`/api/session/live${mid ? `?meetingId=${mid}` : ""}`)
       .then(r => r.json())
       .then(data => dispatch({ type: "SESSION_LOADED", payload: data }));
   }
@@ -178,21 +201,42 @@ function paintParticipantView(container, state) {
   const ranked = selectRankedQuestions(state);
   const poll   = selectActivePoll(state);
 
-  container.innerHTML = `
-    ${renderStatusBar(state.stats, state.sessionTimer)}
+  // Preserve textarea draft while re-rendering
+  const existing = container.querySelector("#participantQuestionInput");
+  const draft = existing ? existing.value : "";
+  const wasPaused = existing ? existing.disabled : false;
 
-    <div class="ptc-main-grid">
-      <!-- Left: ask + poll -->
-      <div class="ptc-left-col">
-        ${renderAskForm(state.isQuestionsPaused)}
-        ${renderPollWidget(poll, _votedPollOptions[poll?.id])}
+  // Only do a full re-render if pause state changed or first render
+  if (!existing || wasPaused !== state.isQuestionsPaused) {
+    container.innerHTML = `
+      ${renderStatusBar(state.stats, state.sessionTimer)}
+      <div class="ptc-main-grid">
+        <!-- Left: ask + poll -->
+        <div class="ptc-left-col">
+          ${renderAskForm(state.isQuestionsPaused)}
+          <div id="ptcPollSlot">${renderPollWidget(poll, _votedPollOptions[poll?.id])}</div>
+        </div>
+        <!-- Right: question feed -->
+        <div class="ptc-right-col" id="ptcFeedSlot">
+          ${renderQuestionFeed(ranked, _optimisticUpvotes)}
+        </div>
       </div>
-      <!-- Right: question feed -->
-      <div class="ptc-right-col">
-        ${renderQuestionFeed(ranked, _optimisticUpvotes)}
-      </div>
-    </div>
-  `;
+    `;
+    // Restore draft
+    const inp = container.querySelector("#participantQuestionInput");
+    if (inp && draft) { inp.value = draft; inp.dispatchEvent(new Event("input")); }
+    return;
+  }
+
+  // Partial update: only refresh status bar, feed and poll slot
+  const statusBar = container.querySelector(".ptc-status-bar");
+  if (statusBar) statusBar.outerHTML = renderStatusBar(state.stats, state.sessionTimer);
+
+  const feedSlot = container.querySelector("#ptcFeedSlot");
+  if (feedSlot) feedSlot.innerHTML = renderQuestionFeed(ranked, _optimisticUpvotes);
+
+  const pollSlot = container.querySelector("#ptcPollSlot");
+  if (pollSlot) pollSlot.innerHTML = renderPollWidget(poll, _votedPollOptions[poll?.id]);
 }
 
 export function teardownParticipantView() {
@@ -233,19 +277,28 @@ export function participantSubmitQuestion() {
 }
 
 export function participantUpvote(id, btn) {
-  if (_optimisticUpvotes[id]) return; // already voted
-  _optimisticUpvotes[id] = true;
+  // Determine current voted state from server truth + any pending optimistic offset
+  const currentlyVoted = state.myVotes.has(id);
+  // Toggle optimistic state: true = pending vote-on, false = pending vote-off
+  _optimisticUpvotes[id] = !currentlyVoted;
 
-  // Optimistic counter
-  const el = document.querySelector(`#votes_${id}`);
-  if (el) el.textContent = parseInt(el.textContent) + 1;
-  if (btn) btn.classList.add("ptc-upvoted");
+  // Update the button appearance optimistically
+  const votesEl = document.querySelector(`#votes_${id}`);
+  if (votesEl) {
+    const delta = _optimisticUpvotes[id] ? 1 : -1;
+    votesEl.textContent = Math.max(0, parseInt(votesEl.textContent, 10) + delta);
+  }
+  if (btn) {
+    btn.classList.toggle("ptc-upvoted", _optimisticUpvotes[id]);
+    btn.setAttribute("aria-pressed", String(_optimisticUpvotes[id]));
+  }
 
-  // Phase 4: emit via WebSocket
+  // Phase 4: emit via WebSocket — server applies toggle logic and echoes your_vote_changed
   const meetingId = state.session?.sessionId || "m_ai_education";
   const socket = getSocket();
   socket.emit("upvote", { meetingId, questionId: id });
-  // Server broadcasts question_upvoted → QUESTION_UPVOTED dispatch
+  // Server broadcasts question_upvoted (vote count for all) → QUESTION_UPVOTED dispatch
+  // Server privately sends your_vote_changed → updates state.myVotes + clears optimistic
 }
 
 export async function participantVotePoll(pollId, optionId) {

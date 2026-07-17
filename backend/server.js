@@ -1,19 +1,32 @@
 /* ============================================================
-   CollectiveVoice Server — Phase 4
+   CollectiveVoice Server — Phase 4 + Phase 5 reliability hardening
    WebSocket handlers are the real write path for all question
    actions. REST keeps CRUD + auth + analytics only.
    ============================================================ */
 "use strict";
 if (!process.env.JWT_SECRET) require("dotenv").config(); // Load .env in dev (npm start)
-const http  = require("http");
-const fs    = require("fs");
-const path  = require("path");
+const http   = require("http");
+const fs     = require("fs");
+const path   = require("path");
+const crypto = require("crypto");
 const { WebSocketServer } = require("ws");
 const handleApiRequest = require("./src/routes/api");
 const { verifyToken, handleAuthRequest } = require("./src/routes/auth");
 const db               = require("./src/db/client");
 const { processQuestion } = require("./src/nlp/engine");
 const { recomputeScores } = require("./src/nlp/scoring");
+
+// ── Process-level error guards (B1) ────────────────────────────────────────
+// These catch anything that slips past individual try/catch blocks.
+// Log the full stack trace, then exit so pm2/Docker can restart cleanly.
+process.on("uncaughtException", (err) => {
+  console.error(`[${new Date().toISOString()}] UNCAUGHT EXCEPTION:`, err.stack || err);
+  process.exit(1);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error(`[${new Date().toISOString()}] UNHANDLED REJECTION:`, reason?.stack || reason);
+  process.exit(1);
+});
 
 const PORT       = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "..", "frontend", "public");
@@ -26,6 +39,23 @@ const mimeTypes = {
   ".svg":  "image/svg+xml",
   ".png":  "image/png"
 };
+
+// Per-extension caching policy (B6):
+//   HTML        — no-cache (always validate; SPA fallback must be fresh)
+//   JS / CSS    — short TTL in dev (60s), long in prod (1y) — swap with a
+//                 content-hash filename strategy once you go to production.
+//   Images / fonts — 1-day CDN cache; safe because these change rarely.
+const CACHE_CONTROL = (() => {
+  const isProd = process.env.NODE_ENV === "production";
+  return {
+    ".html": "no-cache, must-revalidate",
+    ".js":   isProd ? "public, max-age=31536000, immutable" : "public, max-age=60",
+    ".css":  isProd ? "public, max-age=31536000, immutable" : "public, max-age=60",
+    ".png":  "public, max-age=86400",
+    ".svg":  "public, max-age=86400",
+    ".woff2":"public, max-age=86400"
+  };
+})();
 
 function publicFile(req, res) {
   const requested = req.url === "/" ? "/index.html" : req.url;
@@ -41,21 +71,25 @@ function publicFile(req, res) {
       // SPA fallback
       fs.readFile(path.join(PUBLIC_DIR, "index.html"), (fbErr, fb) => {
         if (fbErr) { res.writeHead(404); res.end("Not found"); return; }
-        res.writeHead(200, { "Content-Type": mimeTypes[".html"] });
+        res.writeHead(200, {
+          "Content-Type":  mimeTypes[".html"],
+          "Cache-Control": CACHE_CONTROL[".html"]
+        });
         res.end(fb);
       });
       return;
     }
     const ext = path.extname(filePath);
-    res.writeHead(200, { "Content-Type": mimeTypes[ext] || "application/octet-stream" });
+    res.writeHead(200, {
+      "Content-Type":  mimeTypes[ext] || "application/octet-stream",
+      "Cache-Control": CACHE_CONTROL[ext] || "public, max-age=60"
+    });
     res.end(data);
   });
 }
 
-const server = http.createServer((req, res) => {
-  // ── CORS headers (Section 3) ─────────────────────────────────
-  // Allow same-origin requests and explicit cross-origin if the frontend
-  // is served from a different origin (e.g., Vite dev server on :5173).
+const server = http.createServer(async (req, res) => {
+  // ── CORS headers ───────────────────────────────────────────────────────────────
   const origin = req.headers.origin;
   if (origin) {
     res.setHeader("Access-Control-Allow-Origin",  origin);
@@ -65,7 +99,12 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
 
-  // ── Health check (Section 9) ──────────────────────────────────
+  // ── Top-level try/catch (B1) ───────────────────────────────────────────────────
+  // Catches synchronous throws and async rejections from any route handler.
+  // Responds 500 instead of leaving the connection hanging or crashing the process.
+  try {
+
+  // ── Health check ───────────────────────────────────────────────────────────────
   if (req.url === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "ok", uptime: process.uptime(), ts: Date.now() }));
@@ -73,34 +112,19 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.url.startsWith("/api/auth/")) { handleAuthRequest(req, res); return; }
-  if (req.url.startsWith("/api/")) { handleApiRequest(req, res); return; }
+  if (req.url.startsWith("/api/")) { await handleApiRequest(req, res); return; }
 
-  // ── /auth-callback — exchange Google OAuth tokens passed in URL params ──
-  // The OAuth callback in auth.js redirects here with ?token=...&refreshToken=...&name=...
-  // This page stores them in localStorage and redirects to /home via the SPA router.
-  if (req.url.startsWith("/auth-callback")) {
-    const html = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>Signing in…</title>
-<style>body{margin:0;background:#0f0f1a;color:#fff;font-family:system-ui,sans-serif;
-  display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px}
-.spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#8b5cf6;
-  border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}</style></head>
-<body><div class="spinner"></div><p>Signing you in with Google…</p>
-<script>
-  const p = new URLSearchParams(window.location.search);
-  const token = p.get('token'), refresh = p.get('refreshToken'), name = p.get('name');
-  if (token) {
-    localStorage.setItem('cv_token', token);
-    if (refresh) localStorage.setItem('cv_refresh_token', refresh);
-    window.location.replace('/?google_auth=1');
-  } else {
-    document.querySelector('p').textContent = 'Sign-in failed. Redirecting…';
-    setTimeout(() => window.location.replace('/login'), 2000);
-  }
-</script></body></html>`;
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(html);
+  // NOTE: /auth-callback is no longer a separate server route.
+  // The OAuth flow redirects to /?token=...#/auth-callback which serves index.html.
+  // The SPA's handleGoogleCallback() (in app.js) reads the query params and completes auth.
+
+  } catch (err) {
+    const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    console.error(`[${new Date().toISOString()}] [${reqId}] HTTP 500 on ${req.method} ${req.url}:`, err.stack || err);
+    if (!res.headersSent) {
+      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Internal server error", requestId: reqId }));
+    }
     return;
   }
 
@@ -109,7 +133,7 @@ const server = http.createServer((req, res) => {
 
 // ── WebSocket Server ──────────────────────────────────────────
 const wss     = new WebSocketServer({ server });
-const clients = new Map(); // ws → { meetingId, userId, role, isAlive }
+const clients = new Map(); // ws → { meetingId, userId, guestToken, voterId, role, isAlive }
 
 /**
  * Check if the connected client is the meeting owner.
@@ -169,38 +193,69 @@ wss.on("connection", (ws, req) => {
 
     switch (event) {
 
-      // ── join_meeting ──────────────────────────────────────
+      // ── join_meeting ────────────────────────────────────────────────
       case "join_meeting": {
-        const { meetingId, userId, userName } = data;
+        const { meetingId, userId, guestToken, userName } = data;
         if (!meetingId) break;
-        const resolvedUserId = wsUserId || userId;
+
+        // Resolve the one stable identity used throughout this session.
+        // Authenticated users use their userId; guests use a browser-persisted UUID.
+        const resolvedUserId = wsUserId || userId || null;
+        const voterId = resolvedUserId || guestToken || null;
+        if (!voterId) break; // refuse completely anonymous joins (no token at all)
+
         const meta = clients.get(ws);
         if (meta) {
-          meta.meetingId = meetingId;
-          meta.userId    = resolvedUserId;
-          const meeting  = await db.meeting.findUnique({ where: { id: meetingId }, select: { ownerId: true } });
-          meta.role      = meeting && meeting.ownerId === resolvedUserId ? "owner" : "participant";
+          meta.meetingId  = meetingId;
+          meta.userId     = resolvedUserId;
+          meta.guestToken = guestToken || null;
+          meta.voterId    = voterId;
+          const meeting   = await db.meeting.findUnique({ where: { id: meetingId }, select: { ownerId: true } });
+          meta.role       = meeting && meeting.ownerId === resolvedUserId ? "owner" : "participant";
         }
 
-        // Add participant record if new
-        if (resolvedUserId) {
-          const existing = await db.participant.findFirst({ where: { meetingId, userId: resolvedUserId } });
-          if (!existing) {
-            const participant = await db.participant.create({
-              data: {
-                meetingId,
-                userId:    resolvedUserId,
-                name:      userName || "Guest",
-                initials:  (userName || "G").slice(0, 2).toUpperCase(),
-                role:      meta?.role || "participant"
-              }
-            });
-            broadcastToMeeting("participant_joined", participant, meetingId, ws);
+        // Add participant record if new; match on userId OR guestToken to avoid
+        // duplicate ghost entries when the same browser reconnects after a drop.
+        const existing = await db.participant.findFirst({
+          where: {
+            meetingId,
+            OR: [
+              resolvedUserId ? { userId: resolvedUserId } : undefined,
+              guestToken     ? { guestToken }             : undefined
+            ].filter(Boolean)
+          }
+        });
+
+        let participantId;
+        if (!existing) {
+          const created = await db.participant.create({
+            data: {
+              meetingId,
+              userId:     resolvedUserId || null,
+              guestToken: guestToken     || null,
+              name:       userName || "Guest",
+              initials:   (userName || "G").slice(0, 2).toUpperCase(),
+              role:       meta?.role || "participant"
+            }
+          });
+          participantId = created.id;
+          // Strip private identity fields before broadcasting to other clients
+          const { userId: _u, guestToken: _g, ...publicParticipant } = created;
+          broadcastToMeeting("participant_joined", publicParticipant, meetingId, ws);
+        } else {
+          participantId = existing.id;
+          // Reconnect: update display name if provided, but don't create a duplicate entry
+          if (userName && userName !== existing.name) {
+            await db.participant.update({ where: { id: existing.id }, data: { name: userName } }).catch(() => {});
           }
         }
 
+        // Fetch this voter's existing votes so the client can restore "already voted" UI state
+        const myVoteRows = await db.vote.findMany({ where: { voterId }, select: { questionId: true } }).catch(() => []);
+        const myVotes    = myVoteRows.map(v => v.questionId);
+
         const snap = await buildSnapshot(meetingId);
-        ws.send(JSON.stringify({ event: "session_snapshot", data: snap }));
+        ws.send(JSON.stringify({ event: "session_snapshot", data: { ...snap, myVotes, participantId } }));
         broadcastToMeeting("session_stats", snap.stats, meetingId);
         break;
       }
@@ -209,31 +264,59 @@ wss.on("connection", (ws, req) => {
       case "submit_question": {
         const { meetingId, text, askedBy } = data;
         if (!meetingId || !text) break;
-        // Use in-memory NLP cache (same as REST handler)
-        const { _nlpCache, persistCluster } = (() => {
-          try { return require("./src/routes/api"); } catch { return {}; }
-        })();
-        const cache = _nlpCache?.[meetingId] ?? [];
-        const cluster = processQuestion(meetingId, text.trim(), askedBy || "Anonymous", cache.length ? cache : null);
-        if (persistCluster) await persistCluster(cluster).catch(() => {});
-        const ranked = [...(cache.length ? cache : [cluster])].sort((a, b) => (b.score || 0) - (a.score || 0));
-        broadcastToMeeting("question_submitted", cluster, meetingId);
-        broadcastToMeeting("questions_reranked", ranked, meetingId);
-        const snap = await buildSnapshot(meetingId);
-        broadcastToMeeting("session_stats", snap.stats, meetingId);
+        const meta      = clients.get(ws);
+        const askedById = meta?.userId || null;
+        const { submitQuestionShared } = require("./src/routes/api");
+        await submitQuestionShared(meetingId, text, askedBy || "Anonymous", askedById)
+          .catch(err => console.error("[WS] submit_question error:", err.message));
         break;
       }
 
-      // ── upvote ──────────────────────────────────────────
+      // ── upvote ──────────────────────────────────────────────────
       case "upvote": {
         const { meetingId, questionId } = data;
         if (!meetingId || !questionId) break;
-        const row = await db.question.update({
-          where: { id: questionId },
-          data:  { votes: { increment: 1 } }
+
+        const meta   = clients.get(ws);
+        const voterId = meta?.voterId;
+        if (!voterId) break; // must have a stable identity to vote
+
+        // Check whether this voter has already voted for this question (toggle semantics).
+        // We check the DB (source of truth) — the in-memory cache is a write-through mirror.
+        const existingVote = await db.vote.findUnique({
+          where: { questionId_voterId: { questionId, voterId } }
         }).catch(() => null);
-        if (!row) break;
-        broadcastToMeeting("question_upvoted", { id: questionId, votes: row.votes, score: row.score }, meetingId);
+
+        const question = await db.question.findUnique({ where: { id: questionId } }).catch(() => null);
+        if (!question) break;
+
+        let newVotes;
+        if (existingVote) {
+          // Toggle off: remove the vote record and decrement
+          await db.vote.delete({ where: { questionId_voterId: { questionId, voterId } } }).catch(() => {});
+          newVotes = Math.max(0, question.votes - 1);
+        } else {
+          // New vote: create the vote record and increment
+          await db.vote.create({ data: { questionId, voterId } }).catch(() => {});
+          newVotes = question.votes + 1;
+        }
+
+        // Persist the updated vote count and recompute score
+        const updated = await db.question.update({
+          where: { id: questionId },
+          data:  { votes: newVotes }
+        }).catch(() => null);
+        if (!updated) break;
+
+        broadcastToMeeting("question_upvoted", {
+          id: questionId, votes: updated.votes, score: updated.score
+        }, meetingId);
+
+        // Only tell THIS client whether their vote is now on or off
+        ws.send(JSON.stringify({
+          event: "your_vote_changed",
+          data:  { questionId, voted: !existingVote }
+        }));
         break;
       }
 
@@ -361,6 +444,36 @@ function broadcast(msg, skip = null) {
 // Expose broadcast + raw server so api.js and tests can use them
 module.exports.broadcast = broadcast;
 module.exports.server    = server; // Supertest injects this directly
+
+// ── Graceful shutdown (B8) ───────────────────────────────────────────────────
+const SHUTDOWN_TIMEOUT_MS = 5_000;
+
+function gracefulShutdown(signal) {
+  if (gracefulShutdown._called) return;
+  gracefulShutdown._called = true;
+
+  console.log(`[${new Date().toISOString()}] ${signal} received — shutting down gracefully...`);
+
+  // Notify all connected WS clients so frontends can show a reconnect toast
+  broadcastToMeeting("server_shutdown", {
+    message: "Server is restarting. Please refresh in a moment."
+  });
+
+  // Stop accepting new HTTP connections; close WS server
+  server.close(() => console.log("[Shutdown] HTTP server closed."));
+  wss.close(()    => console.log("[Shutdown] WebSocket server closed."));
+
+  // Hard-kill after timeout in case something keeps the event loop alive
+  const killer = setTimeout(() => {
+    console.error("[Shutdown] Timeout reached — forcing exit.");
+    process.exit(0);
+  }, SHUTDOWN_TIMEOUT_MS);
+  killer.unref();
+}
+gracefulShutdown._called = false;
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT",  () => gracefulShutdown("SIGINT"));
 
 // Only bind the port when run directly, not when required by tests
 if (require.main === module) {

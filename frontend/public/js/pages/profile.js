@@ -106,34 +106,33 @@ function engagementChart(points) {
 }
 
 export function renderProfile() {
-  const user = state.profile?.user || {
-    name: "Ananya Sharma",
-    email: "ananya.sharma@email.com",
-    role: "Audience",
-    joined: "May 18, 2025",
-    location: "New Delhi, India",
-    bio: "Curious mind, better questions, stronger conversations.",
-    stats: { questionsAsked: 23, upvotesReceived: 128, answersGiven: 17, meetingsJoined: 8 }
-  };
+  const user = state.profile?.user || {};
+  const name = user.name || "Guest";
+  const email = user.email || "";
+  const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "G";
+  const joined = user.createdAt
+    ? new Date(user.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+    : "—";
+  const role = user.role || "Member";
   const stats = user.stats || {};
 
   /* ---- Mobile (phone frame) -------------------------------- */
   const mobileContent = phone(`
     <div style="text-align:center;padding:8px 0 20px">
-      <div class="avatar" style="margin:0 auto 12px;font-size:28px">AS</div>
-      <h1 class="screen-title">${user.name}</h1>
-      <span class="badge" style="margin:6px 0">${user.role}</span>
-      <p class="subtle" style="margin-top:8px">${icons.mail} ${user.email}</p>
-      <p class="subtle">${icons.calendar} Joined ${user.joined}</p>
+      <div class="avatar" style="margin:0 auto 12px;font-size:28px">${initials}</div>
+      <h1 class="screen-title">${name}</h1>
+      <span class="badge" style="margin:6px 0">${role}</span>
+      <p class="subtle" style="margin-top:8px">${icons.mail} ${email}</p>
+      <p class="subtle">${icons.calendar} Joined ${joined}</p>
       <button class="edit-profile-btn" style="margin-top:10px" onclick="go('/settings')">${icons.edit} Edit Profile</button>
     </div>
 
     <div class="wide-cards" style="grid-template-columns:repeat(2,1fr);margin:8px 0 20px;gap:10px">
       ${[
-        [icons.messageCircle, "Questions Asked", stats.questionsAsked || 23],
-        [icons.thumbsUp,      "Upvotes Received", stats.upvotesReceived || 128],
-        [icons.checkCircle,   "Answers Given", stats.answersGiven || 17],
-        [icons.calendar,      "Meetings Joined", stats.meetingsJoined || 8]
+        [icons.messageCircle, "Questions Asked", stats.questionsAsked ?? 0],
+        [icons.thumbsUp,      "Upvotes Received", stats.upvotesReceived ?? 0],
+        [icons.checkCircle,   "Answers Given", stats.answersGiven ?? 0],
+        [icons.calendar,      "Meetings Joined", stats.meetingsJoined ?? 0]
       ].map(([ic, label, value]) => `
         <div class="stat-card" style="text-align:center;padding:14px 8px">
           <strong style="font-size:22px;color:var(--ink)">${value}</strong>
@@ -157,7 +156,7 @@ export function renderProfile() {
           ${icons.chevronRight}
         </button>
       `).join("")}
-      <button class="list-card row" style="gap:14px;color:var(--danger)" onclick="go('/welcome')">
+      <button class="list-card row" style="gap:14px;color:var(--danger)" onclick="profileLogout()">
         <div class="icon-box red" style="width:36px;height:36px">${icons.logOut}</div>
         <span style="flex:1;text-align:left"><strong style="font-size:14px">Log Out</strong></span>
         ${icons.chevronRight}
@@ -176,17 +175,15 @@ export function renderProfile() {
       <div class="prof-header-bg"></div>
       <div class="prof-header-body">
         <div class="prof-avatar-wrap">
-          <div class="prof-avatar">AS</div>
+          <div class="prof-avatar">${initials}</div>
         </div>
         <div class="prof-header-info">
           <div class="prof-name-row">
-            <h1 class="prof-name">${user.name}</h1>
-            <span class="badge">${user.role}</span>
+            <h1 class="prof-name">${name}</h1>
+            <span class="badge">${role}</span>
           </div>
-          <p class="prof-meta-item">${icons.mail} ${user.email}</p>
-          <p class="prof-meta-item">${icons.calendar} Joined ${user.joined}</p>
-          <p class="prof-meta-item">${icons.info} ${user.location || "New Delhi, India"}</p>
-          <p class="prof-bio">"${user.bio || "Curious mind, better questions, stronger conversations."}"</p>
+          <p class="prof-meta-item">${icons.mail} ${email}</p>
+          <p class="prof-meta-item">${icons.calendar} Joined ${joined}</p>
         </div>
         <button class="edit-profile-btn" onclick="go('/settings')">${icons.edit} Edit Profile</button>
       </div>
@@ -195,10 +192,10 @@ export function renderProfile() {
     <!-- Stats Row -->
     <div class="prof-stats-row">
       ${[
-        [icons.messageCircle, "Questions Asked",  stats.questionsAsked || 23,  "↑ 12% this month", "up"],
-        [icons.thumbsUp,      "Upvotes Received", stats.upvotesReceived || 128, "↑ 19% this month", "up"],
-        [icons.checkCircle,   "Answers Given",    stats.answersGiven || 17,    "↑ 7% this month",  "up"],
-        [icons.calendar,      "Meetings Joined",  stats.meetingsJoined || 8,   "↑ 14% this month", "up"]
+        [icons.messageCircle, "Questions Asked",  stats.questionsAsked  ?? 0, "↑ 12% this month", "up"],
+        [icons.thumbsUp,      "Upvotes Received", stats.upvotesReceived ?? 0, "↑ 19% this month", "up"],
+        [icons.checkCircle,   "Answers Given",    stats.answersGiven    ?? 0, "↑ 7% this month",  "up"],
+        [icons.calendar,      "Meetings Joined",  stats.meetingsJoined  ?? 0, "↑ 14% this month", "up"]
       ].map(([ic, label, value, delta, dir]) => `
         <div class="prof-stat-card">
           <div class="prof-stat-icon-wrap">${ic}</div>
@@ -424,5 +421,15 @@ export function renderProfile() {
     btn.classList.add("active");
     const panel = document.getElementById("prof-panel-" + id);
     if (panel) panel.style.display = "";
+  };
+
+  /* Logout: clear all auth state then redirect to welcome */
+  window.profileLogout = function() {
+    state.token        = null;
+    state.refreshToken = null;
+    state.profile      = null;
+    try { localStorage.removeItem("cv_token"); } catch {}
+    try { localStorage.removeItem("cv_refresh_token"); } catch {}
+    go("/welcome");
   };
 }

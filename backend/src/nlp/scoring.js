@@ -1,28 +1,43 @@
 /* ============================================================
-   NLP Scoring Engine
-   
-   Implements the composite score formula:
+   NLP Scoring Engine — v2 (embedding-aware)
+
+   Composite score formula:
      score = α·V + β·T + γ·S + δ·N
-   
+
    Where:
-     V = vote normalisation   — how popular vs the meeting's top question
+     V = vote normalisation   — how popular vs. the meeting's top question
      T = temporal freshness   — exp(-λ·ageInHours), λ = 0.5
-     S = content novelty      — 1 - max Dice similarity to answered clusters
-     N = topical diversity    — 1 - avg Dice similarity to OTHER active clusters
-   
+     S = content novelty      — 1 - max similarity to answered clusters
+     N = topical diversity    — 1 - avg similarity to OTHER active clusters
+
+   Similarity for S and N:
+     If both clusters have precomputed _embedding vectors (set by engine.js),
+     use cosine similarity. Otherwise fall back to Dice coefficient.
+     This avoids any async work here — embeddings are already cached.
+
    Weights (tunable via env):
      α = 0.40  (votes matter most)
      β = 0.25  (freshness)
      γ = 0.20  (differs from already-answered content)
-     δ = 0.15  (diverse vs other queued questions)
-   
+     δ = 0.15  (diverse vs. other queued questions)
+
    Called after every submit, upvote, or moderator action.
    ============================================================ */
 
 "use strict";
 const state = require("../data/state");
 
-// Inline Dice coefficient to avoid circular dependency with engine.js
+// Import cosine similarity from engine (avoids circular dep because
+// engine imports scoring but NOT via cosine — just recomputeScores)
+let _cosineSim = null;
+function getCosineSim() {
+  if (!_cosineSim) {
+    try { _cosineSim = require("./engine").cosineSimilarity; } catch { _cosineSim = () => 0; }
+  }
+  return _cosineSim;
+}
+
+// ── Inline Dice (fallback for clusters without embeddings) ────
 function getBigrams(str) {
   const s = str.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
   const set = new Set();
@@ -39,18 +54,30 @@ function diceCoefficient(a, b) {
   return (2 * intersection) / (ba.size + bb.size);
 }
 
-const α = parseFloat(process.env.SCORE_ALPHA   || "0.40");
-const β = parseFloat(process.env.SCORE_BETA    || "0.25");
-const γ = parseFloat(process.env.SCORE_GAMMA   || "0.20");
-const δ = parseFloat(process.env.SCORE_DELTA   || "0.15");
-const λ = parseFloat(process.env.SCORE_LAMBDA  || "0.50");  // decay rate per hour
+/**
+ * Compute similarity between two clusters.
+ * Prefers cosine similarity on cached embeddings for semantic accuracy.
+ * Falls back to Dice when embeddings are absent (seeded data, fallback path).
+ */
+function clusterSim(a, b) {
+  if (a._embedding && b._embedding) {
+    return getCosineSim()(a._embedding, b._embedding);
+  }
+  return diceCoefficient(a.canonical_text || a.text, b.canonical_text || b.text);
+}
+
+const α = parseFloat(process.env.SCORE_ALPHA  || "0.40");
+const β = parseFloat(process.env.SCORE_BETA   || "0.25");
+const γ = parseFloat(process.env.SCORE_GAMMA  || "0.20");
+const δ = parseFloat(process.env.SCORE_DELTA  || "0.15");
+const λ = parseFloat(process.env.SCORE_LAMBDA || "0.50"); // decay rate per hour
 
 /**
  * Recompute scores for all active clusters in `meetingId`.
- * Mutates the question objects in-place.
+ * Mutates question objects in-place (synchronous — embeddings already cached).
  *
  * @param {string} meetingId
- * @param {Array}  [questionsArray] - External cache array. Falls back to state.js if omitted.
+ * @param {Array}  [questionsArray] External cache array. Falls back to state.js if omitted.
  */
 function recomputeScores(meetingId, questionsArray = null) {
   const allQ = questionsArray ?? state.getQuestionsForMeeting(meetingId);
@@ -71,33 +98,30 @@ function recomputeScores(meetingId, questionsArray = null) {
     const ageHours = (now - (q.createdAt || now)) / (1000 * 60 * 60);
     const T = Math.exp(-λ * ageHours);
 
-    // S — novelty vs answered clusters (1 = completely different, 0 = already answered)
+    // S — novelty vs. answered clusters (1 = completely new topic)
     let maxSimToAnswered = 0;
     for (const aq of answered) {
-      const sim = diceCoefficient(q.canonical_text || q.text, aq.canonical_text || aq.text);
+      const sim = clusterSim(q, aq);
       if (sim > maxSimToAnswered) maxSimToAnswered = sim;
     }
     const S = 1 - maxSimToAnswered;
 
-    // N — topical diversity vs other active clusters (1 = unique, 0 = duplicate)
+    // N — topical diversity vs. other active clusters (1 = unique)
     const others = active.filter(o => o.id !== q.id);
     let N = 1;
     if (others.length > 0) {
-      const avgSim = others.reduce((sum, o) =>
-        sum + diceCoefficient(q.canonical_text || q.text, o.canonical_text || o.text), 0
-      ) / others.length;
+      const avgSim = others.reduce((sum, o) => sum + clusterSim(q, o), 0) / others.length;
       N = 1 - avgSim;
     }
 
     q.score = parseFloat((α * V + β * T + γ * S + δ * N).toFixed(4));
   }
 
-  // Answered/deferred questions keep their last computed score (no recalc needed)
+  // Answered/deferred questions keep their last computed score
 }
 
 // ── Self-test ─────────────────────────────────────────────────
 if (require.main === module && process.argv.includes("--test")) {
-  // Inline circular-dep workaround for self-test
   const mid = "m_score_test";
   state._questions[mid] = [
     {
@@ -126,7 +150,6 @@ if (require.main === module && process.argv.includes("--test")) {
     console.log(`  ${q.id}: votes=${q.votes} → score=${q.score}`);
     console.assert(q.score > 0 && q.score <= 1, `FAIL: score out of range for ${q.id}`);
   });
-  // sq1 has more votes → should score higher than sq2
   const sq1 = qs.find(q => q.id === "sq1");
   const sq2 = qs.find(q => q.id === "sq2");
   console.assert(sq1.score > sq2.score, "FAIL: higher-vote question should score higher");

@@ -79,6 +79,11 @@ class SessionSocket {
     switch (event) {
       // Full snapshot on connect or rejoin
       case "session_snapshot":
+        // Seed the per-user vote set before the store dispatches so renderers
+        // that read state.myVotes synchronously get the right initial value.
+        if (Array.isArray(data.myVotes)) {
+          state.myVotes = new Set(data.myVotes);
+        }
         dispatch({ type: "SESSION_LOADED", payload: data });
         break;
 
@@ -139,6 +144,18 @@ class SessionSocket {
         dispatch({ type: "ANNOUNCEMENT", payload: data });
         break;
 
+      // Per-client vote-state echo (not broadcast to the whole room)
+      case "your_vote_changed": {
+        const { questionId, voted } = data;
+        if (voted) {
+          state.myVotes.add(questionId);
+        } else {
+          state.myVotes.delete(questionId);
+        }
+        dispatch({ type: "YOUR_VOTE_CHANGED", payload: { questionId, voted } });
+        break;
+      }
+
       default:
         break;
     }
@@ -174,13 +191,21 @@ class SessionSocket {
 
   /**
    * joinMeeting — tells the server which meeting this client belongs to.
-   * Server will send session_snapshot and start routing events to this client.
+   * Sends userId for authenticated users or guestToken for anonymous guests
+   * so the server can assign a stable voterId and track participant identity.
+   * Server will send session_snapshot (including myVotes) and start routing events.
    */
   joinMeeting(meetingId, userId = null, userName = null) {
+    // Authenticated: send real userId, no guestToken.
+    // Anonymous: send null userId + the persisted browser guest UUID.
+    const isLoggedIn  = !!state.token;
+    const resolvedUID = isLoggedIn ? (userId || state.currentUserId || null) : null;
+    const resolvedGT  = isLoggedIn ? null : state.guestToken;
     this.emit("join_meeting", {
       meetingId,
-      userId:   userId   || state.session?.userId || null,
-      userName: userName || state.profile?.user?.name || "Guest"
+      userId:     resolvedUID,
+      guestToken: resolvedGT,
+      userName:   userName || state.profile?.user?.name || "Guest"
     });
   }
 

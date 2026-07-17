@@ -276,14 +276,8 @@ function renderHealthPanel(health) {
 
 // ── ParticipantsPanel — click any person to make them speaker ─
 function renderParticipantsPanel(participants, currentSpeakerId) {
-  // Fallback demo participants
-  const list = participants.length ? participants : [
-    { id: "p1", name: "Priya Sharma",    initials: "PS", upvotes: 14, questions: 3 },
-    { id: "p2", name: "James Wilson",    initials: "JW", upvotes: 11, questions: 2 },
-    { id: "p3", name: "Sarah Chen",      initials: "SC", upvotes: 9,  questions: 4 },
-    { id: "p4", name: "Ravi Kumar",      initials: "RK", upvotes: 7,  questions: 1 },
-    { id: "p5", name: "Ananya Sharma",   initials: "AS", upvotes: 5,  questions: 2 },
-  ];
+  // Use only real participants from the live session — no fake fallbacks
+  const list = participants || [];
 
   const currentSpk = list.find(p => p.id === currentSpeakerId);
 
@@ -305,14 +299,20 @@ function renderParticipantsPanel(participants, currentSpeakerId) {
             ${icons.arrowLeft} Remove
           </button>
         </div>
-      ` : `
+      ` : list.length > 0 ? `
         <p class="mod-participants-hint">
           ${icons.info} Click <strong>Make Speaker</strong> to assign someone
         </p>
-      `}
+      ` : ""}
 
       <div class="mod-participants-list">
-        ${list.map((p, i) => {
+        ${list.length === 0 ? `
+          <div style="text-align:center;padding:32px 16px;color:var(--muted)">
+            <div style="font-size:32px;margin-bottom:10px">👥</div>
+            <p style="font-weight:600;color:#374151;margin:0 0 4px">No participants yet</p>
+            <p style="font-size:12px;margin:0">Share the meeting link to invite people</p>
+          </div>
+        ` : list.map((p, i) => {
           const isSpk = p.id === currentSpeakerId;
           return `
             <div class="mod-participant-row ${isSpk ? "mod-participant-speaker" : ""}"
@@ -327,7 +327,7 @@ function renderParticipantsPanel(participants, currentSpeakerId) {
                   ${p.name}
                   ${isSpk ? `<span class="mod-spk-inline-badge">${icons.mic} Speaking</span>` : ""}
                 </span>
-                <span class="mod-contributor-meta">${p.upvotes || 0} upvotes · ${p.questions || 0} questions</span>
+                <span class="mod-contributor-meta">${p.upvotes || 0} upvotes · ${p.questionsCount || p.questions || 0} questions</span>
               </div>
               <button class="mod-make-speaker-btn ${isSpk ? "mod-make-speaker-active" : ""}">
                 ${isSpk ? `${icons.mic} Speaking` : `${icons.mic} Make Speaker`}
@@ -360,7 +360,7 @@ function renderQuickActions(isPaused) {
           ${icons.checkCircle}
           <span>Clear Done</span>
         </button>
-        <button class="mod-qa-btn mod-qa-danger" onclick="go('/analytics')">
+        <button class="mod-qa-btn mod-qa-danger" onclick="moderatorEndSession()">
           ${icons.flag}
           <span>End Session</span>
         </button>
@@ -372,13 +372,8 @@ function renderQuickActions(isPaused) {
 // ── SpeakerPickerModal (triggered by "Answer" on a question) ──
 function renderSpeakerPickerModal(questionId) {
   const ss = getSessionState();
-  const candidates = ss.participants.length ? ss.participants : [
-    { id: "p1", name: "Priya Sharma",  initials: "PS" },
-    { id: "p2", name: "James Wilson",  initials: "JW" },
-    { id: "p3", name: "Sarah Chen",    initials: "SC" },
-    { id: "p4", name: "Ravi Kumar",    initials: "RK" },
-    { id: "p5", name: "Ananya Sharma", initials: "AS" },
-  ];
+  // Only show real participants — no fake fallbacks
+  const candidates = ss.participants || [];
 
   return `
     <div class="mod-modal-overlay" id="speakerPickerModal" onclick="moderatorCloseModal(event)">
@@ -389,7 +384,13 @@ function renderSpeakerPickerModal(questionId) {
         </div>
         <p class="mod-modal-sub">Pick who answers this question. They'll be switched to Speaker view.</p>
         <div class="mod-speaker-list">
-          ${candidates.map(p => `
+          ${candidates.length === 0 ? `
+            <div style="text-align:center;padding:24px 16px;color:var(--muted)">
+              <div style="font-size:28px;margin-bottom:8px">👥</div>
+              <p style="font-weight:600;color:#374151;margin:0 0 4px">No participants in session</p>
+              <p style="font-size:12px;margin:0">Participants will appear here once they join</p>
+            </div>
+          ` : candidates.map(p => `
             <button class="mod-speaker-option"
               onclick="moderatorConfirmAssign('${questionId}', '${p.id}', '${p.name}', '${p.initials}')">
               <div class="mod-contributor-avatar">${p.initials}</div>
@@ -413,7 +414,8 @@ let _currentSpeakerName = null;
 export function renderModeratorView(container) {
   const ss = getSessionState();
   if (ss.questions.length === 0) {
-    fetch("/api/session/live")
+    const mid = state.session?.sessionId || "";
+    fetch(`/api/session/live${mid ? `?meetingId=${mid}` : ""}`)
       .then(r => r.json())
       .then(data => dispatch({ type: "SESSION_LOADED", payload: data }));
   }
@@ -432,7 +434,7 @@ function paintModeratorView(container, state) {
     <div class="mod-header">
       <div class="mod-header-left">
         <h1 class="mod-page-title">Moderator Control</h1>
-        <p class="mod-page-sub">AI in Education: Opportunities &amp; Challenges</p>
+        <p class="mod-page-sub">${state.joinTarget?.title || "Live Session"}</p>
       </div>
       <div class="mod-header-right">
         <span class="mod-live-badge">
@@ -617,4 +619,53 @@ export function moderatorMakeSpeaker(id, name, initials) {
     speakerId:   _currentSpeakerId,
     speakerName: _currentSpeakerName
   });
+}
+
+/** End the session: PATCH status → conducted, then navigate to session report */
+export async function moderatorEndSession() {
+  const meetingId = state.session?.sessionId;
+
+  // Snapshot stats & stop timer
+  const { getSessionState: getSS, selectRankedQuestions: rankQ, stopSessionTimer } = await import("../store/SessionStore.js");
+  stopSessionTimer();
+  const snap = getSS();
+  state._reportData = {
+    title:        state.joinTarget?.title || "Session Report",
+    participants: snap.stats.participantsCount || 0,
+    questions:    snap.stats.questionsCount    || 0,
+    upvotes:      snap.stats.upvotesCount      || 0,
+    answers:      rankQ(snap).filter(q => q.status === "Answered").length,
+    durationSecs: snap.sessionTimer || 0,
+    aiSummary:    state.sessionAnalytics?.analytics?.aiSummary || "",
+  };
+
+  // Optimistically mark conducted in local list (Past tab shows it immediately)
+  if (meetingId && Array.isArray(state.meetings)) {
+    const idx = state.meetings.findIndex(m => m.id === meetingId || m._id === meetingId);
+    if (idx !== -1) state.meetings[idx] = { ...state.meetings[idx], status: "conducted" };
+  }
+
+  // Persist to backend
+  if (meetingId) {
+    fetch(`/api/meetings/${meetingId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}) },
+      body: JSON.stringify({ status: "conducted" })
+    }).catch(() => {}); // fire-and-forget
+  }
+  go('/report');
+}
+
+
+
+/** Go live: PATCH status → live (called before entering /moderator) */
+export async function moderatorGoLive(meetingId) {
+  if (!meetingId) return;
+  try {
+    await fetch(`/api/meetings/${meetingId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}) },
+      body: JSON.stringify({ status: "live" })
+    });
+  } catch { /* non-fatal */ }
 }

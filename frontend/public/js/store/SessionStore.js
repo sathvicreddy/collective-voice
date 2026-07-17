@@ -172,6 +172,16 @@ function reducer(action) {
       break;
     }
 
+    // Server echoes back the authoritative vote result for just THIS client.
+    // Updates are already reflected in state.myVotes (set in socket.js); this
+    // action is dispatched so subscribed views can re-render the affected card.
+    case "YOUR_VOTE_CHANGED": {
+      // No _state mutation needed here — myVotes lives on the global `state` object
+      // (frontend/public/js/state.js) and was already updated in socket.js.
+      // We notify so subscribed UI components re-read state.myVotes.
+      break;
+    }
+
     case "RESET": {
       _state = _initialState();
       break;
