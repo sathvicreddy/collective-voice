@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  // SQLite for local dev — swap DATABASE_URL to postgres://... for production
-  provider = "sqlite"
+  // PostgreSQL for production (Neon). For local dev swap back to sqlite + file:./dev.db
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
