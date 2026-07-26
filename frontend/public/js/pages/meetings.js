@@ -426,7 +426,7 @@ export function renderMeetings() {
                   </div>
                   <div class="mtg-list-actions">
                     <span class="mtg-time-badge">Completed</span>
-                    <button class="mtg-outline-action" onclick="go('/report')">${icons.barChart} Report</button>
+                    <button class="mtg-outline-action" onclick="openReport('${m.id}')">${icons.barChart} Report</button>
                   </div>
                 </div>
               `; }).join("")}
@@ -1091,7 +1091,7 @@ export function renderConductedMeetings() {
             <p class="subtle">${icons.users} ${meeting.participants || 0} participants · ${icons.messageCircle} ${meeting.questionsCount||0} questions · ${icons.thumbsUp} ${meeting.upvotes||0} upvotes</p>
             <p class="subtle">${icons.calendar} ${meeting.date} · ${icons.clock} ${meeting.time}</p>
           </div>
-          <button class="btn secondary small" onclick="go('/analytics')">${icons.barChart} Report</button>
+          <button class="btn secondary small" onclick="openReport('${meeting.id}')">${icons.barChart} Report</button>
         </article>
       `).join("")}
       <button class="btn" style="width:100%;margin-top:8px" onclick="go('/analytics')">${icons.barChart} Open Session Analytics</button>
@@ -1218,3 +1218,13 @@ window.addEventListener("hashchange", () => {
   const route = location.hash.replace("#", "");
   if (route !== "/join/scan") teardownScanScreen();
 });
+
+// ── openReport — navigates to /report with meeting ID stored in state ─
+window.openReport = function(meetingId) {
+  import("../state.js").then(({ state }) => {
+    state.report = { meetingId };
+  }).catch(() => {
+    if (window.state) window.state.report = { meetingId };
+  });
+  window.go?.("/report");
+};

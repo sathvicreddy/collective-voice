@@ -670,10 +670,56 @@ async function handleApiRequest(req, res) {
     return json(res, 200, data);
   }
 
+  // ── GET /api/analytics/meeting/:id/export?format=csv|json ─
+  if (req.method === "GET" && url.pathname.match(/^\/api\/analytics\/meeting\/[^/]+\/export$/)) {
+    const segs      = url.pathname.split("/");        // ["","api","analytics","meeting","<id>","export"]
+    const meetingId = segs[4];
+    const format    = url.searchParams.get("format") || "json";
+    const meeting   = await db.meeting.findUnique({ where: { id: meetingId } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found" });
+
+    const questions    = await db.question.findMany({ where: { meetingId }, orderBy: { score: "desc" } });
+    const participants = await db.participant.findMany({ where: { meetingId } });
+    const totalUpvotes = questions.reduce((s, q) => s + (q.votes || 0), 0);
+    const answeredCount = questions.filter(q => q.status === "Answered").length;
+
+    if (format === "csv") {
+      const header = "Rank,Question,Votes,Status,Asked By,Similar Grouped\n";
+      const rows   = questions.map((q, i) => {
+        const members = JSON.parse(q.membersJson || "[]").length;
+        const cell = v => `"${String(v || "").replace(/"/g, '""')}"`;
+        return [i+1, cell(q.text), q.votes||0, cell(q.status), cell(q.askedByName||"Anonymous"), Math.max(0,members-1)].join(",");
+      }).join("\n");
+      res.writeHead(200, {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="report-${meeting.code}-${Date.now()}.csv"`,
+        "Cache-Control": "no-store"
+      });
+      res.end(header + rows);
+      return;
+    }
+
+    // JSON export
+    const exportData = {
+      generatedAt: new Date().toISOString(),
+      meeting: { id: meeting.id, title: meeting.title, code: meeting.code, status: meeting.status, createdAt: meeting.createdAt },
+      summary: { participants: participants.length, questions: questions.length, upvotes: totalUpvotes, answered: answeredCount },
+      questions: questions.map((q, i) => ({ rank: i+1, text: q.text, votes: q.votes||0, status: q.status, askedBy: q.askedByName||"Anonymous", createdAt: q.createdAt }))
+    };
+    const exportBody = JSON.stringify(exportData, null, 2);
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "Content-Disposition": `attachment; filename="report-${meeting.code}-${Date.now()}.json"`,
+      "Cache-Control": "no-store"
+    });
+    res.end(exportBody);
+    return;
+  }
+
   // ── GET /api/analytics/meeting/:id ───────────────────────
   if (req.method === "GET" && url.pathname.match(/^\/api\/analytics\/meeting\/[^/]+$/)) {
     const meetingId = url.pathname.split("/").pop();
-    const meeting   = await db.meeting.findUnique({ where: { id: meetingId } });
+    const meeting   = await db.meeting.findUnique({ where: { id: meetingId }, include: { owner: { select: { name: true, email: true } } } });
     if (!meeting) return json(res, 404, { error: "Meeting not found" });
 
     const questions    = await db.question.findMany({ where: { meetingId }, orderBy: { score: "desc" } });
@@ -684,9 +730,45 @@ async function handleApiRequest(req, res) {
     const answeredCount  = questions.filter(q => q.status === "Answered").length;
     const pendingCount   = questions.filter(q => q.status === "Pending").length;
     const deferredCount  = questions.filter(q => q.status === "Deferred").length;
+    const reviewCount    = questions.filter(q => q.status === "Under Review").length;
+
+    // Engagement trend: bucket questions into 10 equal time slots based on createdAt
+    const times = questions.map(q => new Date(q.createdAt).getTime()).filter(Boolean);
+    let trend = Array(10).fill(0);
+    if (times.length > 0) {
+      const tMin = Math.min(...times), tMax = Math.max(...times);
+      const span = tMax - tMin || 1;
+      questions.forEach(q => {
+        const t = new Date(q.createdAt).getTime();
+        const bucket = Math.min(9, Math.floor(((t - tMin) / span) * 10));
+        trend[bucket]++;
+      });
+    }
+
+    // Polls with percentage per option
+    const pollsWithPcts = polls.map(p => {
+      const totalPollVotes = p.options.reduce((s, o) => s + (o.votes || 0), 0) || 1;
+      return {
+        id: p.id, question: p.question, active: p.active,
+        options: p.options.map(o => ({
+          id: o.id, label: o.label, votes: o.votes || 0,
+          pct: Math.round(((o.votes || 0) / totalPollVotes) * 100)
+        }))
+      };
+    });
+
+    // Participant engagement breakdown
+    const askerIds     = new Set(questions.map(q => q.askedById).filter(Boolean));
+    const activeCount  = Math.max(1, askerIds.size);
+    const passiveCount = Math.max(0, participants.length - activeCount);
 
     return json(res, 200, {
-      meeting,
+      meeting: {
+        id: meeting.id, title: meeting.title, code: meeting.code,
+        status: meeting.status, description: meeting.description,
+        createdAt: meeting.createdAt, updatedAt: meeting.updatedAt,
+        owner: meeting.owner,
+      },
       analytics: {
         totals: {
           participants:   participants.length,
@@ -695,28 +777,32 @@ async function handleApiRequest(req, res) {
           answered:       answeredCount,
           pending:        pendingCount,
           deferred:       deferredCount,
+          review:         reviewCount,
           polls:          polls.length,
           uniqueClusters: questions.length,
-          averageLatency: "38ms"
+          averageUpvotes: questions.length ? (totalUpvotes / questions.length).toFixed(1) : "0"
         },
-        topQuestions: questions.slice(0, 5).map(q => ({
-          id:     q.id,
-          text:   q.text,
-          votes:  q.votes,
-          status: q.status
+        topQuestions: questions.slice(0, 10).map((q, i) => ({
+          rank: i+1, id: q.id, text: q.text, votes: q.votes||0, status: q.status,
+          askedBy: q.askedByName||"Anonymous", createdAt: q.createdAt,
+          similar: Math.max(0, JSON.parse(q.membersJson||"[]").length - 1)
         })),
-        statusBreakdown: {
-          answered: answeredCount,
-          pending:  pendingCount,
-          deferred: deferredCount,
-          review:   questions.filter(q => q.status === "Under Review").length
+        allQuestions: questions.map((q, i) => ({
+          rank: i+1, id: q.id, text: q.text, votes: q.votes||0, status: q.status,
+          askedBy: q.askedByName||"Anonymous", createdAt: q.createdAt,
+          similar: Math.max(0, JSON.parse(q.membersJson||"[]").length - 1)
+        })),
+        statusBreakdown: { answered: answeredCount, pending: pendingCount, deferred: deferredCount, review: reviewCount },
+        participantBreakdown: {
+          total:      participants.length,
+          active:     activeCount,
+          passive:    passiveCount,
+          activePct:  Math.round((activeCount  / Math.max(1, participants.length)) * 100),
+          passivePct: Math.round((passiveCount / Math.max(1, participants.length)) * 100)
         },
-        trend: questions.reduce((acc, q) => {
-          const hour = new Date(q.createdAt).getHours();
-          acc[hour % 10] = (acc[hour % 10] || 0) + 1;
-          return acc;
-        }, Array(10).fill(0)),
-        aiSummary: `This session had ${questions.length} question${questions.length !== 1 ? "s" : ""} from ${participants.length} participant${participants.length !== 1 ? "s" : ""}. ${answeredCount} were answered and ${pendingCount} are still pending.`
+        polls: pollsWithPcts,
+        trend,
+        aiSummary: `This ${meeting.title} session attracted ${participants.length} participant${participants.length!==1?"s":""} who submitted ${questions.length} question${questions.length!==1?"s":""} earning ${totalUpvotes} upvote${totalUpvotes!==1?"s":""}. ${answeredCount} question${answeredCount!==1?"s were":" was"} answered live while ${pendingCount} remain${pendingCount!==1?"":"s"} pending.`
       }
     });
   }
@@ -765,7 +851,482 @@ async function handleApiRequest(req, res) {
     return json(res, 200, { notifications });
   }
 
+  // ── GET /api/admin/users ── List users (admin/superadmin only) ──
+  if (req.method === "GET" && url.pathname === "/api/admin/users") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin access required." });
+    }
+    const users = await db.user.findMany({
+      select: { id: true, name: true, email: true, role: true, picture: true, createdAt: true },
+      orderBy: { createdAt: "desc" }
+    });
+    return json(res, 200, { users });
+  }
+
+  // ── PATCH /api/admin/users/:id/role ── Change role (superadmin only) ──
+  const roleMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/role$/);
+  if (req.method === "PATCH" && roleMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Only the superadmin can change user roles." });
+    }
+    const targetUserId = roleMatch[1];
+    const { role } = await readBody(req);
+    if (!["customer", "admin"].includes(role)) {
+      return json(res, 400, { error: "Role must be 'customer' or 'admin'." });
+    }
+    if (targetUserId === auth.user.id) {
+      return json(res, 400, { error: "You cannot change your own role." });
+    }
+    const target = await db.user.findUnique({ where: { id: targetUserId } });
+    const updated = await db.user.update({ where: { id: targetUserId }, data: { role } });
+    // Audit
+    await writeAudit(auth, "user.role_update", "warning", "User", updated.name, `userId:${updated.id}`,
+      { previousRole: target?.role, newRole: role }, req);
+    return json(res, 200, { user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role } });
+  }
+
+  // ── DELETE /api/admin/users/:id ── Delete user (superadmin only) ──
+  const userDeleteMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
+  if (req.method === "DELETE" && userDeleteMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "superadmin") return json(res, 403, { error: "Superadmin only." });
+    const targetId = userDeleteMatch[1];
+    if (targetId === auth.user.id) return json(res, 400, { error: "Cannot delete yourself." });
+    const target = await db.user.findUnique({ where: { id: targetId } });
+    if (!target) return json(res, 404, { error: "User not found." });
+    await db.user.delete({ where: { id: targetId } });
+    await writeAudit(auth, "user.delete", "danger", "User", target.name, `userId:${targetId}`,
+      { email: target.email }, req);
+    return json(res, 200, { ok: true });
+  }
+
+  // ── GET /api/admin/stats ── Platform-wide stats ──
+  if (req.method === "GET" && url.pathname === "/api/admin/stats") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const [userCount, meetingCounts, questionCount, voteSum] = await Promise.all([
+      db.user.count(),
+      db.meeting.groupBy({ by: ["status"], _count: { id: true } }),
+      db.question.count(),
+      db.question.aggregate({ _sum: { votes: true } }),
+    ]);
+
+    const byStatus = {};
+    meetingCounts.forEach(r => { byStatus[r.status] = r._count.id; });
+    const totalMeetings = Object.values(byStatus).reduce((s, v) => s + v, 0);
+
+    // Chart: questions per day for last 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+    const recentQs = await db.question.findMany({
+      where: { createdAt: { gte: sevenDaysAgo } },
+      select: { createdAt: true }
+    });
+    const dayMap = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 3600 * 1000);
+      const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      dayMap[key] = 0;
+    }
+    recentQs.forEach(q => {
+      const key = new Date(q.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      if (dayMap[key] !== undefined) dayMap[key]++;
+    });
+    const chartData = Object.entries(dayMap).map(([label, value]) => ({ label, value }));
+
+    return json(res, 200, {
+      totalUsers: userCount,
+      totalMeetings,
+      liveCount:     byStatus["live"]      || 0,
+      upcomingCount: byStatus["upcoming"]  || 0,
+      conductedCount:byStatus["conducted"] || 0,
+      pastCount:     byStatus["past"]      || 0,
+      totalQuestions: questionCount,
+      totalVotes: voteSum._sum.votes || 0,
+      chartData,
+    });
+  }
+
+  // ── GET /api/admin/meetings ── All meetings ──
+  if (req.method === "GET" && url.pathname === "/api/admin/meetings") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const status = url.searchParams.get("status");
+    const where = status ? { status } : {};
+
+    const meetings = await db.meeting.findMany({
+      where,
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        _count: { select: { questions: true, participants: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return json(res, 200, {
+      meetings: meetings.map(m => ({
+        id: m.id, title: m.title, code: m.code, status: m.status,
+        speaker: m.speaker, description: m.description,
+        settingsJson: m.settingsJson,
+        scheduledAt: m.scheduledAt?.toISOString() ?? null,
+        createdAt: m.createdAt.toISOString(),
+        owner: m.owner,
+        questionsCount: m._count.questions,
+        participantsCount: m._count.participants,
+      }))
+    });
+  }
+
+  // ── DELETE /api/admin/meetings/:id ── Delete meeting ──
+  const meetingDeleteMatch = url.pathname.match(/^\/api\/admin\/meetings\/([^/]+)$/);
+  if (req.method === "DELETE" && meetingDeleteMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const mid = meetingDeleteMatch[1];
+    const meeting = await db.meeting.findUnique({
+      where: { id: mid },
+      include: { _count: { select: { questions: true, participants: true } } }
+    });
+    if (!meeting) return json(res, 404, { error: "Meeting not found." });
+
+    await db.meeting.delete({ where: { id: mid } });
+    // Clear NLP cache
+    delete _nlpCache[mid];
+
+    await writeAudit(auth, "meeting.delete", "danger", "Meeting", meeting.title, `code:${meeting.code}`,
+      { questionsDeleted: meeting._count.questions, participantsDeleted: meeting._count.participants }, req);
+    return json(res, 200, { ok: true });
+  }
+
+  // ── PATCH /api/admin/meetings/:id/status ── Force status change ──
+  const meetingStatusMatch = url.pathname.match(/^\/api\/admin\/meetings\/([^/]+)\/status$/);
+  if (req.method === "PATCH" && meetingStatusMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const mid = meetingStatusMatch[1];
+    const { status } = await readBody(req);
+    const valid = ["live", "upcoming", "conducted", "past"];
+    if (!valid.includes(status)) return json(res, 400, { error: `Status must be one of: ${valid.join(", ")}` });
+
+    const meeting = await db.meeting.findUnique({ where: { id: mid } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found." });
+
+    const updated = await db.meeting.update({ where: { id: mid }, data: { status } });
+    await writeAudit(auth, "meeting.force_status_change", "warning", "Meeting", meeting.title, `code:${meeting.code}`,
+      { previousStatus: meeting.status, newStatus: status }, req);
+    return json(res, 200, { meeting: updated });
+  }
+
+  // ── GET /api/admin/meetings/:id/details ── Meeting detail ──
+  const meetingDetailMatch = url.pathname.match(/^\/api\/admin\/meetings\/([^/]+)\/details$/);
+  if (req.method === "GET" && meetingDetailMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const mid = meetingDetailMatch[1];
+    const [questions, polls, participants] = await Promise.all([
+      db.question.findMany({ where: { meetingId: mid }, orderBy: { score: "desc" } }),
+      db.poll.findMany({ where: { meetingId: mid }, include: { options: true } }),
+      db.participant.findMany({ where: { meetingId: mid } }),
+    ]);
+
+    return json(res, 200, {
+      questions: questions.map(q => ({
+        id: q.id, text: q.text, status: q.status, votes: q.votes,
+        similar: Math.max(0, safeJson(q.membersJson, []).length - 1),
+        createdAt: q.createdAt.toISOString(),
+      })),
+      polls: polls.map(p => ({
+        id: p.id, question: p.question, active: p.active, totalVotes: p.totalVotes,
+        options: p.options.map(o => ({ id: o.id, label: o.label, votes: o.votes,
+          pct: p.totalVotes > 0 ? Math.round((o.votes / p.totalVotes) * 100) : 0 }))
+      })),
+      participants: participants.map(p => ({
+        id: p.id, name: p.name, role: p.role, upvotes: p.upvotes, questionsCount: p.questionsCount
+      }))
+    });
+  }
+
+  // ── GET /api/admin/questions/flagged ── All flagged questions ──
+  if (req.method === "GET" && url.pathname === "/api/admin/questions/flagged") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const tab = url.searchParams.get("tab") || "flagged"; // "flagged" | "all" | "answered"
+    let where = {};
+    if (tab === "flagged")  where = { status: "Flagged" };
+    if (tab === "answered") where = { status: "Answered" };
+
+    const questions = await db.question.findMany({
+      where,
+      include: { meeting: { select: { title: true, code: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    const total = await db.question.count();
+    const flaggedCount = await db.question.count({ where: { status: "Flagged" } });
+    const answeredCount = await db.question.count({ where: { status: "Answered" } });
+
+    return json(res, 200, {
+      questions: questions.map(q => ({
+        id: q.id, text: q.text, status: q.status, votes: q.votes,
+        askedByName: q.askedByName,
+        similar: Math.max(0, safeJson(q.membersJson, []).length - 1),
+        meetingTitle: q.meeting?.title || "",
+        meetingCode: q.meeting?.code || "",
+        createdAt: q.createdAt.toISOString(),
+      })),
+      counts: { total, flagged: flaggedCount, answered: answeredCount }
+    });
+  }
+
+  // ── DELETE /api/admin/questions/:id ── Delete question (admin) ──
+  const qDeleteMatch = url.pathname.match(/^\/api\/admin\/questions\/([^/]+)$/);
+  if (req.method === "DELETE" && qDeleteMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const qid = qDeleteMatch[1];
+    const q = await db.question.findUnique({
+      where: { id: qid },
+      include: { meeting: { select: { title: true } } }
+    });
+    if (!q) return json(res, 404, { error: "Question not found." });
+
+    await db.question.delete({ where: { id: qid } });
+    // Remove from NLP cache
+    if (_nlpCache[q.meetingId]) {
+      _nlpCache[q.meetingId] = _nlpCache[q.meetingId].filter(c => c.id !== qid);
+    }
+    await writeAudit(auth, "question.delete", "danger", "Question",
+      q.text.slice(0, 60), `questionId:${qid}`,
+      { meetingTitle: q.meeting?.title, text: q.text }, req);
+    return json(res, 200, { ok: true });
+  }
+
+  // ── PATCH /api/admin/questions/:id/flag ── Dismiss flag ──
+  const qFlagMatch = url.pathname.match(/^\/api\/admin\/questions\/([^/]+)\/flag$/);
+  if (req.method === "PATCH" && qFlagMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const qid = qFlagMatch[1];
+    const updated = await db.question.update({
+      where: { id: qid },
+      data: { status: "Pending" }
+    });
+    // Update NLP cache
+    if (_nlpCache[updated.meetingId]) {
+      const idx = _nlpCache[updated.meetingId].findIndex(c => c.id === qid);
+      if (idx !== -1) _nlpCache[updated.meetingId][idx].status = "Pending";
+    }
+    return json(res, 200, { ok: true });
+  }
+
+  // ── GET /api/admin/health ── Real server health ──
+  if (req.method === "GET" && url.pathname === "/api/admin/health") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const mem = process.memoryUsage();
+    const uptimeSecs = Math.floor(process.uptime());
+    const hours   = Math.floor(uptimeSecs / 3600);
+    const minutes = Math.floor((uptimeSecs % 3600) / 60);
+    const seconds = uptimeSecs % 60;
+    const uptimeStr = `${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}`;
+
+    // Try DB ping
+    let dbOk = false;
+    try {
+      await db.$queryRaw`SELECT 1`;
+      dbOk = true;
+    } catch { dbOk = false; }
+
+    // Get rate limiter state (exported from middleware)
+    let rateLimited = [];
+    try {
+      const { getRateLimitedIPs } = require("../middleware/rateLimiter");
+      rateLimited = getRateLimitedIPs ? getRateLimitedIPs() : [];
+    } catch { rateLimited = []; }
+
+    // WS connection count from server
+    let wsConnections = 0;
+    let wsActiveMeetings = 0;
+    try {
+      const { getWsStats } = require("../../server");
+      const stats = getWsStats ? getWsStats() : { connections: 0, activeMeetings: 0 };
+      wsConnections = stats.connections;
+      wsActiveMeetings = stats.activeMeetings;
+    } catch { /* ok */ }
+
+    const heapUsedMB = (mem.heapUsed / 1024 / 1024).toFixed(1);
+    const heapTotalMB = (mem.heapTotal / 1024 / 1024).toFixed(1);
+    const rssMemMB = (mem.rss / 1024 / 1024).toFixed(1);
+    const memPct = ((mem.heapUsed / mem.heapTotal) * 100).toFixed(1);
+
+    return json(res, 200, {
+      uptime: uptimeStr,
+      uptimeSecs,
+      dbStatus: dbOk ? "Healthy" : "Error",
+      memory: { heapUsedMB, heapTotalMB, rssMemMB, memPct },
+      wsConnections,
+      wsActiveMeetings,
+      rateLimited,
+      nodeVersion: process.version,
+      platform: process.platform,
+    });
+  }
+
+  // ── GET /api/admin/audit ── Audit log ──
+  if (req.method === "GET" && url.pathname === "/api/admin/audit") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const limit  = Math.min(parseInt(url.searchParams.get("limit")  || "50"), 200);
+    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const action = url.searchParams.get("action") || null;
+    const target = url.searchParams.get("targetType") || null;
+
+    const where = {};
+    if (action) where.action = { contains: action };
+    if (target) where.targetType = target;
+
+    const [logs, total] = await Promise.all([
+      db.auditLog.findMany({ where, orderBy: { createdAt: "desc" }, take: limit, skip: offset }),
+      db.auditLog.count({ where }),
+    ]);
+
+    return json(res, 200, {
+      logs: logs.map(l => ({
+        id: l.id,
+        ts: l.createdAt.toISOString(),
+        adminName: l.adminName,
+        adminRole: l.adminRole,
+        action: l.action,
+        actionType: l.actionType,
+        targetType: l.targetType,
+        targetName: l.targetName,
+        targetId: l.targetId,
+        detail: safeJson(l.detailJson, {}),
+        ipAddress: l.ipAddress,
+      })),
+      total,
+    });
+  }
+
+  // ── GET /api/admin/nlp/config ── Get NLP config ──
+  if (req.method === "GET" && url.pathname === "/api/admin/nlp/config") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    return json(res, 200, {
+      threshold: parseFloat(process.env.NLP_THRESHOLD || "0.60"),
+      weights: {
+        vote:    parseFloat(process.env.SCORE_ALPHA  || "0.40"),
+        fresh:   parseFloat(process.env.SCORE_BETA   || "0.25"),
+        novel:   parseFloat(process.env.SCORE_GAMMA  || "0.20"),
+        diverse: parseFloat(process.env.SCORE_DELTA  || "0.15"),
+      },
+      rateLimiting: {
+        maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "5"),
+        windowMs:    parseInt(process.env.RATE_LIMIT_WINDOW_MS    || "900000"),
+      }
+    });
+  }
+
+  // ── POST /api/admin/nlp/config ── Save NLP config ──
+  if (req.method === "POST" && url.pathname === "/api/admin/nlp/config") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const body = await readBody(req);
+    if (body.threshold !== undefined) {
+      process.env.NLP_THRESHOLD = String(parseFloat(body.threshold));
+    }
+    if (body.weights) {
+      if (body.weights.vote    !== undefined) process.env.SCORE_ALPHA  = String(parseFloat(body.weights.vote));
+      if (body.weights.fresh   !== undefined) process.env.SCORE_BETA   = String(parseFloat(body.weights.fresh));
+      if (body.weights.novel   !== undefined) process.env.SCORE_GAMMA  = String(parseFloat(body.weights.novel));
+      if (body.weights.diverse !== undefined) process.env.SCORE_DELTA  = String(parseFloat(body.weights.diverse));
+    }
+    if (body.rateLimiting) {
+      if (body.rateLimiting.maxRequests !== undefined) process.env.RATE_LIMIT_MAX_REQUESTS = String(body.rateLimiting.maxRequests);
+      if (body.rateLimiting.windowMs    !== undefined) process.env.RATE_LIMIT_WINDOW_MS    = String(body.rateLimiting.windowMs);
+    }
+    await writeAudit(auth, "system.config_update", "info", "SystemConfig", "NLP Config", "nlp.config",
+      { threshold: process.env.NLP_THRESHOLD, weights: body.weights }, req);
+    return json(res, 200, { ok: true, message: "NLP config updated (in-memory until server restart)." });
+  }
+
+  // ── POST /api/admin/nlp/compare ── Compare two questions ──
+  if (req.method === "POST" && url.pathname === "/api/admin/nlp/compare") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const { a, b } = await readBody(req);
+    if (!a || !b) return json(res, 400, { error: "Both 'a' and 'b' questions are required." });
+
+    try {
+      const { computeSimilarity } = require("../nlp/engine");
+      if (computeSimilarity) {
+        const score = await computeSimilarity(a.trim(), b.trim());
+        return json(res, 200, { score: Math.round(score * 100), wouldMerge: score >= parseFloat(process.env.NLP_THRESHOLD || "0.60") });
+      }
+    } catch { /* fallback below */ }
+    // Fallback: dice-coefficient approximation
+    const tokensA = new Set(a.toLowerCase().split(/\s+/));
+    const tokensB = new Set(b.toLowerCase().split(/\s+/));
+    const inter = [...tokensA].filter(t => tokensB.has(t)).length;
+    const dice = (2 * inter) / (tokensA.size + tokensB.size);
+    return json(res, 200, { score: Math.round(dice * 100), wouldMerge: dice >= parseFloat(process.env.NLP_THRESHOLD || "0.60") });
+  }
+
   return json(res, 404, { error: "API route not found" });
+}
+
+// ── Audit log writer ─────────────────────────────────────────────────────────
+async function writeAudit(auth, action, actionType, targetType, targetName, targetId, detail, req) {
+  try {
+    const ip = req?.socket?.remoteAddress || req?.headers?.["x-forwarded-for"] || "";
+    await db.auditLog.create({
+      data: {
+        adminId:    auth.user.id,
+        adminName:  auth.user.name,
+        adminRole:  auth.user.role,
+        action,
+        actionType,
+        targetType,
+        targetName,
+        targetId:   String(targetId),
+        detailJson: JSON.stringify(detail || {}),
+        ipAddress:  String(ip),
+      }
+    });
+  } catch (err) {
+    console.error("[Audit] Failed to write audit log:", err.message);
+  }
 }
 
 /**
@@ -788,4 +1349,5 @@ module.exports = handleApiRequestSafe;
 module.exports._nlpCache         = _nlpCache;
 module.exports.persistCluster    = persistCluster;
 module.exports.submitQuestionShared = submitQuestionShared;
+
 

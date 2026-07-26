@@ -1,0 +1,178 @@
+   CREATE MEETING — Blended Page Heading
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Heading container with subtle left accent ─────────────────── */
+.cf-page-heading {
+  margin-bottom: 28px;
+  padding: 18px 20px 18px 20px;
+  border-radius: 12px;
+  border-left: 3px solid transparent;
+  background: var(--card, rgba(255, 255, 255, 0.03));
+}
+
+.cf-page-heading--instant {
+  border-left-color: #00c972;
+  background: rgba(0, 201, 114, 0.04);
+}
+
+.cf-page-heading--sched {
+  border-left-color: var(--primary, #7c6fff);
+  background: rgba(124, 111, 255, 0.04);
+}
+
+/* Breadcrumb */
+.cf-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.cf-bc-btn {
+  background: none;
+  border: none;
+  color: var(--ink-secondary, #888);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  transition: color .15s;
+}
+
+.cf-bc-btn:hover {
+  color: var(--primary, #7c6fff);
+}
+
+.cf-bc-sep {
+  color: var(--ink-tertiary, #555);
+  font-size: 12px;
+}
+
+.cf-bc-current {
+  color: var(--ink, #e0e0e0);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Heading row */
+.cf-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cf-heading-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Icon */
+.cf-heading-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cf-heading-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cf-heading-icon--live {
+  background: rgba(0, 201, 114, 0.12);
+  color: #00c972;
+}
+
+.cf-heading-icon--sched {
+  background: rgba(124, 111, 255, 0.12);
+  color: var(--primary, #7c6fff);
+}
+
+/* Title + inline chip on same row */
+.cf-heading-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.cf-heading-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink, #f0f0f0);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.cf-heading-sub {
+  font-size: 13px;
+  color: var(--ink-secondary, #999);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Inline mode chip */
+.cf-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.cf-mode-chip--live {
+  background: rgba(0, 201, 114, 0.15);
+  color: #00c972;
+  border: 1px solid rgba(0, 201, 114, 0.25);
+}
+
+.cf-mode-chip--sched {
+  background: rgba(124, 111, 255, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(124, 111, 255, 0.25);
+}
+
+/* Tiny pulsing live dot inside the chip */
+.cf-live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00c972;
+  animation: cf-live-blink 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes cf-live-blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .cf-heading-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cf-heading-title {
+    font-size: 17px;
+  }
+}
+

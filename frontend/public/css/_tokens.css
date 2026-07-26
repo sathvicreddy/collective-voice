@@ -1,0 +1,39 @@
+/* ============================================================
+   CollectiveVoice — Premium Design System
+   ============================================================ */
+
+/* --- Tokens ------------------------------------------------ */
+:root {
+  --primary: #5b34ff;
+  --primary-dark: #4824ed;
+  --primary-light: #7c5cff;
+  --primary-2: #286dff;
+  --ink: #111936;
+  --ink-secondary: #3d4466;
+  --muted: #68708d;
+  --line: #e8e8f4;
+  --line-light: #f0eff8;
+  --soft: #f6f4ff;
+  --bg: #f7f8fc;
+  --white: #ffffff;
+  --success: #24b86f;
+  --success-dark: #1a9c5a;
+  --warning: #ff8a2a;
+  --danger: #e54040;
+  --blue-soft: #eff5ff;
+  --green-soft: #edf9f3;
+  --orange-soft: #fff3e9;
+  --red-soft: #ffeaea;
+  --shadow-sm: 0 2px 8px rgba(25, 28, 70, .06);
+  --shadow: 0 8px 32px rgba(25, 28, 70, .10);
+  --shadow-lg: 0 24px 70px rgba(25, 28, 70, .12);
+  --shadow-primary: 0 10px 24px rgba(91, 52, 255, .22);
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  --transition: .22s cubic-bezier(.4, 0, .2, 1);
+  --transition-fast: .14s cubic-bezier(.4, 0, .2, 1);
+  --transition-bounce: .35s cubic-bezier(.34, 1.56, .64, 1);
+}

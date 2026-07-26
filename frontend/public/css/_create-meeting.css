@@ -1,0 +1,516 @@
+/* ============================================================
+   Create Meeting Flow — New UI Components
+   ============================================================ */
+
+/* Instant meeting badge shown on details step */
+.create-instant-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, var(--green-soft), #d1fae5);
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-sm);
+  color: var(--success-dark);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.create-instant-badge svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Settings header with divider */
+.create-settings-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.create-settings-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* Date/time/duration summary chip on invite step */
+.create-summary-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 14px;
+  background: var(--soft);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--ink-secondary);
+  margin-bottom: 4px;
+}
+
+.create-summary-chip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.create-summary-chip svg {
+  width: 13px;
+  height: 13px;
+  color: var(--primary);
+}
+
+/* Review screen rows */
+.create-review-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.create-review-rows .info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink-secondary);
+}
+
+.create-review-rows .info-row svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
+/* ============================================================
+   Create-Form (cf-) Design System
+   Two-column rich meeting creation form
+   ============================================================ */
+
+/* ── Layout ─────────────────────────────────────────────── */
+.desktop-two-col {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 28px;
+  align-items: start;
+  padding: 28px 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.desktop-main-col {
+  min-width: 0;
+}
+
+.desktop-right-col {
+  position: sticky;
+  top: 24px;
+}
+
+/* ── Sections ────────────────────────────────────────────── */
+.cf-section {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.cf-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.cf-section-icon {
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--soft);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.cf-section-icon svg {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+}
+
+.cf-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.cf-section-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ── Fields ──────────────────────────────────────────────── */
+.cf-field {
+  margin-bottom: 16px;
+}
+
+.cf-field:last-child {
+  margin-bottom: 0;
+}
+
+.cf-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  margin-bottom: 6px;
+}
+
+.cf-req {
+  color: var(--danger);
+  margin-left: 2px;
+}
+
+.cf-input-wrap {
+  position: relative;
+}
+
+.cf-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--white);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.cf-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(91, 52, 255, .12);
+}
+
+.cf-input::placeholder {
+  color: var(--muted);
+}
+
+.cf-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2368708d' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.cf-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.cf-count {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.cf-input-icon .cf-input {
+  padding-left: 38px;
+}
+
+.cf-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.cf-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Row of 2 inputs */
+.cf-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Copy button inside input */
+.cf-copy-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--primary);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: background var(--transition-fast);
+}
+
+.cf-copy-btn:hover {
+  background: var(--soft);
+}
+
+.cf-copy-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Toggle Switches ─────────────────────────────────────── */
+.cf-toggles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+@media (max-width: 700px) {
+  .cf-toggles-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cf-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.cf-toggle-row:last-child {
+  border-bottom: none;
+}
+
+.cf-toggle-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.cf-toggle-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* iOS-style switch */
+.cf-switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.cf-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.cf-slider {
+  position: absolute;
+  inset: 0;
+  background: #d1d5db;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.cf-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform var(--transition);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .18);
+}
+
+.cf-switch input:checked+.cf-slider {
+  background: var(--primary);
+}
+
+.cf-switch input:checked+.cf-slider::before {
+  transform: translateX(18px);
+}
+
+/* ── Bottom Action Bar ───────────────────────────────────── */
+.cf-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-light);
+}
+
+/* ── Right Panel — Summary Card ─────────────────────────── */
+.cf-summary-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.cf-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.cf-summary-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cf-sum-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cf-sum-icon {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--soft);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.cf-sum-icon svg {
+  width: 14px;
+  height: 14px;
+  color: var(--primary);
+}
+
+.cf-sum-key {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.cf-sum-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 1px;
+}
+
+/* ── Advanced Settings (collapsible) ─────────────────────── */
+.cf-advanced {
+  border: none;
+}
+
+.cf-adv-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  list-style: none;
+  padding: 0;
+}
+
+.cf-adv-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.cf-adv-chevron {
+  font-size: 18px;
+  color: var(--muted);
+  transition: transform var(--transition-fast);
+}
+
+details[open] .cf-adv-chevron {
+  transform: rotate(180deg);
+}
+
+.cf-adv-body {
+  padding-top: 4px;
+}
+
+/* ── Right Panel — Action Buttons ────────────────────────── */
+.cf-actions-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.cf-save-draft-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.cf-create-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .desktop-two-col {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .desktop-right-col {
+    position: static;
+  }
+
+  .cf-row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════

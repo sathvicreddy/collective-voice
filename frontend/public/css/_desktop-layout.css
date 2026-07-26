@@ -1,0 +1,160 @@
+/* ============================================================
+   Desktop Two-Column Layout (Home & Activity full layout)
+   ============================================================ */
+.desktop-full-layout {
+  display: block;
+}
+
+.desktop-full-layout>.phone {
+  display: none;
+}
+
+.desktop-two-col {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .desktop-full-layout>.phone {
+    display: flex !important;
+  }
+
+  .desktop-two-col {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   Desktop Topbar
+   ============================================================ */
+.desktop-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.desktop-page-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.desktop-page-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.desktop-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.desktop-date-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.desktop-date-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.desktop-notif-btn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--soft);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--ink);
+  transition: all var(--transition);
+}
+
+.desktop-notif-btn:hover {
+  background: #ece7ff;
+  color: var(--primary);
+}
+
+.desktop-notif-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--bg);
+}
+
+.desktop-user-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  background: var(--white);
+  transition: all var(--transition);
+}
+
+.desktop-user-pill:hover {
+  border-color: var(--primary-light);
+}
+
+.desktop-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.desktop-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.desktop-user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.desktop-user-role {
+  font-size: 11px;
+  color: var(--muted);
+}
+

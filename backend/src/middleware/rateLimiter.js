@@ -68,4 +68,27 @@ setInterval(() => {
   }
 }, WINDOW_MS);
 
-module.exports = { isRateLimited, retryAfterSeconds, getClientIp };
+/**
+ * Returns an array of currently rate-limited IPs for the admin health dashboard.
+ */
+function getRateLimitedIPs() {
+  const now = Date.now();
+  const maxReq = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "5", 10);
+  const result = [];
+  for (const [ip, bucket] of _buckets) {
+    if (now <= bucket.resetAt && bucket.count > maxReq) {
+      const secsLeft = Math.ceil((bucket.resetAt - now) / 1000);
+      const h = Math.floor(secsLeft / 3600);
+      const m = Math.floor((secsLeft % 3600) / 60);
+      const s = secsLeft % 60;
+      result.push({
+        ip,
+        requests: bucket.count,
+        resetsIn: `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`,
+      });
+    }
+  }
+  return result;
+}
+
+module.exports = { isRateLimited, retryAfterSeconds, getClientIp, getRateLimitedIPs };

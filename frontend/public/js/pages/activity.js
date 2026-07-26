@@ -157,7 +157,7 @@ export function renderActivity(tab = "questions") {
     conducted: `
       <div class="stack">
         ${meetings.filter(m => m.status === "conducted" || m.status === "past").map(m =>
-          meetingCard(m, `<button class="btn secondary small" onclick="go('/analytics')">${icons.barChart} Report</button>`)
+          meetingCard(m, `<button class="btn secondary small" onclick="openReport('${m.id}')">${icons.barChart} Report</button>`)
         ).join("")}
         <button class="btn secondary" style="width:100%" onclick="go('/analytics')">${icons.download} Export Report</button>
       </div>

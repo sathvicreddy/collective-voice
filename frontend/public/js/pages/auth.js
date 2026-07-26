@@ -71,6 +71,14 @@ export async function authSubmit() {
 
     _storeToken(data.token, data.refreshToken);
     state.profile = { user: data.user };
+
+    // Route based on role — admins/superadmins go to the admin panel
+    const userRole = data.user?.role || "customer";
+    if (userRole === "admin" || userRole === "superadmin") {
+      window.location.href = "/admin.html";
+      return;
+    }
+
     // Re-load all app data (meetings, notifications, profile) so home page
     // renders with the real user name and data immediately.
     await _reloadAppData();

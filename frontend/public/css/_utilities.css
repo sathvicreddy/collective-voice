@@ -1,0 +1,378 @@
+/* --- Auth / Center Screens --------------------------------- */
+.auth-wrap,
+.center-screen {
+  min-height: 100%;
+  display: grid;
+  align-content: center;
+  gap: 24px;
+}
+
+.logo-hero {
+  display: grid;
+  place-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.big-mark {
+  width: 88px;
+  height: 88px;
+  border-radius: 28px;
+  color: var(--white);
+  display: grid;
+  place-items: center;
+  font-size: 38px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  box-shadow: 0 16px 40px rgba(91, 52, 255, .25);
+  animation: scaleIn .4s ease-out;
+}
+
+.big-mark svg {
+  width: 42px;
+  height: 42px;
+  vertical-align: 0;
+}
+
+/* --- QR Scanner -------------------------------------------- */
+.qr-frame {
+  aspect-ratio: 1;
+  width: min(100%, 260px);
+  margin: 14px auto;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(90deg, var(--primary) 28px, transparent 0) top left / 82px 4px no-repeat,
+    linear-gradient(var(--primary) 28px, transparent 0) top left / 4px 82px no-repeat,
+    linear-gradient(270deg, var(--primary) 28px, transparent 0) top right / 82px 4px no-repeat,
+    linear-gradient(var(--primary) 28px, transparent 0) top right / 4px 82px no-repeat,
+    linear-gradient(90deg, var(--primary) 28px, transparent 0) bottom left / 82px 4px no-repeat,
+    linear-gradient(0deg, var(--primary) 28px, transparent 0) bottom left / 4px 82px no-repeat,
+    linear-gradient(270deg, var(--primary) 28px, transparent 0) bottom right / 82px 4px no-repeat,
+    linear-gradient(0deg, var(--primary) 28px, transparent 0) bottom right / 4px 82px no-repeat,
+    #eee;
+  display: grid;
+  place-items: center;
+}
+
+.fake-qr {
+  width: 142px;
+  height: 142px;
+  background:
+    repeating-linear-gradient(90deg, #111 0 7px, #fff 7px 14px),
+    repeating-linear-gradient(0deg, transparent 0 9px, rgba(255, 255, 255, .7) 9px 18px);
+  border: 12px solid #fff;
+  border-radius: 4px;
+}
+
+/* --- Desktop Panels ---------------------------------------- */
+.desktop-panel {
+  display: grid;
+  gap: 18px;
+  animation: fadeIn .4s ease-out .15s both;
+}
+
+.wide-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  padding: 16px;
+  animation: fadeIn .35s ease-out;
+}
+
+.stat-card strong {
+  display: block;
+  color: var(--primary);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+.stat-card .delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.stat-card .delta.up {
+  color: var(--success);
+}
+
+.stat-card .delta.down {
+  color: var(--danger);
+}
+
+.stat-card .delta svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* --- Spacer ------------------------------------------------ */
+.empty-space {
+  height: 16px;
+}
+
+/* --- Dots -------------------------------------------------- */
+.dot {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  border-radius: 50%;
+  background: #d8d4ff;
+  transition: all var(--transition);
+}
+
+.dot.active {
+  width: 22px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+}
+
+/* --- Timeline ---------------------------------------------- */
+.timeline-row {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--soft);
+  justify-self: center;
+}
+
+.timeline-dot.inactive {
+  background: var(--line);
+  border-color: var(--white);
+}
+
+/* --- Spinner ----------------------------------------------- */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--line);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  margin: 0 auto;
+}
+
+/* --- Success Checkmark ------------------------------------- */
+.success-mark {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--green-soft);
+  display: grid;
+  place-items: center;
+  margin: 0 auto;
+  animation: scaleIn .4s ease-out;
+}
+
+.success-mark svg {
+  width: 40px;
+  height: 40px;
+  color: var(--success);
+}
+
+/* --- Profile Edit Button ----------------------------------- */
+.edit-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--white);
+  transition: all var(--transition);
+}
+
+.edit-profile-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.edit-profile-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* --- Info Row (for Meeting Preview) ------------------------ */
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-secondary);
+  font-size: 14px;
+  padding: 3px 0;
+}
+
+.info-row svg {
+  width: 16px;
+  height: 16px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+/* Sidebar nav icon sizing */
+.nav-btn svg {
+  width: 20px;
+  height: 20px;
+  vertical-align: 0;
+}
+
+/* --- Scrollbar --------------------------------------------- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+
+/* --- Link Button ------------------------------------------- */
+.link-btn {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+/* --- Participant Row --------------------------------------- */
+.participant-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+
+.participant-info {
+  flex: 1;
+}
+
+.participant-info strong {
+  font-size: 14px;
+  display: block;
+}
+
+.participant-info span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* --- Review Setting Row ------------------------------------ */
+.review-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--ink-secondary);
+}
+
+.review-row strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* --- Responsive -------------------------------------------- */
+@media (max-width: 1000px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .content {
+    padding: 0;
+    background: var(--white);
+  }
+
+  .desktop-grid {
+    display: block;
+  }
+
+  .desktop-panel {
+    display: none;
+  }
+
+  .phone {
+    width: 100%;
+    min-height: 100vh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .phone-main {
+    padding: 18px 20px 90px;
+  }
+
+  .status {
+    display: flex;
+  }
+
+  .bottom-nav {
+    display: grid;
+  }
+}
+
+@media (max-width: 600px) {
+  .phone-main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .quick-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-grid,
+  .wide-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .meeting-card {
+    grid-template-columns: 42px 1fr;
+  }
+
+  .meeting-card .btn {
+    grid-column: 1 / -1;
+  }
+}
+

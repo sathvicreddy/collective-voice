@@ -379,37 +379,62 @@ const PUBLIC_ROUTES = ["/welcome", "/splash", "/login", "/signup", "/forgot", "/
  * to /#/auth-callback?token=...&refresh=... after a successful OAuth flow.
  */
 async function handleGoogleCallback() {
-  // Backend redirects to /?token=...&refreshToken=...&name=...#/auth-callback
+  // Backend redirects to /?token=...&refreshToken=...&name=...&role=...#/auth-callback
   const params  = new URLSearchParams(location.search);
   const token   = params.get("token");
   const refresh = params.get("refreshToken");
   const name    = params.get("name");
+  const role    = params.get("role") || "customer";
 
   // If there's no fresh token in the URL, check if we're already authenticated
   // (this fires on re-entrant render() calls after the first handleGoogleCallback ran).
   if (!token) {
     if (state.token) {
-      go("/home");   // already logged in — just navigate home
+      // Determine where to send the already-logged-in user
+      const existingRole = state.profile?.user?.role || "customer";
+      if (existingRole === "admin" || existingRole === "superadmin") {
+        window.location.href = "/admin.html";
+      } else {
+        go("/home");
+      }
     } else {
       go("/login");  // no token anywhere — show login
     }
     return;
   }
 
-  // Fresh OAuth redirect — store the new tokens immediately so the guard above
-  // fires on any concurrent render() calls that arrive while we await loadData().
+  // Fresh OAuth redirect — store the new tokens immediately.
   state.token = token;
   try { localStorage.setItem("cv_token", token); } catch {}
   if (refresh) {
     state.refreshToken = refresh;
     try { localStorage.setItem("cv_refresh_token", refresh); } catch {}
   }
-  // Pre-populate name so home renders correctly even before loadData finishes
+  // Pre-populate name and role so renders have something to show immediately
   if (name && !state.profile?.user) {
-    state.profile = { user: { name: decodeURIComponent(name.replace(/\+/g, " ")) } };
+    state.profile = { user: { name: decodeURIComponent(name.replace(/\+/g, " ")), role } };
   }
-  // Advance state.route NOW so any concurrent render() calls skip this handler
+
+  // Route based on role — admins/superadmins go to the admin panel
+  if (role === "admin" || role === "superadmin") {
+    // Clean the URL first, then navigate (avoids triggering hashchange)
+    window.history.replaceState({}, document.title, "/admin.html");
+    window.location.replace("/admin.html");
+    return;
+  }
+
+  // Advance state.route NOW so any concurrent render() calls triggered by
+  // hashchange (from replaceState) will see /home and not re-enter this handler.
   state.route = "/home";
+
+  // Clean the URL — use replaceState WITHOUT a hash change to avoid triggering
+  // the hashchange listener which would race with the async loadData() below.
+  // We remove the query params (?token=...etc) and keep the URL clean.
+  window.history.replaceState({}, document.title, "/");
+
+  // Set home to a non-null placeholder so the router doesn't block while loading
+  if (!state.home) state.home = { loading: true };
+
   // Load all app data with the new token, then navigate to home
   await loadData();
   go("/home");
@@ -488,8 +513,15 @@ export function render() {
   if (route === "/moderator") return renderModerator();
   if (route === "/speaker")   return renderSpeaker();
 
-  if (route === "/analytics") return renderAnalytics();
-  if (route === "/report")    return renderSessionReport();
+  if (route === "/analytics") { renderAnalytics(); return; }
+  if (route === "/report")    { renderSessionReport(); return; }
+  // /report/:id — direct link or openReport()
+  const reportMatch = route.match(/^\/report\/(.+)$/);
+  if (reportMatch) {
+    if (window.state) window.state.report = { meetingId: reportMatch[1] };
+    renderSessionReport();
+    return;
+  }
   if (route.startsWith("/question/")) return renderQuestionDetail(route.split("/").pop());
   if (route === "/notifications") return renderNotifications();
 

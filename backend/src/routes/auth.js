@@ -28,6 +28,9 @@ const REFRESH_TTL = parseInt(process.env.REFRESH_TTL_DAYS || "30", 10) * 24 * 36
 const SALT_ROUNDS = 10;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+// The one email that is auto-promoted to superadmin on first login
+const SUPERADMIN_EMAIL = "sathvic2005@gmail.com";
+
 // Google OAuth config
 const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
@@ -101,6 +104,7 @@ function safeUser(u) {
     email:          u.email,
     picture:        u.picture || null,
     googleId:       u.googleId || null,
+    role:           u.role || "customer",
     ownedMeetingIds: u.ownedMeetingIds || [],
     createdAt:      u.createdAt
   };
@@ -391,14 +395,20 @@ async function handleAuthRequest(req, res) {
         }
       }
       if (!user) {
+        const autoRole = profile.email?.toLowerCase() === SUPERADMIN_EMAIL ? "superadmin" : "customer";
         user = await db.user.create({
           data: {
             name:     profile.name || profile.email.split("@")[0],
             email:    profile.email,
             googleId: profile.id,
-            picture:  profile.picture || null
+            picture:  profile.picture || null,
+            role:     autoRole
           }
         });
+      }
+      // Auto-promote superadmin if existing user doesn't have the role yet
+      if (user.email?.toLowerCase() === SUPERADMIN_EMAIL && user.role !== "superadmin") {
+        user = await db.user.update({ where: { id: user.id }, data: { role: "superadmin" } });
       }
 
       // 4. Issue CollectiveVoice JWT
@@ -415,7 +425,7 @@ async function handleAuthRequest(req, res) {
       // 5. Redirect to frontend SPA with tokens in query string.
       //    The SPA uses hash-based routing (#/route), so we redirect to /#/auth-callback
       //    and pass tokens as query params that handleGoogleCallback() reads from location.search.
-      const params = new URLSearchParams({ token: accessToken, refreshToken, name: user.name });
+      const params = new URLSearchParams({ token: accessToken, refreshToken, name: user.name, role: user.role || "customer" });
       res.writeHead(302, { Location: `/?${params}#/auth-callback` });
       res.end();
 

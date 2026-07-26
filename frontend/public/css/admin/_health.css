@@ -1,0 +1,310 @@
+/* ============================================================
+   SYSTEM HEALTH PAGE
+   ============================================================ */
+
+/* Full-height scroll for health — inherits from .page.active */
+/* (no special override needed; .page.active handles it) */
+
+.health-three-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 1200px) {
+  .health-three-col { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 860px) {
+  .health-three-col { grid-template-columns: 1fr; }
+}
+
+/* Generic sys card */
+.sys-card {
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sys-card-dark {
+  background: #1a1d2e;
+  border-color: #2a2d40;
+}
+
+.sys-card-header {
+  padding: 16px 18px 10px;
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--line-light);
+  flex-shrink: 0;
+}
+.sys-card-dark .sys-card-header { border-bottom-color: #2a2d40; }
+
+.sys-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.sys-card-title svg { width: 15px; height: 15px; color: var(--primary); }
+.sys-card-title-light { color: #fff; }
+.sys-card-title-light svg { color: #f0c040; }
+
+.sys-card-sub {
+  font-size: 12px;
+  color: var(--muted);
+  width: 100%;
+}
+.sys-card-sub-light { color: rgba(255,255,255,.45); }
+
+.sys-icon-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  color: var(--muted);
+  border: 1.5px solid var(--line);
+  background: var(--white);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--transition), border-color var(--transition), transform var(--transition);
+}
+.sys-icon-btn svg { width: 13px; height: 13px; }
+.sys-icon-btn:hover { color: var(--primary); border-color: var(--primary); transform: rotate(180deg); }
+
+/* Rate Limiting table */
+.sys-rl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  min-width: 0;
+}
+.sys-rl-table thead th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 8px 10px;
+  border-bottom: 1.5px solid var(--line);
+  white-space: nowrap;
+}
+.sys-rl-table tbody tr {
+  border-bottom: 1px solid var(--line-light);
+  transition: background var(--transition);
+}
+.sys-rl-table tbody tr:hover { background: var(--soft); }
+.sys-rl-table tbody tr:last-child { border-bottom: 0; }
+.sys-rl-ip { padding: 9px 10px; font-size: 12px; font-family: monospace; color: var(--ink); word-break: break-all; }
+.sys-rl-num { padding: 9px 8px; font-size: 13px; font-weight: 700; color: var(--ink); text-align:right; }
+.sys-rl-timer { padding: 9px 8px; font-size: 12px; font-family: monospace; color: var(--muted); }
+.sys-rl-table td:last-child { padding: 6px 10px; text-align: right; }
+
+.sys-unblock-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  border: 1.5px solid var(--primary-alpha20);
+  background: var(--primary-alpha10);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+  white-space: nowrap;
+}
+.sys-unblock-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* Rate limit empty state */
+.sys-rl-empty {
+  padding: 32px 20px;
+  text-align: center;
+}
+.sys-rl-empty-icon {
+  width: 56px; height: 56px;
+  margin: 0 auto 12px;
+  background: var(--soft);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+.sys-rl-empty-icon svg { width: 26px; height: 26px; }
+.sys-rl-empty-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.sys-rl-empty-sub { font-size: 12px; color: var(--muted); }
+
+/* Range button */
+.sys-range-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1.5px solid var(--line);
+  color: var(--ink-secondary);
+  background: var(--white);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.sys-range-btn svg { width: 12px; height: 12px; }
+
+/* Error log */
+.sys-err-filter {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(255,255,255,.08);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.sys-err-filter-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255,255,255,.45);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  white-space: nowrap;
+}
+.sys-err-filter-btn.active {
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  font-weight: 600;
+}
+
+.sys-err-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.12) transparent;
+}
+
+.sys-err-item {
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.sys-err-item:last-child { border-bottom: 0; }
+.sys-err-item:hover { background: rgba(255,255,255,.04); }
+.sys-err-item.expanded { background: rgba(255,255,255,.06); border-bottom: 0; }
+
+.sys-err-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sys-err-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #e54040;
+  flex-shrink: 0;
+}
+.err-expanded-dot { background: #ff8a2a; }
+.sys-err-time {
+  font-size: 11px;
+  color: rgba(255,255,255,.38);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.sys-err-msg {
+  font-size: 12.5px;
+  color: rgba(255,255,255,.82);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sys-err-item.expanded .sys-err-msg {
+  white-space: normal;
+  overflow: visible;
+}
+.sys-err-caret {
+  font-size: 14px;
+  color: rgba(255,255,255,.35);
+  flex-shrink: 0;
+}
+
+.sys-err-detail {
+  margin: 8px 0 4px 15px;
+  font-size: 11px;
+  color: #ff8a2a;
+  font-family: 'Courier New', monospace;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.sys-card-footer-link {
+  padding: 12px 18px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255,255,255,.5);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border-top: 1px solid rgba(255,255,255,.06);
+  transition: color var(--transition);
+}
+.sys-card-footer-link svg { width: 13px; height: 13px; }
+.sys-card-footer-link:hover { color: rgba(255,255,255,.85); }
+
+/* WebSocket chart */
+.sys-ws-chart-wrap {
+  position: relative;
+  height: 140px;
+  padding: 8px 18px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sys-ws-xaxis {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0 0;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* WebSocket stats */
+.sys-ws-stats {
+  display: flex;
+  gap: 16px;
+  padding: 12px 18px 8px;
+  border-top: 1px solid var(--line-light);
+  align-items: flex-start;
+}
+.sys-ws-main { min-width: 110px; }
+.sys-ws-stat-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.sys-ws-big { font-size: 36px; font-weight: 900; color: var(--ink); letter-spacing: -.03em; line-height: 1; }
+.sys-ws-delta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.sys-ws-up { color: var(--success); font-weight: 700; }
+.sys-ws-meetings-num { font-size: 20px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; }
+.sys-ws-breakdown { flex: 1; min-width: 0; }
+.sys-ws-meeting-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-secondary);
+  padding: 2px 0;
+}
+.sys-ws-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sys-ws-meeting-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sys-ws-meeting-num { font-weight: 700; color: var(--ink); flex-shrink: 0; }
+

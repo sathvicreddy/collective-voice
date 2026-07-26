@@ -20,6 +20,7 @@ model User {
   passwordHash String?  // null for Google-only accounts
   googleId     String?  @unique
   picture      String?  // Google profile photo URL
+  role         String   @default("customer") // "superadmin" | "admin" | "customer"
   createdAt    DateTime @default(now())
 
   // Relations
@@ -177,4 +178,22 @@ model RefreshToken {
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── Audit Log ─────────────────────────────────────────────────────────────────
+// Records every significant admin action for compliance and debugging.
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  adminId     String                      // who performed the action
+  adminName   String
+  adminRole   String
+  action      String                      // e.g. "meeting.delete", "user.role_update"
+  actionType  String   @default("info")   // "danger" | "warning" | "info" | "success"
+  targetType  String                      // "Meeting" | "User" | "Question" | "SystemConfig"
+  targetName  String
+  targetId    String   @default("")
+  detailJson  String   @default("{}")     // JSON blob with before/after context
+  ipAddress   String   @default("")
+  createdAt   DateTime @default(now())
 }

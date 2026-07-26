@@ -25,7 +25,8 @@ process.on("uncaughtException", (err) => {
 });
 process.on("unhandledRejection", (reason) => {
   console.error(`[${new Date().toISOString()}] UNHANDLED REJECTION:`, reason?.stack || reason);
-  process.exit(1);
+  // Don't process.exit(1) here — transient DB errors (e.g. Neon cold-start)
+  // would kill the server and prevent static files / OAuth redirects from working.
 });
 
 const PORT       = process.env.PORT || 3000;
@@ -442,8 +443,26 @@ function broadcast(msg, skip = null) {
 }
 
 // Expose broadcast + raw server so api.js and tests can use them
-module.exports.broadcast = broadcast;
-module.exports.server    = server; // Supertest injects this directly
+module.exports.broadcast  = broadcast;
+module.exports.server     = server; // Supertest injects this directly
+
+/**
+ * Returns live WebSocket stats for the admin health dashboard.
+ * Counts all connected clients and the distinct meetingIds they are subscribed to.
+ */
+module.exports.getWsStats = function getWsStats() {
+  let connections = 0;
+  const meetingSet = new Set();
+  try {
+    for (const ws of wss.clients) {
+      if (ws.readyState === 1 /* OPEN */) {
+        connections++;
+        if (ws._meetingId) meetingSet.add(ws._meetingId);
+      }
+    }
+  } catch { /* wss may not be initialised yet during tests */ }
+  return { connections, activeMeetings: meetingSet.size };
+};
 
 // ── Graceful shutdown (B8) ───────────────────────────────────────────────────
 const SHUTDOWN_TIMEOUT_MS = 5_000;

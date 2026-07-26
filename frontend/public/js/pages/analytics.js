@@ -12,11 +12,12 @@ import { shell, phone, lineChart, desktopDashboard } from "../components/shared.
 
 function fmt(n) { return n == null ? "0" : String(n); }
 
-function statCard(icon, label, value) {
+function statCard(icon, label, value, sub = "") {
   return `
     <div class="stat-card" style="text-align:center">
       <strong style="font-size:22px">${fmt(value)}</strong>
       <span class="subtle">${icon} ${label}</span>
+      ${sub ? `<span style="font-size:11px;color:var(--success)">${sub}</span>` : ""}
     </div>
   `;
 }
@@ -34,30 +35,46 @@ function emptyState() {
   `;
 }
 
-// ── Per-meeting analytics loader (called from conducted meetings / reports) ─
+// ── Per-meeting analytics loader ────────────────────────────────
 export async function loadMeetingAnalytics(meetingId) {
-  const res  = await fetch(`/api/analytics/meeting/${meetingId}`).catch(() => null);
+  const res = await fetch(`/api/analytics/meeting/${meetingId}`).catch(() => null);
   if (!res?.ok) return null;
   return res.json();
 }
 window.loadMeetingAnalytics = loadMeetingAnalytics;
 
+// ── Aggregate analytics loader ──────────────────────────────────
+export async function loadAggregateAnalytics() {
+  try {
+    const token = localStorage.getItem("cv_token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch("/api/analytics", { headers });
+    if (res.ok) state.sessionAnalytics = await res.json();
+  } catch { /* ignore */ }
+}
+
 // ── Main page ─────────────────────────────────────────────────
 
-export function renderAnalytics() {
+export async function renderAnalytics() {
+  // Load data if not available
+  if (!state.sessionAnalytics) {
+    await loadAggregateAnalytics();
+  }
+
   const data = state.sessionAnalytics;
 
   if (!data || (!data.overview && !data.analytics)) {
-    // No data yet — show empty state
     shell(phone(emptyState(), "activity"), desktopDashboard());
     return;
   }
 
-  // Support both old shape (data.analytics) and new shape (data.overview)
   const overview = data.overview || [];
   const trend    = data.trend || data.analytics?.trend || [0];
   const totals   = data.analytics?.totals || {};
   const aiSum    = data.analytics?.aiSummary || "Run a session to see your AI summary.";
+
+  // Get list of completed meetings for the selector
+  const meetings = (state.meetings || []).filter(m => m.status === "conducted" || m.status === "past");
 
   shell(phone(`
     <h1 class="screen-title">Analytics</h1>
@@ -89,14 +106,31 @@ export function renderAnalytics() {
       ${lineChart(trend)}
     </div>
 
+    ${meetings.length > 0 ? `
+    <div class="chart-card stack" style="margin-bottom:14px">
+      <h2 class="screen-title">${icons.barChart} Session Reports</h2>
+      <p class="subtle" style="margin-bottom:12px">View detailed analytics for individual sessions.</p>
+      <div class="stack" style="gap:8px">
+        ${meetings.slice(0, 5).map(m => `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f8f9ff;border-radius:10px">
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:13px">${m.title}</div>
+              <div style="font-size:11px;color:var(--ink-secondary)">${m.questionsCount||0} questions · ${m.participants||0} participants</div>
+            </div>
+            <button class="btn secondary small" onclick="openReport('${m.id}')">${icons.barChart} Report</button>
+          </div>`).join("")}
+      </div>
+    </div>
+    ` : ""}
+
     <section class="chart-card stack">
       <h2 class="screen-title">${icons.zap} AI Summary</h2>
       <p style="font-size:14px;color:var(--ink-secondary);line-height:1.6">${aiSum}</p>
     </section>
 
     <div class="stack" style="margin-top:16px;gap:10px">
-      <button class="btn secondary" style="width:100%" onclick="exportAnalytics()">
-        ${icons.download} Export Report
+      <button class="btn secondary" style="width:100%" onclick="exportAnalyticsData()">
+        ${icons.download} Export Report (JSON)
       </button>
       <button class="btn" style="width:100%" onclick="go('/conducted')">
         ${icons.fileText} Conducted Meetings
@@ -137,7 +171,7 @@ export function analyticsDesktop() {
 
 // ── Export helper ─────────────────────────────────────────────
 
-function exportAnalytics() {
+function exportAnalyticsData() {
   const data = state.sessionAnalytics;
   if (!data) return alert("No analytics data to export.");
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -148,4 +182,13 @@ function exportAnalytics() {
   a.click();
   URL.revokeObjectURL(url);
 }
-window.exportAnalytics = exportAnalytics;
+window.exportAnalyticsData = exportAnalyticsData;
+window.exportAnalytics = exportAnalyticsData; // backwards compat
+
+// openReport helper (if not already defined by meetings.js)
+if (!window.openReport) {
+  window.openReport = function(meetingId) {
+    if (window.state) window.state.report = { meetingId };
+    window.go?.("/report");
+  };
+}

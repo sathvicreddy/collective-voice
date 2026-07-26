@@ -1,0 +1,748 @@
+/* ============================================================
+   Mobile-specific: Hide desktop layouts on small screens
+   (inherits from existing max-width: 1000px block above)
+   ============================================================ */
+
+/* Single-column desktop layout (no right panel) */
+.desktop-single-col {
+  display: block;
+}
+
+/* ============================================================
+   Profile Engagement Chart
+   ============================================================ */
+.prof-chart-wrap {
+  margin: 12px 0 4px;
+  width: 100%;
+}
+
+/* Let SVG scale naturally — width:100% + height:auto preserves viewBox aspect
+   so circles stay circular and labels scale proportionally */
+.prof-chart-wrap svg,
+.prof-engagement-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  vertical-align: baseline;
+  overflow: visible;
+}
+
+/* ============================================================
+   Profile Canvas Chart
+   ============================================================ */
+.prof-chart-wrap {
+  margin: 12px 0 0;
+  width: 100%;
+}
+
+.prof-engagement-canvas {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+}
+
+/* override global svg rule - no conflict since canvas */
+
+/* ============================================================
+   GLOBAL ANIMATION TOKENS & KEYFRAMES
+   ============================================================ */
+
+/* Staggered fade-up for any element with .anim class */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(.88);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lineGrow {
+  from {
+    stroke-dashoffset: 1000;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes barGrow {
+  from {
+    height: 0;
+    margin-top: auto;
+  }
+
+  to {}
+}
+
+/* ============================================================
+   SIDEBAR — smooth active pill transition
+   ============================================================ */
+.nav-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--soft);
+  border-radius: var(--radius-sm);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .22s cubic-bezier(.4, 0, .2, 1);
+  z-index: 0;
+}
+
+.nav-btn.active::before,
+.nav-btn:hover::before {
+  transform: scaleX(1);
+}
+
+.nav-btn svg,
+.nav-btn span {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   DESKTOP TOPBAR — polished entry animation
+   ============================================================ */
+.desktop-topbar {
+  animation: slideDown .35s cubic-bezier(.4, 0, .2, 1) both;
+}
+
+/* ============================================================
+   STAT CARDS — staggered pop-in on all pages
+   ============================================================ */
+.prof-stat-card:nth-child(1) {
+  animation: fadeUp .4s .05s both;
+}
+
+.prof-stat-card:nth-child(2) {
+  animation: fadeUp .4s .12s both;
+}
+
+.prof-stat-card:nth-child(3) {
+  animation: fadeUp .4s .19s both;
+}
+
+.prof-stat-card:nth-child(4) {
+  animation: fadeUp .4s .26s both;
+}
+
+.activity-stat-card:nth-child(1),
+.act-stat-card:nth-child(1) {
+  animation: fadeUp .4s .05s both;
+}
+
+.activity-stat-card:nth-child(2),
+.act-stat-card:nth-child(2) {
+  animation: fadeUp .4s .12s both;
+}
+
+.activity-stat-card:nth-child(3),
+.act-stat-card:nth-child(3) {
+  animation: fadeUp .4s .19s both;
+}
+
+.activity-stat-card:nth-child(4),
+.act-stat-card:nth-child(4) {
+  animation: fadeUp .4s .26s both;
+}
+
+/* ============================================================
+   PROFILE PAGE — staggered sections
+   ============================================================ */
+.prof-header-card {
+  animation: fadeUp .38s .04s both;
+}
+
+.prof-stats-row {
+  animation: fadeUp .38s .10s both;
+}
+
+.prof-tabs {
+  animation: fadeUp .35s .16s both;
+}
+
+.prof-tab-panel {
+  animation: fadeUp .35s .20s both;
+}
+
+.prof-card {
+  animation: fadeUp .35s .18s both;
+}
+
+.prof-card-right {
+  animation: fadeUp .38s .22s both;
+}
+
+/* Tab switch animation */
+.prof-tab-panel {
+  transition: opacity .2s ease;
+}
+
+/* Badge hover lift */
+.prof-badge-item {
+  transition: transform .22s cubic-bezier(.34, 1.56, .64, 1), box-shadow .22s;
+}
+
+.prof-badge-item:not(.locked):hover {
+  transform: translateY(-4px) scale(1.06);
+  box-shadow: 0 8px 24px rgba(91, 52, 255, .14);
+}
+
+/* Achievement progress bar animate on load */
+.prof-achievement-bar {
+  animation: profBarGrow .8s .5s cubic-bezier(.4, 0, .2, 1) both;
+}
+
+@keyframes profBarGrow {
+  from {
+    width: 0 !important;
+  }
+}
+
+/* ============================================================
+   SETTINGS PAGE — sidebar + content animate
+   ============================================================ */
+.settings-sidebar {
+  animation: fadeLeft .38s .06s both;
+}
+
+.settings-content {
+  animation: fadeUp .38s .12s both;
+}
+
+.settings-section {
+  animation: fadeUp .32s .08s both;
+}
+
+/* Settings nav button hover */
+.settings-nav-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.settings-nav-btn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--primary);
+  border-radius: 0 3px 3px 0;
+  transform: scaleY(0);
+  transition: transform .22s cubic-bezier(.4, 0, .2, 1);
+}
+
+.settings-nav-btn.active::after {
+  transform: scaleY(1);
+}
+
+/* Toggle switch smooth */
+.settings-toggle-thumb {
+  transition: background .22s ease;
+}
+
+.settings-toggle-thumb::before {
+  transition: transform .25s cubic-bezier(.34, 1.3, .64, 1);
+}
+
+/* ============================================================
+   HOME PAGE — staggered entry
+   ============================================================ */
+.home-greeting {
+  animation: fadeUp .38s .04s both;
+}
+
+.home-quick-grid {
+  animation: fadeUp .38s .08s both;
+}
+
+.home-live-banner {
+  animation: fadeUp .42s .12s both;
+}
+
+.home-meetings-list {
+  animation: fadeUp .38s .16s both;
+}
+
+.home-right-panel {
+  animation: fadeLeft .38s .18s both;
+}
+
+.home-panel-card {
+  animation: fadeUp .35s .20s both;
+}
+
+/* Quick action card hover */
+.home-quick-card {
+  transition: all .22s cubic-bezier(.4, 0, .2, 1);
+}
+
+.home-quick-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(91, 52, 255, .10);
+}
+
+/* Live bar animation */
+.home-live-bar {
+  animation: liveBarPulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes liveBarPulse {
+  from {
+    opacity: .5;
+    transform: scaleY(.85);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.home-live-bar:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.home-live-bar:nth-child(2) {
+  animation-delay: .15s;
+}
+
+.home-live-bar:nth-child(3) {
+  animation-delay: .30s;
+}
+
+.home-live-bar:nth-child(4) {
+  animation-delay: .45s;
+}
+
+.home-live-bar:nth-child(5) {
+  animation-delay: .60s;
+}
+
+.home-live-bar:nth-child(6) {
+  animation-delay: .75s;
+}
+
+.home-live-bar:nth-child(7) {
+  animation-delay: .90s;
+}
+
+.home-live-bar:nth-child(8) {
+  animation-delay: 1.05s;
+}
+
+.home-live-bar:nth-child(9) {
+  animation-delay: 1.20s;
+}
+
+/* ============================================================
+   ACTIVITY PAGE
+   ============================================================ */
+.activity-desktop {
+  animation: fadeUp .38s .06s both;
+}
+
+.act-stat-card {
+  transition: all .22s ease;
+}
+
+.act-stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(91, 52, 255, .10);
+}
+
+/* ============================================================
+   MEETINGS PAGE — cards stagger
+   ============================================================ */
+.meeting-card {
+  animation: fadeUp .35s both;
+}
+
+.meeting-card:nth-child(1) {
+  animation-delay: .04s;
+}
+
+.meeting-card:nth-child(2) {
+  animation-delay: .10s;
+}
+
+.meeting-card:nth-child(3) {
+  animation-delay: .16s;
+}
+
+.meeting-card:nth-child(4) {
+  animation-delay: .22s;
+}
+
+.meeting-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   NOTIFICATIONS PAGE — desktop card
+   ============================================================ */
+.notif-desktop-card {
+  animation: fadeUp .38s .08s both;
+}
+
+.notif-item {
+  transition: background .18s ease;
+  border-radius: var(--radius-sm);
+}
+
+.notif-item:hover {
+  background: var(--soft);
+}
+
+/* ============================================================
+   BUTTONS — micro-interactions
+   ============================================================ */
+.btn {
+  transition: all .2s cubic-bezier(.4, 0, .2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, .15);
+  opacity: 0;
+  transition: opacity .18s;
+}
+
+.btn:hover::after {
+  opacity: 1;
+}
+
+.btn:active {
+  transform: scale(.97);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-primary);
+}
+
+.btn.secondary:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary-light);
+  color: var(--primary);
+}
+
+.btn.secondary:active {
+  transform: scale(.97);
+}
+
+/* Edit profile button */
+.edit-profile-btn {
+  transition: all .2s ease;
+}
+
+.edit-profile-btn:hover {
+  background: var(--soft);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+/* Link buttons */
+.link-btn {
+  transition: color .18s, transform .18s;
+}
+
+.link-btn:hover {
+  color: var(--primary-dark);
+  transform: translateX(2px);
+}
+
+/* ============================================================
+   LIST / MEETING / QUESTION CARDS — hover lift
+   ============================================================ */
+.list-card {
+  transition: all .22s cubic-bezier(.4, 0, .2, 1);
+}
+
+.list-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: 0 4px 16px rgba(91, 52, 255, .08);
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   PANEL / STAT CARDS — smooth entry
+   ============================================================ */
+.panel {
+  animation: fadeUp .35s both;
+}
+
+.stat-card {
+  transition: all .22s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+/* ============================================================
+   ICON BOXES — color-pulse on hover
+   ============================================================ */
+.icon-box {
+  transition: all .22s cubic-bezier(.34, 1.3, .64, 1);
+}
+
+.icon-box:hover,
+button:hover .icon-box {
+  transform: scale(1.12);
+}
+
+/* ============================================================
+   AVATAR & PILL — hover ring
+   ============================================================ */
+.desktop-user-pill {
+  transition: all .22s ease;
+}
+
+.desktop-user-pill:hover {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(91, 52, 255, .08);
+}
+
+/* ============================================================
+   TABS — active indicator animation
+   ============================================================ */
+.prof-tab {
+  transition: all .22s cubic-bezier(.4, 0, .2, 1);
+  position: relative;
+}
+
+.prof-tab.active {
+  animation: popIn .3s both;
+}
+
+/* ============================================================
+   PHONE FRAME — smooth page transitions
+   ============================================================ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.phone {
+  animation: fadeIn .32s ease-out;
+}
+
+.phone-main>* {
+  animation: fadeUp .3s .06s both;
+}
+
+/* ============================================================
+   QUICK CARD (mobile)
+   ============================================================ */
+.quick-card {
+  transition: all .22s cubic-bezier(.34, 1.3, .64, 1);
+}
+
+.quick-card:hover {
+  transform: translateY(-4px) scale(1.04);
+  border-color: var(--primary-light);
+  box-shadow: 0 8px 20px rgba(91, 52, 255, .12);
+}
+
+.quick-card:active {
+  transform: scale(.97);
+}
+
+/* ============================================================
+   BOTTOM NAV — active bounce
+   ============================================================ */
+.bottom-nav button {
+  transition: color .18s, transform .18s;
+}
+
+.bottom-nav button:hover {
+  transform: translateY(-2px);
+}
+
+.bottom-nav button.active {
+  color: var(--primary);
+}
+
+.bottom-nav button.active svg {
+  animation: popIn .3s both;
+}
+
+/* ============================================================
+   BADGE SHIMMER on hover
+   ============================================================ */
+.badge {
+  transition: all .2s ease;
+}
+
+.badge:hover {
+  box-shadow: 0 2px 8px rgba(91, 52, 255, .15);
+  transform: scale(1.04);
+}
+
+/* ============================================================
+   NOTIFICATIONS DESKTOP — proper layout
+   ============================================================ */
+.notif-desktop-wrap {
+  display: grid;
+  gap: 16px;
+  max-width: 680px;
+}
+
+.notif-desktop-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.notif-desktop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.notif-desktop-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -.02em;
+}
+
+.notif-desktop-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--soft);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  margin-bottom: 16px;
+}
+
+.notif-dtab {
+  flex: 1;
+  padding: 6px 12px;
+  border-radius: calc(var(--radius-sm) - 3px);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: all .2s;
+}
+
+.notif-dtab:hover {
+  color: var(--primary);
+}
+
+.notif-dtab.active {
+  background: var(--white);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+
+.notif-item-body-text {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.notif-item-time {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+

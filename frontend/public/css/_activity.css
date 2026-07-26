@@ -1,0 +1,866 @@
+/* ============================================================
+   Activity Desktop
+   ============================================================ */
+.activity-desktop {
+  display: grid;
+  gap: 20px;
+}
+
+.activity-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.activity-stat-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  animation: fadeIn .3s ease-out;
+  transition: all var(--transition);
+}
+
+.activity-stat-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.activity-stat-icon {
+  margin-bottom: 4px;
+}
+
+.activity-stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -.02em;
+  line-height: 1;
+}
+
+.activity-stat-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.activity-stat-link {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.activity-charts-row {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.activity-chart-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  flex: 1;
+  animation: fadeIn .35s ease-out;
+}
+
+.activity-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.activity-chart-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.activity-chart-title svg {
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+.activity-period-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.activity-period-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.activity-donut-wrap {
+  padding: 8px 0;
+}
+
+.activity-line-wrap {
+  margin: 0 -4px;
+}
+
+.activity-trend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+  padding: 0 4px;
+}
+
+.activity-recent-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  animation: fadeIn .4s ease-out;
+}
+
+.activity-recent-list {
+  display: grid;
+  gap: 14px;
+}
+
+.activity-recent-item {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.activity-recent-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.activity-recent-body {
+  min-width: 0;
+}
+
+.activity-recent-text {
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.activity-action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.activity-action-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  transition: all var(--transition);
+  animation: fadeIn .4s ease-out;
+}
+
+.activity-action-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 1300px) {
+  .activity-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .activity-action-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .activity-charts-row {
+    flex-direction: column;
+  }
+}
+
+/* Activity Right Panel */
+.activity-right-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.activity-meetings-list {
+  display: grid;
+  gap: 14px;
+}
+
+.activity-meeting-item {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: flex-start;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.activity-meeting-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.activity-categories {
+  display: grid;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.activity-category-item {
+  display: grid;
+  gap: 0;
+}
+
+.activity-cat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ============================================================
+   Activity Charts Row � Fix spacing & alignment
+   ============================================================ */
+.activity-charts-row {
+  align-items: start;
+}
+
+/* Engagement Summary donut card: donut + legend side by side */
+.activity-donut-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.activity-donut-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.activity-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Participation Trend card: line chart fixed height, no stretch gap */
+.activity-trend-card {
+  flex: 1.6;
+}
+
+.activity-line-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-line-container .line-chart {
+  height: 160px;
+  width: 100%;
+  display: block;
+}
+
+/* ============================================================
+   Activity Page � Clean Redesign CSS (act-* namespace)
+   ============================================================ */
+
+/* Stats row */
+.act-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.act-stat-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all var(--transition);
+}
+
+.act-stat-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.act-stat-icon {
+  margin-bottom: 6px;
+}
+
+.act-stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -.02em;
+  line-height: 1;
+}
+
+.act-stat-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.act-stat-link {
+  font-size: 12px;
+  margin-top: 4px;
+  text-align: left;
+}
+
+/* Charts row: two side-by-side cards, aligned to top */
+.act-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Generic card */
+.act-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.act-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.act-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.act-card-title svg {
+  width: 13px;
+  height: 13px;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+/* Period button */
+.act-period-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.act-period-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Engagement Summary donut layout */
+.act-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.act-donut-svg-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.act-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.act-donut-center strong {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  display: block;
+}
+
+.act-donut-center span {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.act-donut-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.act-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.act-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.act-legend-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.act-legend-val {
+  font-size: 13px;
+  color: var(--ink);
+  margin-left: auto;
+}
+
+/* Participation Trend chart */
+.act-trend-chart {
+  display: flex;
+  flex-direction: column;
+}
+
+.act-trend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 6px 28px 0 28px;
+}
+
+/* Recent Activity */
+.act-recent-list {
+  display: grid;
+  gap: 14px;
+}
+
+.act-recent-item {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.act-recent-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.act-recent-body {
+  min-width: 0;
+}
+
+.act-recent-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.act-recent-time {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 2px 0 0;
+}
+
+/* Action cards grid */
+.act-action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.act-action-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  transition: all var(--transition);
+}
+
+.act-action-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+/* Responsive */
+@media (max-width: 1300px) {
+  .act-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .act-charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  .act-action-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ============================================================
+   Desktop two-column main/right column definitions
+   ============================================================ */
+.desktop-main-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.desktop-right-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Fix act-donut-svg-wrap so absolute center overlay works */
+.act-donut-svg-wrap {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  flex-shrink: 0;
+}
+
+.act-donut-svg-wrap svg {
+  display: block;
+  width: 130px;
+  height: 130px;
+}
+
+.act-donut-center {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.act-donut-center strong {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.act-donut-center span {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* Make engagement card match height of trend card */
+.act-engagement-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.act-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.act-donut-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.act-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.act-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.act-legend-label {
+  font-size: 13px;
+  color: var(--muted);
+  flex: 1;
+}
+
+.act-legend-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ============================================================
+   Activity Engagement Summary � tighten legend, remove wrapping
+   ============================================================ */
+.act-legend-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.act-legend-label {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.act-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Keep the engagement card vertically compact */
+.act-engagement-card .act-card-header {
+  margin-bottom: 14px;
+}
+
+.act-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Right panel meetings � prevent time wrapping */
+.activity-meeting-item p,
+.activity-meeting-item .home-meeting-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================
+   CHARTS ROW FINAL FIX � equal height, premium layout
+   ============================================================ */
+
+/* Both cards stretch to same height */
+.act-charts-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1.7fr !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+
+/* Both cards fill their row height */
+.act-engagement-card,
+.act-trend-card {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Donut content stretches & centers vertically */
+.act-engagement-card .act-donut-wrap {
+  flex: 1;
+  display: flex !important;
+  align-items: center !important;
+  gap: 24px !important;
+}
+
+/* Legend: 3-col grid � dot | label | value � single line guaranteed */
+.act-donut-legend {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  justify-content: center;
+}
+
+.act-legend-row {
+  display: grid !important;
+  grid-template-columns: 12px 1fr auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.act-legend-dot {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  display: inline-block !important;
+  flex-shrink: 0 !important;
+}
+
+.act-legend-label {
+  font-size: 13px !important;
+  color: var(--muted) !important;
+  white-space: nowrap !important;
+}
+
+.act-legend-val {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+  white-space: nowrap !important;
+  text-align: right !important;
+}
+
+/* Trend card � chart fills remaining vertical space */
+.act-trend-card .act-trend-chart {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.act-trend-chart svg {
+  flex: 1;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 160px;
+}
+
+.act-trend-labels {
+  display: flex !important;
+  justify-content: space-between !important;
+  font-size: 11px !important;
+  color: var(--muted) !important;
+  padding: 6px 28px 0 !important;
+  margin-top: 4px !important;
+}
+
+/* ============================================================
+   CHARTS ROW � DEFINITIVE OVERRIDE (highest specificity)
+   ============================================================ */
+.activity-desktop .act-charts-row {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.activity-desktop .act-engagement-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-desktop .act-engagement-card .act-donut-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 8px 0;
+}
+
+.activity-desktop .act-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  justify-content: center;
+}
+
+.activity-desktop .act-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.activity-desktop .act-legend-label {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex: 1;
+}
+
+.activity-desktop .act-legend-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.activity-desktop .act-trend-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-desktop .act-trend-card .act-trend-chart {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.activity-desktop .act-trend-chart svg {
+  flex: 1;
+  width: 100%;
+  min-height: 160px;
+}
+
+.activity-desktop .act-trend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 6px 28px 0;
+}
+
