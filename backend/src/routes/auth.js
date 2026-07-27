@@ -142,18 +142,14 @@ function googleExchangeCode(code) {
         hostname: "oauth2.googleapis.com",
         path:     "/token",
         method:   "POST",
-        headers:  { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
-        rejectUnauthorized: process.env.NODE_ENV === "production"
+        headers:  { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }
       },
       res => {
         let data = "";
         res.on("data", c => { data += c; });
         res.on("end",  () => {
           try { resolve(JSON.parse(data)); }
-          catch {
-            console.error("[Auth] Google token response was not JSON:", data.slice(0, 500));
-            reject(new Error("Failed to parse Google token response")); 
-          }
+          catch { reject(new Error("Failed to parse Google token response")); }
         });
       }
     );
@@ -171,18 +167,14 @@ function googleUserInfo(accessToken) {
         hostname: "www.googleapis.com",
         path:     "/oauth2/v2/userinfo",
         method:   "GET",
-        headers:  { Authorization: `Bearer ${accessToken}` },
-        rejectUnauthorized: process.env.NODE_ENV === "production"
+        headers:  { Authorization: `Bearer ${accessToken}` }
       },
       res => {
         let data = "";
         res.on("data", c => { data += c; });
         res.on("end",  () => {
           try { resolve(JSON.parse(data)); }
-          catch {
-            console.error("[Auth] Google userinfo response was not JSON:", data.slice(0, 500));
-            reject(new Error("Failed to parse Google userinfo")); 
-          }
+          catch { reject(new Error("Failed to parse Google userinfo")); }
         });
       }
     );

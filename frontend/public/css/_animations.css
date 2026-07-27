@@ -1,824 +1,91 @@
-/* ============================================================
-   CollectiveVoice — Master Animations System
-   Covers: keyframes, loading states, skeleton, transitions,
-   ripple, toast, page transitions, verification, joining screens
-   ============================================================ */
-
-/* ── 1. Core Keyframes ─────────────────────────────────────── */
-
+/* --- Animations -------------------------------------------- */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 
-@keyframes fadeInFast {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(28px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
 
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideInRight {
-  from { opacity: 0; transform: translateX(32px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-32px); }
-  to   { opacity: 1; transform: translateX(0); }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.88); }
-  to   { opacity: 1; transform: scale(1); }
-}
+  from {
+    opacity: 0;
+    transform: scale(.92);
+  }
 
-@keyframes scalePop {
-  0%   { transform: scale(0.7); opacity: 0; }
-  70%  { transform: scale(1.08); opacity: 1; }
-  100% { transform: scale(1);   opacity: 1; }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.38; }
-}
 
-@keyframes pulseSlow {
-  0%, 100% { transform: scale(1);    opacity: 1; }
-  50%       { transform: scale(1.06); opacity: 0.85; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: .4;
+  }
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes spinReverse {
-  to { transform: rotate(-360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes dotPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(36, 184, 111, 0.4);
+    box-shadow: 0 0 0 0 rgba(36, 184, 111, .4);
   }
+
   50% {
-    transform: scale(1.18);
-    box-shadow: 0 0 0 7px rgba(36, 184, 111, 0);
+    transform: scale(1.15);
+    box-shadow: 0 0 0 6px rgba(36, 184, 111, 0);
   }
 }
 
 @keyframes confetti {
-  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(-70px) rotate(360deg); opacity: 0; }
-}
-
-/* ── 2. Shimmer / Skeleton ─────────────────────────────────── */
-
-@keyframes shimmer {
-  0%   { background-position: -400% 0; }
-  100% { background-position:  400% 0; }
-}
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    #f0eff8 25%,
-    #e4e2f4 50%,
-    #f0eff8 75%
-  );
-  background-size: 400% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
-  border-radius: var(--radius-sm);
-  color: transparent !important;
-  pointer-events: none;
-}
-
-.skeleton-text {
-  height: 14px;
-  border-radius: 6px;
-  margin-bottom: 6px;
-}
-
-.skeleton-title {
-  height: 20px;
-  width: 60%;
-  border-radius: 6px;
-  margin-bottom: 10px;
-}
-
-.skeleton-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.skeleton-card {
-  height: 80px;
-  border-radius: var(--radius);
-  margin-bottom: 12px;
-}
-
-/* ── 3. Page / Screen Transitions ──────────────────────────── */
-
-/* Every phone-main render gets a fresh fade-slide-up */
-.phone-main,
-.screen-enter {
-  animation: slideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* Desktop content panels slide in from right on route change */
-.content-enter {
-  animation: slideInRight 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* Auth pages: slide up from below */
-.auth-enter {
-  animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* Staggered children — add data-stagger="N" (0–8) to children */
-[data-stagger="0"] { animation-delay: 0s; }
-[data-stagger="1"] { animation-delay: 0.05s; }
-[data-stagger="2"] { animation-delay: 0.10s; }
-[data-stagger="3"] { animation-delay: 0.15s; }
-[data-stagger="4"] { animation-delay: 0.20s; }
-[data-stagger="5"] { animation-delay: 0.25s; }
-[data-stagger="6"] { animation-delay: 0.30s; }
-[data-stagger="7"] { animation-delay: 0.35s; }
-[data-stagger="8"] { animation-delay: 0.40s; }
-
-/* ── 4. Loading / Splash Screen ────────────────────────────── */
-
-@keyframes splashLogoIn {
-  0%   { transform: scale(0.5) rotate(-10deg); opacity: 0; }
-  60%  { transform: scale(1.12) rotate(2deg);  opacity: 1; }
-  100% { transform: scale(1)    rotate(0deg);  opacity: 1; }
-}
-
-@keyframes splashTagline {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes loadBar {
-  0%   { transform: scaleX(0); }
-  30%  { transform: scaleX(0.3); }
-  60%  { transform: scaleX(0.65); }
-  85%  { transform: scaleX(0.88); }
-  100% { transform: scaleX(1); }
-}
-
-/* Full-page splash / loading overlay */
-.cv-splash {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  background: linear-gradient(160deg, #0d0d1a 0%, #1a0d3d 60%, #0d1a3d 100%);
-  animation: fadeInFast 0.2s ease both;
-}
-
-.cv-splash__logo {
-  width: 88px;
-  height: 88px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #5b34ff, #286dff);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 24px 64px rgba(91, 52, 255, 0.5);
-  animation: splashLogoIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.cv-splash__logo svg {
-  width: 44px;
-  height: 44px;
-  color: white;
-}
-
-.cv-splash__title {
-  color: #fff;
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  animation: splashTagline 0.5s ease 0.4s both;
-}
-
-.cv-splash__title span { color: #7c5cff; }
-
-.cv-splash__sub {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 13px;
-  animation: splashTagline 0.5s ease 0.55s both;
-}
-
-.cv-splash__bar-wrap {
-  width: 160px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 99px;
-  overflow: hidden;
-  animation: splashTagline 0.3s ease 0.65s both;
-}
-
-.cv-splash__bar {
-  height: 100%;
-  background: linear-gradient(90deg, #5b34ff, #286dff, #7c5cff);
-  border-radius: inherit;
-  transform-origin: left;
-  animation: loadBar 2.2s cubic-bezier(0.4, 0, 0.2, 1) 0.7s both;
-}
-
-/* Dismiss the splash */
-.cv-splash--out {
-  animation: fadeInFast 0.3s ease reverse both;
-  pointer-events: none;
-}
-
-/* ── 5. Spinner Variants ───────────────────────────────────── */
-
-/* Basic spinner used in .spinner class */
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid var(--line);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
-  margin: 0 auto;
-}
-
-.spinner-sm {
-  width: 18px;
-  height: 18px;
-  border-width: 2px;
-}
-
-.spinner-lg {
-  width: 56px;
-  height: 56px;
-  border-width: 4px;
-}
-
-/* Dual-ring orbit spinner (Joining / Verifying screens) */
-@keyframes orbitOuter {
-  to { transform: rotate(360deg); }
-}
-@keyframes orbitInner {
-  to { transform: rotate(-360deg); }
-}
-
-.cv-orbit {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  margin: 0 auto;
-}
-
-.cv-orbit__outer {
-  position: absolute;
-  inset: 0;
-  border: 3px solid transparent;
-  border-top-color: var(--primary);
-  border-right-color: var(--primary-light);
-  border-radius: 50%;
-  animation: orbitOuter 1.1s cubic-bezier(0.42, 0, 0.58, 1) infinite;
-}
-
-.cv-orbit__inner {
-  position: absolute;
-  inset: 12px;
-  border: 3px solid transparent;
-  border-bottom-color: var(--primary-2);
-  border-left-color: #c4b5ff;
-  border-radius: 50%;
-  animation: orbitInner 0.85s cubic-bezier(0.42, 0, 0.58, 1) infinite;
-}
-
-.cv-orbit__dot {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
-
-.cv-orbit__dot::after {
-  content: "";
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  box-shadow: 0 0 12px rgba(91, 52, 255, 0.5);
-  animation: pulseSlow 1.4s ease-in-out infinite;
-}
-
-/* Three-dot bounce loader */
-@keyframes dotBounce {
-  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-  40%            { transform: translateY(-10px); opacity: 1; }
-}
-
-.cv-dots {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  justify-content: center;
-}
-
-.cv-dots span {
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--primary);
-  animation: dotBounce 1.3s ease-in-out infinite;
-}
-
-.cv-dots span:nth-child(2) { animation-delay: 0.15s; }
-.cv-dots span:nth-child(3) { animation-delay: 0.30s; }
-
-/* ── 6. Checkmark / Success Animation ──────────────────────── */
-
-@keyframes checkDraw {
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes circleIn {
-  from { transform: scale(0); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
-}
-
-.cv-success-icon {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 16px;
-  animation: circleIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.cv-success-icon circle {
-  fill: none;
-  stroke: var(--success);
-  stroke-width: 3;
-}
-
-.cv-success-icon path {
-  fill: none;
-  stroke: var(--success);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 40;
-  stroke-dashoffset: 40;
-  animation: checkDraw 0.4s ease 0.45s forwards;
-}
-
-/* ── 7. Button Ripple Effect ───────────────────────────────── */
-
-@keyframes ripple {
-  to { transform: scale(4); opacity: 0; }
-}
-
-.btn {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn .ripple-wave {
-  position: absolute;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  margin: -20px;
-  background: rgba(255, 255, 255, 0.35);
-  animation: ripple 0.55s linear forwards;
-  pointer-events: none;
-}
-
-/* Loading state inside buttons */
-@keyframes btnSpin {
-  to { transform: rotate(360deg); }
-}
-
-.btn--loading {
-  pointer-events: none;
-  opacity: 0.8;
-}
-
-.btn--loading::after {
-  content: "";
-  display: inline-block;
-  width: 15px;
-  height: 15px;
-  border: 2px solid rgba(255,255,255,0.4);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: btnSpin 0.7s linear infinite;
-  margin-left: 8px;
-  vertical-align: middle;
-}
-
-.btn.secondary--loading::after {
-  border-color: rgba(91, 52, 255, 0.25);
-  border-top-color: var(--primary);
-}
-
-/* ── 8. Form Interactions ──────────────────────────────────── */
-
-@keyframes shakeX {
-  0%, 100% { transform: translateX(0); }
-  15%       { transform: translateX(-8px); }
-  30%       { transform: translateX(7px); }
-  45%       { transform: translateX(-6px); }
-  60%       { transform: translateX(5px); }
-  75%       { transform: translateX(-3px); }
-}
-
-.field input:invalid:not(:placeholder-shown),
-.field input.error,
-.field--error input {
-  border-color: var(--danger);
-  animation: shakeX 0.4s ease;
-}
-
-.field input:focus,
-.field textarea:focus,
-.field select:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3.5px rgba(91, 52, 255, 0.14);
-  /* Subtle glow transition */
-  transition: border-color 0.18s ease, box-shadow 0.22s ease;
-}
-
-/* ── 9. Toast Notifications ────────────────────────────────── */
-
-@keyframes toastIn {
-  from { opacity: 0; transform: translate(-50%, 16px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
-}
-
-@keyframes toastOut {
-  from { opacity: 1; transform: translate(-50%, 0); }
-  to   { opacity: 0; transform: translate(-50%, 16px); }
-}
-
-.cv-toast {
-  animation: toastIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.cv-toast--exit {
-  animation: toastOut 0.25s ease forwards;
-}
-
-/* ── 10. Meeting Cards — Staggered Entrance ─────────────────── */
-
-.meeting-card,
-.list-card,
-.question-card,
-.action-card {
-  animation: fadeIn 0.3s ease-out both;
-}
-
-/* Stagger meeting list rows */
-.stack > .meeting-card:nth-child(1),
-.stack > .list-card:nth-child(1),
-.stack > .question-card:nth-child(1) { animation-delay: 0.03s; }
-
-.stack > .meeting-card:nth-child(2),
-.stack > .list-card:nth-child(2),
-.stack > .question-card:nth-child(2) { animation-delay: 0.07s; }
-
-.stack > .meeting-card:nth-child(3),
-.stack > .list-card:nth-child(3),
-.stack > .question-card:nth-child(3) { animation-delay: 0.11s; }
-
-.stack > .meeting-card:nth-child(4),
-.stack > .list-card:nth-child(4),
-.stack > .question-card:nth-child(4) { animation-delay: 0.15s; }
-
-.stack > .meeting-card:nth-child(5),
-.stack > .list-card:nth-child(5),
-.stack > .question-card:nth-child(5) { animation-delay: 0.19s; }
-
-/* ── 11. Live Dot & Grace Period ───────────────────────────── */
-
-.live-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--success);
-  animation: dotPulse 1.8s ease-in-out infinite;
-  vertical-align: middle;
-  margin-right: 4px;
-}
-
-@keyframes graceUrgent {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 138, 42, 0.4); }
-  50%       { box-shadow: 0 0 0 8px rgba(255, 138, 42, 0); }
-}
-
-.grace-banner {
-  animation: slideDown 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* Countdown turns red and pulses when < 3 minutes */
-.grace-cd-urgent {
-  animation: pulse 0.9s ease-in-out infinite;
-  color: var(--danger) !important;
-}
-
-/* ── 12. QR Scan Frame ─────────────────────────────────────── */
-
-@keyframes scanLine {
-  0%   { top: 10%;  opacity: 1; }
-  48%  { top: 88%;  opacity: 1; }
-  50%  { top: 88%;  opacity: 0; }
-  52%  { top: 10%;  opacity: 0; }
-  54%  { top: 10%;  opacity: 1; }
-  100% { top: 10%;  opacity: 1; }
-}
-
-.qr-frame {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: #000;
-  border-radius: var(--radius);
-  aspect-ratio: 1;
-  max-width: 280px;
-  margin: 0 auto;
-}
-
-.qr-scan-line {
-  position: absolute;
-  left: 8%;
-  right: 8%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #5b34ff, #286dff, transparent);
-  border-radius: 1px;
-  box-shadow: 0 0 8px rgba(91, 52, 255, 0.6);
-  animation: scanLine 2.4s ease-in-out infinite;
-  pointer-events: none;
-}
-
-/* QR corner brackets */
-.qr-frame::before,
-.qr-frame::after {
-  content: "";
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  border-color: #5b34ff;
-  border-style: solid;
-  z-index: 2;
-}
-
-.qr-frame::before { top: 12px; left: 12px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-.qr-frame::after  { bottom: 12px; right: 12px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
-
-/* ── 13. Stat / Metric Number Count-Up ─────────────────────── */
-
-@keyframes countUp {
-  from { transform: translateY(8px); opacity: 0; }
-  to   { transform: translateY(0);   opacity: 1; }
-}
-
-.stat-value {
-  animation: countUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* ── 14. Panel / Modal Enter ───────────────────────────────── */
-
-@keyframes modalIn {
-  from { opacity: 0; transform: scale(0.94) translateY(12px); }
-  to   { opacity: 1; transform: scale(1)    translateY(0); }
-}
-
-.panel {
-  animation: fadeIn 0.28s ease-out both;
-}
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(13, 13, 26, 0.6);
-  backdrop-filter: blur(4px);
-  display: grid;
-  place-items: center;
-  z-index: 1000;
-  animation: fadeInFast 0.2s ease both;
-}
-
-.modal-box {
-  background: var(--white);
-  border-radius: var(--radius-lg);
-  padding: 28px;
-  max-width: 400px;
-  width: 90%;
-  box-shadow: var(--shadow-lg);
-  animation: modalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* ── 15. Big Mark / Hero Icon ──────────────────────────────── */
-
-.big-mark {
-  width: 80px;
-  height: 80px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  display: grid;
-  place-items: center;
-  color: white;
-  margin: 0 auto 16px;
-  box-shadow: 0 16px 40px rgba(91, 52, 255, 0.28);
-  animation: scalePop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.big-mark svg {
-  width: 38px;
-  height: 38px;
-}
-
-/* Joining screen — orb pulses while connecting */
-.joining-orb {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  display: grid;
-  place-items: center;
-  margin: 0 auto 20px;
-  box-shadow:
-    0 0 0 0 rgba(91, 52, 255, 0.3),
-    0 16px 48px rgba(91, 52, 255, 0.35);
-  animation: joinPulse 1.8s ease-in-out infinite;
-}
-
-@keyframes joinPulse {
-  0%   { box-shadow: 0 0 0 0   rgba(91,52,255,0.4), 0 16px 48px rgba(91,52,255,0.35); }
-  50%  { box-shadow: 0 0 0 24px rgba(91,52,255,0),  0 16px 48px rgba(91,52,255,0.25); }
-  100% { box-shadow: 0 0 0 0   rgba(91,52,255,0.4), 0 16px 48px rgba(91,52,255,0.35); }
-}
-
-/* ── 16. Verification Step Indicator ───────────────────────── */
-
-@keyframes stepIn {
-  from { opacity: 0; transform: scale(0.6); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-.step-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: center;
-  margin: 20px 0;
-}
-
-.step-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--line);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.step-dot.active {
-  background: var(--primary);
-  transform: scale(1.3);
-  box-shadow: 0 0 0 3px rgba(91,52,255,0.2);
-}
-
-.step-dot.done {
-  background: var(--success);
-  transform: scale(1);
-}
-
-.step-line {
-  height: 2px;
-  width: 28px;
-  background: var(--line);
-  border-radius: 1px;
-  transition: background 0.4s ease;
-}
-
-.step-line.done { background: var(--success); }
-
-/* ── 17. Inline Progress Bar ───────────────────────────────── */
-
-@keyframes progressFill {
-  from { width: 0%; }
-}
-
-.cv-progress {
-  height: 4px;
-  background: var(--line);
-  border-radius: 99px;
-  overflow: hidden;
-  margin: 12px 0;
-}
-
-.cv-progress__fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--primary-2));
-  border-radius: inherit;
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: progressFill 0.4s ease-out both;
-}
-
-/* ── 18. Nav Active Indicator Slide ────────────────────────── */
-
-@keyframes navIndicatorSlide {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
-}
-
-.bottom-nav .active::after {
-  content: "";
-  position: absolute;
-  top: -6px;
-  width: 20px;
-  height: 3px;
-  border-radius: 0 0 3px 3px;
-  background: var(--primary);
-  transform-origin: center;
-  animation: navIndicatorSlide 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* ── 19. Center Screen Layout ──────────────────────────────── */
-
-.center-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 12px;
-  min-height: 60vh;
-  padding: 24px 0;
-  animation: slideUp 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.logo-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 8px;
-  animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
-}
-
-/* ── 20. Hover Micro-interactions ──────────────────────────── */
-
-/* Cards lift on hover */
-.meeting-card:hover,
-.action-card:hover,
-.quick-card:hover,
-.list-card:hover {
-  transform: translateY(-2px);
-  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.22s ease,
-              border-color 0.18s ease;
-}
-
-/* Icon boxes bounce on hover */
-.icon-box:hover {
-  transform: scale(1.1) rotate(-3deg);
-  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* Avatar rings */
-.avatar {
-  transition: box-shadow 0.22s ease, transform 0.22s ease;
-}
-.avatar:hover {
-  transform: scale(1.04);
-  box-shadow: 0 0 0 3px var(--primary-light), var(--shadow-sm);
-}
-
-/* ── 21. reduce-motion override ─────────────────────────────── */
-/* Respect the user's system preference for reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-60px) rotate(360deg);
+    opacity: 0;
   }
 }
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+

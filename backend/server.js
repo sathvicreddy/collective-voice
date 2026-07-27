@@ -4,13 +4,6 @@
    actions. REST keeps CRUD + auth + analytics only.
    ============================================================ */
 "use strict";
-// ── Dev TLS fix: must be set BEFORE any require() that creates TLS sockets ───
-// Neon WebSocket connections on some Windows networks fail with
-// "self-signed certificate in certificate chain". Disabling TLS verification
-// in dev is safe — never run with NODE_ENV=production on localhost.
-if (!process.env.NODE_ENV || process.env.NODE_ENV !== "production") {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-}
 if (!process.env.JWT_SECRET) require("dotenv").config(); // Load .env in dev (npm start)
 const http   = require("http");
 const fs     = require("fs");
@@ -76,60 +69,42 @@ const CACHE_CONTROL = (() => {
   const isProd = process.env.NODE_ENV === "production";
   return {
     ".html": "no-cache, must-revalidate",
-    // Dev: no-cache so every reload gets fresh JS/CSS (avoids stale module cache)
-    // Prod: long-lived with immutable — pair with content-hash filenames
-    ".js":   isProd ? "public, max-age=31536000, immutable" : "no-cache, must-revalidate",
-    ".css":  isProd ? "public, max-age=31536000, immutable" : "no-cache, must-revalidate",
+    ".js":   isProd ? "public, max-age=31536000, immutable" : "public, max-age=60",
+    ".css":  isProd ? "public, max-age=31536000, immutable" : "public, max-age=60",
     ".png":  "public, max-age=86400",
     ".svg":  "public, max-age=86400",
     ".woff2":"public, max-age=86400"
   };
 })();
 
-// ── Build version for cache-busting — changes on every server restart ──────────
-const CV_VERSION = Date.now().toString(36); // e.g. "lxk4a7n2"
-
 function publicFile(req, res) {
-  // Strip query strings for filesystem lookup (e.g. ?v=123 on JS files)
-  const rawPath   = req.url.split('?')[0];
-  const requested = rawPath === '/' ? '/index.html' : rawPath;
-  const safePath  = path.normalize(requested).replace(/^(\.\.[/\\])+/, '');
+  const requested = req.url === "/" ? "/index.html" : req.url;
+  const safePath  = path.normalize(requested).replace(/^(\.\.[\\/])+/, "");
   const filePath  = path.join(PUBLIC_DIR, safePath);
 
   if (!filePath.startsWith(PUBLIC_DIR)) {
-    res.writeHead(403); res.end('Forbidden'); return;
+    res.writeHead(403); res.end("Forbidden"); return;
   }
 
   fs.readFile(filePath, (err, data) => {
     if (err) {
       // SPA fallback
-      fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (fbErr, fb) => {
-        if (fbErr) { res.writeHead(404); res.end('Not found'); return; }
+      fs.readFile(path.join(PUBLIC_DIR, "index.html"), (fbErr, fb) => {
+        if (fbErr) { res.writeHead(404); res.end("Not found"); return; }
         res.writeHead(200, {
-          'Content-Type':  mimeTypes['.html'],
-          'Cache-Control': CACHE_CONTROL['.html']
+          "Content-Type":  mimeTypes[".html"],
+          "Cache-Control": CACHE_CONTROL[".html"]
         });
         res.end(fb);
       });
       return;
     }
     const ext = path.extname(filePath);
-
-    // Inject the current build version into admin.html so the dynamic
-    // import() picks up the correct cache-busted URL on every server restart.
-    let body = data;
-    const isAdminHtml = filePath === path.join(PUBLIC_DIR, 'admin.html');
-    if (isAdminHtml) {
-      body = Buffer.from(
-        data.toString('utf8').replace('<!--CV_VERSION-->', CV_VERSION)
-      );
-    }
-
     res.writeHead(200, {
-      'Content-Type':  mimeTypes[ext] || 'application/octet-stream',
-      'Cache-Control': CACHE_CONTROL[ext] || 'public, max-age=60'
+      "Content-Type":  mimeTypes[ext] || "application/octet-stream",
+      "Cache-Control": CACHE_CONTROL[ext] || "public, max-age=60"
     });
-    res.end(body);
+    res.end(data);
   });
 }
 

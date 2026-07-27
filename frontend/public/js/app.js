@@ -566,13 +566,8 @@ export function render() {
 // Render auth page immediately on load (don't wait for data)
 render();
 
-// Then load data, dismiss splash, and re-render
-loadData().then(() => {
-  // Dismiss the splash screen now that data is ready
-  if (typeof window.cvHideSplash === "function") window.cvHideSplash();
-  render();
-}).catch(error => {
-  if (typeof window.cvHideSplash === "function") window.cvHideSplash();
+// Then load data and re-render
+loadData().then(render).catch(error => {
   app.innerHTML = `
     <main class="content" style="display:grid;place-items:center;min-height:100vh">
       <section class="panel" style="max-width:400px;text-align:center;padding:40px">
@@ -583,7 +578,6 @@ loadData().then(() => {
       </section>
     </main>
   `;
-
 });
 
 window.addEventListener("hashchange", () => {
