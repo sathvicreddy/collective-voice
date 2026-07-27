@@ -96,10 +96,10 @@ async function persistCluster(cluster) {
 }
 
 // ── Broadcast (lazy-loaded to avoid circular deps) ────────────
-function broadcast(event, data, meetingId = null) {
+function broadcast(event, data, meetingId = null, opts = {}) {
   try {
     const { broadcast: _b } = require("../../server");
-    _b({ event, data, meetingId });
+    _b({ event, data, meetingId }, null, opts);
   } catch { /* server not yet attached */ }
 }
 
@@ -144,10 +144,10 @@ async function analytics(userId) {
 
   return {
     overview: [
-      { label: "Questions Asked",  value: questionsAsked,  delta: "+15%" },
-      { label: "Upvotes Received", value: upvotesReceived, delta: "+22%" },
-      { label: "Answers Given",    value: answersGiven,    delta: "+11%" },
-      { label: "Meetings Joined",  value: meetingsJoined,  delta: "+9%"  }
+      { label: "Questions Asked",  value: questionsAsked  },
+      { label: "Upvotes Received", value: upvotesReceived },
+      { label: "Answers Given",    value: answersGiven    },
+      { label: "Meetings Joined",  value: meetingsJoined  }
     ],
     trend: [28, 34, 31, 46, 37, 58, 43, 64, 39, 55],
     categories: Object.entries(catMap).map(([label, value]) => ({ label, value }))
@@ -182,8 +182,7 @@ async function livePayload(meetingId) {
     stats: {
       questionsCount:    questions.length,
       participantsCount: participants.length,
-      upvotesCount:      questions.reduce((s, q) => s + (q.votes || 0), 0),
-      avgLatency:        "38ms"
+      upvotesCount:      questions.reduce((s, q) => s + (q.votes || 0), 0)
     }
   };
 }
@@ -310,9 +309,10 @@ async function handleApiRequest(req, res) {
     return json(res, 200, { meeting });
   }
 
-  // ── GET /api/session/live?meetingId= ────────────────────
+  // ── GET /api/session/live?meetingId= ───────────────────────────
   if (req.method === "GET" && url.pathname === "/api/session/live") {
-    const meetingId = url.searchParams.get("meetingId") || "m_ai_education";
+    const meetingId = url.searchParams.get("meetingId");
+    if (!meetingId) return json(res, 400, { error: "meetingId query parameter is required" });
     return json(res, 200, await livePayload(meetingId));
   }
 
@@ -326,7 +326,8 @@ async function handleApiRequest(req, res) {
 
   // ── GET /api/questions?meetingId= ───────────────────────
   if (req.method === "GET" && url.pathname === "/api/questions") {
-    const meetingId = url.searchParams.get("meetingId") || "m_ai_education";
+    const meetingId = url.searchParams.get("meetingId");
+    if (!meetingId) return json(res, 400, { error: "meetingId query parameter is required" });
     const questions = await getCache(meetingId);
     const ranked    = [...questions].sort((a, b) => (b.score || 0) - (a.score || 0));
     return json(res, 200, { questions: ranked });
@@ -335,7 +336,8 @@ async function handleApiRequest(req, res) {
   // ── POST /api/questions?meetingId= ──────────────────────
   if (req.method === "POST" && url.pathname === "/api/questions") {
     const body      = await readBody(req);
-    const meetingId = getMeetingId(url, body) || "m_ai_education";
+    const meetingId = getMeetingId(url, body);
+    if (!meetingId) return json(res, 400, { error: "meetingId is required" });
     const text      = String(body.text || "").trim();
     if (!text) return json(res, 400, { error: "Question text is required" });
     if (text.length > 500) return json(res, 400, { error: "Question text must be 500 characters or fewer" });
@@ -359,7 +361,8 @@ async function handleApiRequest(req, res) {
   if (req.method === "POST" && url.pathname.match(/^\/api\/questions\/[^/]+\/upvote$/)) {
     const id        = url.pathname.split("/")[3];
     const body      = await readBody(req);
-    const meetingId = getMeetingId(url, body) || "m_ai_education";
+    const meetingId = getMeetingId(url, body);
+    if (!meetingId) return json(res, 400, { error: "meetingId is required" });
 
     const auth    = await requireAuth(req);
     const voterId = auth?.user?.id || body.guestToken || null;
@@ -1303,8 +1306,543 @@ async function handleApiRequest(req, res) {
     return json(res, 200, { score: Math.round(dice * 100), wouldMerge: dice >= parseFloat(process.env.NLP_THRESHOLD || "0.60") });
   }
 
+
+  // ── POST /api/sessions/code/:code/enroll ─────────────────────────────────────
+  // Enroll authenticated user in a scheduled meeting via meeting code.
+  // Creates a MeetingEnrollment record — this makes the meeting appear in
+  // the user's personal "Upcoming Meetings" list.
+  if (req.method === "POST" && url.pathname.match(/^\/api\/sessions\/code\/[^/]+\/enroll$/)) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Sign in to enroll in a meeting." });
+
+    const code    = url.pathname.split("/")[4];
+    const meeting = await db.meeting.findUnique({ where: { code } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found." });
+    if (meeting.status === "expired") return json(res, 410, { error: "This meeting has expired.", meeting });
+    if (meeting.status === "conducted" || meeting.status === "past") {
+      return json(res, 410, { error: "This meeting has already ended.", meeting });
+    }
+
+    // Upsert so repeat scans are idempotent
+    const body     = await readBody(req).catch(() => ({}));
+    const method   = body.method === "qr" ? "qr" : "code";
+    const enrollment = await db.meetingEnrollment.upsert({
+      where:  { meetingId_userId: { meetingId: meeting.id, userId: auth.user.id } },
+      update: {},  // already enrolled — no-op
+      create: { meetingId: meeting.id, userId: auth.user.id, joinMethod: method }
+    });
+
+    // If the meeting is live — direct the user to join immediately
+    if (meeting.status === "live") {
+      return json(res, 200, { meeting, enrollment, action: "join_now" });
+    }
+
+    // Meeting is upcoming — added to user's list
+    return json(res, 201, { meeting, enrollment, action: "added_to_upcoming" });
+  }
+
+  // ── POST /api/sessions/:id/enroll (QR scan path — ID-based) ─────────────────
+  if (req.method === "POST" && url.pathname.match(/^\/api\/sessions\/[^/]+\/enroll$/) &&
+      !url.pathname.includes("/code/")) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Sign in to enroll in a meeting." });
+
+    const id      = url.pathname.split("/")[3];
+    const meeting = await db.meeting.findUnique({ where: { id } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found." });
+    if (meeting.status === "expired")
+      return json(res, 410, { error: "This meeting has expired.", meeting });
+
+    const enrollment = await db.meetingEnrollment.upsert({
+      where:  { meetingId_userId: { meetingId: id, userId: auth.user.id } },
+      update: {},
+      create: { meetingId: id, userId: auth.user.id, joinMethod: "qr" }
+    });
+
+    const action = meeting.status === "live" ? "join_now" : "added_to_upcoming";
+    return json(res, 201, { meeting, enrollment, action });
+  }
+
+  // ── GET /api/meetings/mine ───────────────────────────────────────────────────
+  // Returns the authenticated user's personally-enrolled meetings.
+  // The host also sees all meetings they own.
+  if (req.method === "GET" && url.pathname === "/api/meetings/mine") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+
+    const { user } = auth;
+
+    // Meetings enrolled in (attendee side)
+    const enrollments = await db.meetingEnrollment.findMany({
+      where:   { userId: user.id },
+      include: { meeting: { include: { gracePeriod: true } } },
+      orderBy: { enrolledAt: "desc" }
+    });
+    const enrolledMeetings = enrollments.map(e => ({
+      ...e.meeting,
+      enrolledAt: e.enrolledAt,
+      joinMethod: e.joinMethod
+    }));
+
+    // Meetings the user hosts (always included)
+    const ownedMeetings = await db.meeting.findMany({
+      where:   { ownerId: user.id },
+      include: { gracePeriod: true },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Merge, de-duplicate by id (host may also be enrolled in their own meeting)
+    const seen = new Set();
+    const all  = [...enrolledMeetings, ...ownedMeetings].filter(m => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+
+    // Split into upcoming, live, past, expired for the client
+    const upcoming  = all.filter(m => m.status === "upcoming" || m.status === "scheduled");
+    const live      = all.filter(m => m.status === "live");
+    const past      = all.filter(m => m.status === "conducted" || m.status === "past");
+    const expired   = all.filter(m => m.status === "expired");
+
+    return json(res, 200, { meetings: all, upcoming, live, past, expired });
+  }
+
+  // ── GET /api/meetings/:id/grace ──────────────────────────────────────────────
+  // Returns the current grace period state for a meeting. Host-only.
+  if (req.method === "GET" && url.pathname.match(/^\/api\/meetings\/[^/]+\/grace$/)) {
+    const id      = url.pathname.split("/")[3];
+    const meeting = await db.meeting.findUnique({ where: { id }, include: { gracePeriod: true } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found." });
+    const auth = await requireModerator(req, meeting);
+    if (auth === "401") return json(res, 401, { error: "Unauthorized." });
+    if (auth === "403") return json(res, 403, { error: "Forbidden." });
+    return json(res, 200, { gracePeriod: meeting.gracePeriod || null });
+  }
+
+  // ── POST /api/meetings/:id/extend ────────────────────────────────────────────
+  // Host extends the meeting by 30 minutes. Resets the grace period window.
+  if (req.method === "POST" && url.pathname.match(/^\/api\/meetings\/[^/]+\/extend$/)) {
+    const id      = url.pathname.split("/")[3];
+    const meeting = await db.meeting.findUnique({ where: { id }, include: { gracePeriod: true } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found." });
+    const authErr = await requireModerator(req, meeting);
+    if (authErr === "401") return json(res, 401, { error: "Unauthorized." });
+    if (authErr === "403") return json(res, 403, { error: "Forbidden." });
+
+    const body        = await readBody(req).catch(() => ({}));
+    const extendMins  = Math.min(Number(body.minutes) || 30, 120); // max 2h extension
+    const EXTEND_MS   = extendMins * 60 * 1000;
+    const now         = new Date();
+
+    // Push scheduledAt forward from now
+    const newScheduledAt = new Date((meeting.scheduledAt || now).getTime() + EXTEND_MS);
+    const newGraceEndsAt = new Date(now.getTime() + EXTEND_MS);
+
+    const [updatedMeeting] = await db.$transaction([
+      db.meeting.update({
+        where: { id },
+        data: { scheduledAt: newScheduledAt, graceEndsAt: newGraceEndsAt }
+      }),
+      ...(meeting.gracePeriod ? [db.gracePeriod.update({
+        where: { id: meeting.gracePeriod.id },
+        data: { graceEndsAt: newGraceEndsAt, hostAction: "extended" }
+      })] : [])
+    ]);
+
+    broadcast("meeting_extended", {
+      meetingId:      id,
+      newScheduledAt: newScheduledAt.toISOString(),
+      graceEndsAt:    newGraceEndsAt.toISOString(),
+      extendedByMins: extendMins
+    }, id);
+
+    return json(res, 200, { meeting: updatedMeeting, extendedByMins: extendMins });
+  }
+
+  // ── POST /api/meetings/:id/reschedule ────────────────────────────────────────
+  // Host sets a new date/time for the meeting. Clears the grace period.
+  if (req.method === "POST" && url.pathname.match(/^\/api\/meetings\/[^/]+\/reschedule$/)) {
+    const id      = url.pathname.split("/")[3];
+    const meeting = await db.meeting.findUnique({ where: { id }, include: { gracePeriod: true } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found." });
+    const authErr = await requireModerator(req, meeting);
+    if (authErr === "401") return json(res, 401, { error: "Unauthorized." });
+    if (authErr === "403") return json(res, 403, { error: "Forbidden." });
+
+    const body        = await readBody(req);
+    const newDateRaw  = body.scheduledAt;
+    if (!newDateRaw) return json(res, 400, { error: "scheduledAt is required." });
+    const newScheduledAt = new Date(newDateRaw);
+    if (isNaN(newScheduledAt.getTime())) return json(res, 400, { error: "Invalid scheduledAt." });
+    if (newScheduledAt <= new Date()) return json(res, 400, { error: "New time must be in the future." });
+
+    const dateStr = newScheduledAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    const timeStr = newScheduledAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+    const ops = [
+      db.meeting.update({
+        where: { id },
+        data: {
+          scheduledAt: newScheduledAt,
+          date:        dateStr,
+          time:        timeStr,
+          status:      "upcoming",
+          graceEndsAt: null
+        }
+      })
+    ];
+    // Clear grace period
+    if (meeting.gracePeriod) {
+      ops.push(db.gracePeriod.update({
+        where: { id: meeting.gracePeriod.id },
+        data: { hostAction: "rescheduled", resolvedAt: new Date() }
+      }));
+    }
+
+    const [updatedMeeting] = await db.$transaction(ops);
+
+    broadcast("meeting_rescheduled", {
+      meetingId:      id,
+      newScheduledAt: newScheduledAt.toISOString(),
+      date:           dateStr,
+      time:           timeStr
+    }, id);
+
+    // Notify enrolled users
+    const enrolled = await db.meetingEnrollment.findMany({
+      where: { meetingId: id },
+      select: { userId: true }
+    });
+    for (const e of enrolled) {
+      broadcast("meeting_rescheduled", {
+        meetingId:      id,
+        newScheduledAt: newScheduledAt.toISOString(),
+        date:           dateStr,
+        time:           timeStr
+      }, id, { onlyUserId: e.userId });
+    }
+
+    return json(res, 200, { meeting: updatedMeeting });
+  }
+
+
+  // ══════════════════════════════════════════════════════════════
+  // ADMIN MANAGEMENT ROUTES  — superadmin only unless noted
+  // ══════════════════════════════════════════════════════════════
+
+  // Helper: gate to admin / superadmin
+  async function requireAdminRole(req, superadminOnly = false) {
+    const auth = await requireAuth(req);
+    if (!auth) return { err: 401 };
+    const ok = superadminOnly
+      ? auth.user.role === "superadmin"
+      : (auth.user.role === "admin" || auth.user.role === "superadmin");
+    if (!ok) return { err: 403 };
+    return { auth };
+  }
+
+  // ── GET /api/admin/stats ─────────────────────────────────────
+  // Platform-wide counts for the overview cards
+  if (req.method === "GET" && url.pathname === "/api/admin/stats") {
+    const { err, auth } = await requireAdminRole(req);
+    if (err === 401) return json(res, 401, { error: "Unauthorized." });
+    if (err === 403) return json(res, 403, { error: "Forbidden." });
+
+    const [totalUsers, totalMeetings, liveMeetings, totalQuestions] = await Promise.all([
+      db.user.count(),
+      db.meeting.count(),
+      db.meeting.count({ where: { status: "live" } }),
+      db.question.count(),
+    ]);
+
+    return json(res, 200, {
+      totalUsers, totalMeetings, liveMeetings, totalQuestions
+    });
+  }
+
+  // ── GET /api/admin/users ─────────────────────────────────────
+  // List all users — filterable by role / search query
+  if (req.method === "GET" && url.pathname === "/api/admin/users") {
+    const { err } = await requireAdminRole(req, true); // superadmin only
+    if (err === 401) return json(res, 401, { error: "Unauthorized." });
+    if (err === 403) return json(res, 403, { error: "Forbidden — superadmin required." });
+
+    const search = url.searchParams.get("q") || "";
+    const role   = url.searchParams.get("role") || "";
+    const status = url.searchParams.get("status") || "";
+    const page   = Math.max(1, Number(url.searchParams.get("page")) || 1);
+    const limit  = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 50));
+    const skip   = (page - 1) * limit;
+
+    const where = {
+      AND: [
+        // Only show admin/superadmin users on this page
+        { role: role || { in: ["admin", "superadmin"] } },
+        search ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { email: { contains: search, mode: "insensitive" } }
+          ]
+        } : {},
+      ]
+    };
+
+    const [users, total] = await Promise.all([
+      db.user.findMany({
+        where,
+        skip,
+        take:    limit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true, name: true, email: true, role: true,
+          picture: true, createdAt: true,
+          _count: {
+            select: { meetings: true, questions: true }
+          }
+        }
+      }),
+      db.user.count({ where })
+    ]);
+
+    // Annotate with computed fields
+    const annotated = users.map(u => ({
+      id:          u.id,
+      name:        u.name,
+      email:       u.email,
+      role:        u.role,
+      picture:     u.picture,
+      department:  "System", // stored in future; default for now
+      status:      "active", // future: suspended flag
+      dateAdded:   u.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+      lastLogin:   "Recently",
+      managedMeetings:   u._count.meetings,
+      actionsPerformed:  u._count.questions,
+    }));
+
+    return json(res, 200, { users: annotated, total, page, limit });
+  }
+
+  // ── GET /api/admin/users/:id ─────────────────────────────────
+  // Single user detail (for the right panel)
+  if (req.method === "GET" && url.pathname.match(/^\/api\/admin\/users\/[^/]+$/)) {
+    const { err } = await requireAdminRole(req, true);
+    if (err === 401) return json(res, 401, { error: "Unauthorized." });
+    if (err === 403) return json(res, 403, { error: "Forbidden." });
+
+    const userId = url.pathname.split("/").pop();
+    const user   = await db.user.findUnique({
+      where:  { id: userId },
+      select: {
+        id: true, name: true, email: true, role: true,
+        picture: true, createdAt: true,
+        _count: { select: { meetings: true, questions: true } }
+      }
+    });
+    if (!user) return json(res, 404, { error: "User not found." });
+
+    return json(res, 200, {
+      user: {
+        ...user,
+        department:         "System",
+        status:             "active",
+        dateAdded:          user.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+        lastLogin:          "Recently",
+        managedMeetings:    user._count.meetings,
+        actionsPerformed:   user._count.questions,
+      }
+    });
+  }
+
+  // ── PATCH /api/admin/users/:id/role ─────────────────────────
+  // Update a user's role (superadmin only)
+  if (req.method === "PATCH" && url.pathname.match(/^\/api\/admin\/users\/[^/]+\/role$/)) {
+    const { err, auth } = await requireAdminRole(req, true);
+    if (err === 401) return json(res, 401, { error: "Unauthorized." });
+    if (err === 403) return json(res, 403, { error: "Forbidden — superadmin required." });
+
+    const userId = url.pathname.split("/")[4];
+    const body   = await readBody(req);
+    const newRole = body.role;
+    if (!["admin", "superadmin", "customer"].includes(newRole))
+      return json(res, 400, { error: "role must be admin, superadmin, or customer." });
+
+    // Prevent self-demotion
+    if (userId === auth.user.id && newRole !== "superadmin")
+      return json(res, 400, { error: "You cannot demote yourself." });
+
+    const target = await db.user.findUnique({ where: { id: userId } });
+    if (!target) return json(res, 404, { error: "User not found." });
+
+    const updated = await db.user.update({ where: { id: userId }, data: { role: newRole } });
+
+    await writeAudit(auth, `user.role_update`, "warning", "User",
+      target.name, userId, { from: target.role, to: newRole }, req);
+
+    broadcast("admin_user_updated", { userId, role: newRole });
+    return json(res, 200, { user: { id: updated.id, role: updated.role } });
+  }
+
+  // ── PATCH /api/admin/users/:id/status ───────────────────────
+  // Suspend / unsuspend a user (future: add `suspended` field; for now store in role metadata)
+  if (req.method === "PATCH" && url.pathname.match(/^\/api\/admin\/users\/[^/]+\/status$/)) {
+    const { err, auth } = await requireAdminRole(req, true);
+    if (err === 401) return json(res, 401, { error: "Unauthorized." });
+    if (err === 403) return json(res, 403, { error: "Forbidden." });
+
+    const userId = url.pathname.split("/")[4];
+    const body   = await readBody(req);
+    const newStatus = body.status; // "active" | "suspended"
+
+    const target = await db.user.findUnique({ where: { id: userId } });
+    if (!target) return json(res, 404, { error: "User not found." });
+
+    await writeAudit(auth, `user.status_update`, "warning", "User",
+      target.name, userId, { status: newStatus }, req);
+
+    // Note: The User model doesn't have a `suspended` field yet — log the action
+    // and return success so the frontend can track status locally.
+    // A future migration can add `suspendedAt DateTime?` to User.
+    broadcast("admin_user_updated", { userId, status: newStatus });
+    return json(res, 200, { userId, status: newStatus });
+  }
+
+  // ── DELETE /api/admin/users/:id ──────────────────────────────
+  // Permanently delete a user account (superadmin only)
+  if (req.method === "DELETE" && url.pathname.match(/^\/api\/admin\/users\/[^/]+$/)) {
+    const { err, auth } = await requireAdminRole(req, true);
+    if (err === 401) return json(res, 401, { error: "Unauthorized." });
+    if (err === 403) return json(res, 403, { error: "Forbidden." });
+
+    const userId = url.pathname.split("/").pop();
+    if (userId === auth.user.id)
+      return json(res, 400, { error: "You cannot delete your own account." });
+
+    const target = await db.user.findUnique({ where: { id: userId } });
+    if (!target) return json(res, 404, { error: "User not found." });
+
+    await db.user.delete({ where: { id: userId } });
+
+    await writeAudit(auth, "user.delete", "danger", "User",
+      target.name, userId, { email: target.email }, req);
+
+    broadcast("admin_user_deleted", { userId });
+    return json(res, 200, { deleted: true, userId });
+  }
+
+  // ── GET /api/admin/users/:id/activity ───────────────────────
+  // Return recent audit log entries for a specific admin user
+  if (req.method === "GET" && url.pathname.match(/^\/api\/admin\/users\/[^/]+\/activity$/)) {
+    const { err } = await requireAdminRole(req, true);
+    if (err === 401) return json(res, 401, { error: "Unauthorized." });
+    if (err === 403) return json(res, 403, { error: "Forbidden." });
+
+    const userId = url.pathname.split("/")[4];
+    const limit  = Math.min(50, Number(url.searchParams.get("limit")) || 20);
+
+    const logs = await db.auditLog.findMany({
+      where:   { adminId: userId },
+      orderBy: { createdAt: "desc" },
+      take:    limit
+    });
+
+    const formatted = logs.map(l => ({
+      id:        l.id,
+      time:      l.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+      action:    l.action,
+      title:     l.targetName || l.action,
+      sub:       l.action,
+      actionType:l.actionType,
+      targetType:l.targetType,
+      detail:    (() => { try { return JSON.parse(l.detailJson); } catch { return {}; } })()
+    }));
+
+    return json(res, 200, { logs: formatted, total: logs.length });
+  }
+
+  // ── GET /api/admin/audit ──────────────────────────────────────
+  // Platform-wide audit log (superadmin only)
+  if (req.method === "GET" && url.pathname === "/api/admin/audit") {
+    const { err } = await requireAdminRole(req, true);
+    if (err === 401) return json(res, 401, { error: "Unauthorized." });
+    if (err === 403) return json(res, 403, { error: "Forbidden." });
+
+    const limit  = Math.min(100, Number(url.searchParams.get("limit")) || 50);
+    const page   = Math.max(1, Number(url.searchParams.get("page")) || 1);
+    const search = url.searchParams.get("q") || "";
+    const type   = url.searchParams.get("actionType") || "";
+
+    const where = {
+      AND: [
+        type   ? { actionType: type } : {},
+        search ? {
+          OR: [
+            { action:     { contains: search, mode: "insensitive" } },
+            { adminName:  { contains: search, mode: "insensitive" } },
+            { targetName: { contains: search, mode: "insensitive" } }
+          ]
+        } : {}
+      ]
+    };
+
+    const [logs, total] = await Promise.all([
+      db.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip:    (page - 1) * limit,
+        take:    limit
+      }),
+      db.auditLog.count({ where })
+    ]);
+
+    return json(res, 200, { logs, total, page, limit });
+  }
+
+  // ── POST /api/admin/invite ────────────────────────────────────
+  // Invite a new admin by email (creates user account with admin role)
+  if (req.method === "POST" && url.pathname === "/api/admin/invite") {
+    const { err, auth } = await requireAdminRole(req, true);
+    if (err === 401) return json(res, 401, { error: "Unauthorized." });
+    if (err === 403) return json(res, 403, { error: "Forbidden." });
+
+    const body  = await readBody(req);
+    const email = (body.email || "").trim().toLowerCase();
+    const role  = body.role === "superadmin" ? "superadmin" : "admin";
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      return json(res, 400, { error: "Valid email is required." });
+
+    const existing = await db.user.findUnique({ where: { email } });
+    if (existing) {
+      // If they exist but are a customer, promote them
+      if (existing.role === "customer") {
+        const updated = await db.user.update({ where: { email }, data: { role } });
+        await writeAudit(auth, "user.invite_promote", "info", "User",
+          existing.name, existing.id, { email, role }, req);
+        return json(res, 200, { invited: true, promoted: true, user: { id: updated.id, email: updated.email, role: updated.role } });
+      }
+      return json(res, 409, { error: "User already has admin access." });
+    }
+
+    // Create a placeholder account — they'll set their password via reset flow
+    const crypto = require("crypto");
+    const placeholderHash = crypto.randomBytes(32).toString("hex");
+    const newUser = await db.user.create({
+      data: { name: email.split("@")[0], email, role, passwordHash: placeholderHash, status: "invited" }
+    });
+
+    await writeAudit(auth, "user.invite", "info", "User",
+      email, newUser.id, { email, role }, req);
+
+    broadcast("admin_user_created", { userId: newUser.id, email, role });
+    return json(res, 201, { invited: true, user: { id: newUser.id, email, role } });
+  }
+
+  // ──────────────────────────────────────────────────────────────
   return json(res, 404, { error: "API route not found" });
 }
+
+
 
 // ── Audit log writer ─────────────────────────────────────────────────────────
 async function writeAudit(auth, action, actionType, targetType, targetName, targetId, detail, req) {

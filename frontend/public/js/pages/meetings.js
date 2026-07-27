@@ -66,11 +66,14 @@ window.copyInviteLink = copyInviteLink;
    Meetings List (main export)
    ============================================================ */
 export function renderMeetings() {
-  const ongoing   = state.meetings.filter(m => m.status === "live");
-  const upcoming  = state.meetings
-    .filter(m => m.status === "upcoming" || m.status === "scheduled")
-    .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-  const conducted = state.meetings.filter(m => m.status === "conducted" || m.status === "past");
+  // Use user-specific lists (enrolled + owned) so each user only sees
+  // meetings they have joined or created.
+  const myMtgs   = state.myMeetings;
+  const ongoing  = myMtgs.live.length ? myMtgs.live : state.meetings.filter(m => m.status === "live");
+  const upcoming = (myMtgs.upcoming.length ? myMtgs.upcoming : state.meetings.filter(m => m.status === "upcoming" || m.status === "scheduled"))
+    .sort((a, b) => new Date(a.scheduledAt || a.date || 0) - new Date(b.scheduledAt || b.date || 0));
+  const conducted = myMtgs.past.length ? myMtgs.past : state.meetings.filter(m => m.status === "conducted" || m.status === "past");
+  const expired   = myMtgs.expired || [];
 
   // Only set liveMeeting if there is genuinely a live meeting
   const liveMeeting = ongoing[0] || null;
@@ -98,6 +101,42 @@ export function renderMeetings() {
     return { dateStr, timeStr };
   }
 
+  /** Grace period countdown banner — shown on host's overdue upcoming meetings */
+  function graceBanner(m) {
+    if (!m._graceActive && !m.graceEndsAt) return "";
+    const endsAt    = new Date(m.graceEndsAt);
+    const msLeft    = Math.max(0, endsAt - Date.now());
+    const minsLeft  = Math.floor(msLeft / 60000);
+    const secsLeft  = Math.floor((msLeft % 60000) / 1000);
+    const countStr  = `${String(minsLeft).padStart(2, "0")}:${String(secsLeft).padStart(2, "0")}`;
+    return `
+      <div class="grace-banner" style="
+        background:linear-gradient(135deg,#ff8a2a22,#ffb36622);
+        border:1px solid #ff8a2a55;
+        border-radius:10px;
+        padding:12px 16px;
+        margin-top:10px;
+        font-size:13px;
+      ">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-weight:700;color:#ff8a2a">⏱ Meeting Overdue</span>
+          <span style="font-family:monospace;font-weight:700;color:#ff8a2a" id="grace-cd-${m.id}">${countStr}</span>
+        </div>
+        <p style="color:var(--ink-secondary);margin-bottom:10px;font-size:12px">Grace period — start now or choose an option.</p>
+        <div style="display:flex;gap:8px">
+          <button class="btn small" style="flex:1;font-size:12px"
+            onclick="extendMeeting('${m.id}', 30)">
+            ⏱ Extend 30 min
+          </button>
+          <button class="btn secondary small" style="flex:1;font-size:12px"
+            onclick="showRescheduleDialog('${m.id}')">
+            📅 Reschedule
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   /* ---- Mobile phone frame ---- */
   const mobileContent = `
     <h1 class="screen-title">Meetings</h1>
@@ -123,7 +162,7 @@ export function renderMeetings() {
         ${ongoing.map(m => meetingCard(m, `<button class="btn small" onclick="go('/join/preview')">${icons.arrowRight} Join Now</button>`)).join("")}
       ` : ""}
       <div class="section-header"><h2 class="screen-title">Upcoming Meetings</h2><button class="link-btn">View all</button></div>
-      ${upcoming.map(m => meetingCard(m)).join("")}
+      ${upcoming.length ? upcoming.map(m => meetingCard(m) + graceBanner(m)).join("") : `<p class="subtle" style="padding:16px 0;text-align:center">No upcoming meetings yet.<br><small>Scan a QR code or enter a meeting ID to add one.</small></p>`}
       <div class="section-header"><h2 class="screen-title">Conducted Meetings</h2><button class="link-btn" onclick="go('/conducted')">View all</button></div>
       ${conducted.slice(0,1).map(m => meetingCard(m, `<button class="btn secondary small" onclick="go('/analytics')">${icons.barChart} Analytics</button>`)).join("")}
     </div>
@@ -494,46 +533,62 @@ export function renderJoin(step = "start") {
     scan: `
       <h1 class="screen-title">Scan QR Code</h1>
       <p class="subtle">Point your camera at a CollectiveVoice QR code to join instantly.</p>
-      <div class="qr-frame" style="position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden">
+      <!-- qr-frame gets CSS corner brackets + scan-line injected by mountScanLine() -->
+      <div class="qr-frame" style="width:100%;max-width:280px;margin:16px auto 0">
         <video id="cv-qr-video" autoplay playsinline muted
-               style="width:100%;max-width:260px;border-radius:12px;background:#000"></video>
+               style="width:100%;border-radius:12px;background:#111;display:block"></video>
         <canvas id="cv-qr-canvas" style="display:none"></canvas>
-        <div id="cv-qr-overlay" style="position:absolute;bottom:8px;left:0;right:0;text-align:center">
-          <span id="cv-qr-status" style="background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:4px 10px;border-radius:20px">
-            Starting camera…
-          </span>
+        <div id="cv-qr-overlay" style="position:absolute;bottom:10px;left:0;right:0;text-align:center;z-index:3">
+          <span id="cv-qr-status" style="
+            background:rgba(0,0,0,.65);color:#fff;font-size:12px;
+            padding:5px 12px;border-radius:20px;backdrop-filter:blur(4px)
+          ">Starting camera…</span>
         </div>
       </div>
-      <div class="stack" style="gap:10px;margin-top:16px">
+      <div class="step-indicator" style="margin-top:18px">
+        <div class="step-dot done"></div>
+        <div class="step-line done"></div>
+        <div class="step-dot active"></div>
+        <div class="step-line"></div>
+        <div class="step-dot"></div>
+      </div>
+      <div class="stack" style="gap:10px;margin-top:12px">
         <button class="btn secondary" style="width:100%" onclick="go('/join/id')">${icons.hash} Enter ID Instead</button>
       </div>
     `,
     id: `
       <h1 class="screen-title">Enter Meeting ID</h1>
       <p class="subtle">Enter the meeting ID provided by the moderator.</p>
-      <div class="stack" style="margin-top:60px;gap:16px">
-        <div class="field"><label>Meeting ID</label><input id="meetingCode" value="482916" placeholder="Enter meeting ID"></div>
+      <div class="step-indicator">
+        <div class="step-dot done"></div>
+        <div class="step-line done"></div>
+        <div class="step-dot active"></div>
+        <div class="step-line"></div>
+        <div class="step-dot"></div>
+      </div>
+      <div class="stack" style="margin-top:24px;gap:16px">
+        <div class="field"><label>Meeting ID</label><input id="meetingCode" placeholder="Enter 6-digit meeting code" autocomplete="off" inputmode="numeric"></div>
         <p class="subtle" style="padding:10px 14px;background:var(--soft);border-radius:var(--radius-sm)">${icons.info} The meeting ID is a 6 to 10 digit numeric code.</p>
       </div>
-      <button class="btn" style="width:100%;margin-top:100px" onclick="validateMeetingCode()">${icons.arrowRight} Join Meeting</button>
+      <button class="btn" style="width:100%;margin-top:80px" onclick="validateMeetingCode()">${icons.arrowRight} Join Meeting</button>
     `,
     preview: `
       <h1 class="screen-title">Meeting Details</h1>
-      <p class="subtle">Review meeting details before joining.</p>
-      <section class="panel stack" style="margin-top:24px;padding:20px">
+      <p class="subtle">Review before joining — tap Join Now to enter the room.</p>
+      <section class="panel stack" style="margin-top:20px;padding:20px;animation:slideUp .35s ease both">
         <div class="row">
           <h2 style="font-size:17px;font-weight:700">${meeting.title}</h2>
           <span class="badge success"><span class="live-dot"></span> Live</span>
         </div>
         <div class="stack" style="gap:8px">
-          <div class="info-row">${icons.calendar} <span>${meeting.date}</span></div>
-          <div class="info-row">${icons.clock} <span>${meeting.time} (${meeting.duration})</span></div>
-          <div class="info-row">${icons.users} <span>${meeting.participants || 0} participants</span></div>
-          <div class="info-row">${icons.user} <span>${meeting.speaker} · Moderator</span></div>
+          <div class="info-row" data-stagger="0" style="animation:fadeIn .3s ease both">${icons.calendar} <span>${meeting.date}</span></div>
+          <div class="info-row" data-stagger="1" style="animation:fadeIn .3s ease .06s both">${icons.clock} <span>${meeting.time} (${meeting.duration})</span></div>
+          <div class="info-row" data-stagger="2" style="animation:fadeIn .3s ease .12s both">${icons.users} <span>${meeting.participants || 0} participants</span></div>
+          <div class="info-row" data-stagger="3" style="animation:fadeIn .3s ease .18s both">${icons.user} <span>${meeting.speaker} · Moderator</span></div>
         </div>
         <p style="font-size:14px;color:var(--ink-secondary);margin-top:4px">${meeting.description}</p>
       </section>
-      <section class="panel row" style="margin:18px 0;padding:14px 18px;gap:14px">
+      <section class="panel row" style="margin:14px 0;padding:14px 18px;gap:14px;animation:slideInLeft .3s ease .2s both">
         <div class="icon-box">${icons.users}</div>
         <span>You are joining as<br><strong style="font-size:15px">Audience</strong></span>
       </section>
@@ -541,16 +596,17 @@ export function renderJoin(step = "start") {
     `,
     waiting: `
       <div class="center-screen" style="text-align:center">
-        <div class="logo-hero">
-          <div class="big-mark" style="background:linear-gradient(135deg,#ff8a2a,#ffb366)">${icons.clock}</div>
-          <div>
-            <h1 class="screen-title">Meeting Not Started</h1>
-            <p class="subtle" style="max-width:260px;margin:6px auto 0">This meeting hasn't started yet. It has been added to your Upcoming Meetings.</p>
-          </div>
+        <div class="joining-orb" style="background:linear-gradient(135deg,#ff8a2a,#ffb366)">
+          ${icons.clock}
         </div>
-        ${meetingCard(meeting)}
-        <button class="btn" style="width:100%" onclick="go('/meetings')">${icons.calendar} View Upcoming Meetings</button>
-        <button class="link-btn" style="text-align:center" onclick="go('/home')">Go to Home</button>
+        <h1 class="screen-title" style="animation:slideUp .35s ease .1s both">Meeting Not Started</h1>
+        <p class="subtle" style="max-width:260px;margin:6px auto 0;animation:fadeIn .4s ease .2s both">This meeting hasn't started yet. It has been added to your Upcoming Meetings — we'll notify you when it goes live.</p>
+        <div style="animation:fadeIn .4s ease .3s both;width:100%">${meetingCard(meeting)}</div>
+        <div class="cv-progress" style="animation:fadeIn .4s ease .4s both">
+          <div class="cv-progress__fill" style="width:100%"></div>
+        </div>
+        <button class="btn" style="width:100%;animation:slideUp .35s ease .4s both" onclick="go('/meetings')">${icons.calendar} View Upcoming Meetings</button>
+        <button class="link-btn" style="text-align:center;animation:fadeIn .4s ease .5s both" onclick="go('/home')">Go to Home</button>
       </div>
     `,
     invalid: `
@@ -567,24 +623,78 @@ export function renderJoin(step = "start") {
           <button class="btn secondary" style="width:100%" onclick="go('/join/scan')">${icons.qrCode} Scan QR Code</button>
         </div>
       </div>
+    `,
+    expired: `
+      <div class="center-screen" style="text-align:center">
+        <div class="logo-hero">
+          <div class="big-mark" style="background:linear-gradient(135deg,#6b6b6b,#aaa)">${icons.clock}</div>
+          <div>
+            <h1 class="screen-title">Meeting Expired</h1>
+            <p class="subtle" style="max-width:260px;margin:6px auto 0">This meeting was not started within the grace period and has expired. Please contact the host to reschedule.</p>
+          </div>
+        </div>
+        ${meeting.title ? `
+        <section class="panel" style="margin:18px 0;padding:14px 18px;text-align:left">
+          <strong>${meeting.title}</strong>
+          <p class="subtle" style="font-size:12px;margin-top:4px">${meeting.date || ""} ${meeting.time || ""}</p>
+        </section>` : ""}
+        <div class="stack" style="gap:10px">
+          <button class="btn" style="width:100%" onclick="go('/join')">${icons.arrowRight} Try Another Code</button>
+          <button class="btn secondary" style="width:100%" onclick="go('/home')">${icons.home || icons.users} Go Home</button>
+        </div>
+      </div>
     `
   };
   shell(phone(screens[step], "meetings", true));
-  // After the scan screen HTML is painted, start the camera RAF loop
-  if (step === "scan") setTimeout(mountScanScreen, 0);
+  // After the scan screen HTML is painted, start the camera RAF loop + inject scan line
+  if (step === "scan") {
+    setTimeout(mountScanScreen, 0);
+    setTimeout(() => { if (typeof window.mountScanLine === "function") window.mountScanLine(); }, 80);
+  }
 }
 
-/* --- Joining Loading Screen -------------------------------- */
+/* --- Joining / Connecting Screen -------------------------------- */
 export function renderJoining() {
   shell(phone(`
     <div class="center-screen" style="text-align:center">
-      <div class="logo-hero">
-        <div class="big-mark">${icons.users}</div>
-        <h1 class="screen-title">Joining Meeting...</h1>
-        <p class="subtle">Please wait while we connect you to the room.</p>
-        <div class="spinner"></div>
+
+      <!-- Pulsing orbit spinner — animations.js upgrades the big-mark automatically -->
+      <div class="joining-orb">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none"
+             stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
       </div>
-      <button class="btn" onclick="go('/audience')">${icons.arrowRight} Enter Room</button>
+
+      <!-- Dual-ring orbit spinner -->
+      <div class="cv-orbit" style="margin:16px auto">
+        <div class="cv-orbit__outer"></div>
+        <div class="cv-orbit__inner"></div>
+        <div class="cv-orbit__dot"></div>
+      </div>
+
+      <h1 class="screen-title" style="animation:slideUp .4s ease .1s both">Connecting…</h1>
+      <p class="subtle" style="animation:fadeIn .4s ease .2s both">Joining the meeting room. Please wait.</p>
+
+      <!-- Three-dot bouncing loader -->
+      <div class="cv-dots" style="margin:16px auto;animation:fadeIn .4s ease .3s both">
+        <span></span><span></span><span></span>
+      </div>
+
+      <!-- Step indicator -->
+      <div class="step-indicator" style="animation:fadeIn .4s ease .35s both">
+        <div class="step-dot done"></div>
+        <div class="step-line done"></div>
+        <div class="step-dot active"></div>
+        <div class="step-line"></div>
+        <div class="step-dot"></div>
+      </div>
+
+      <button class="btn" style="width:100%;margin-top:8px;animation:slideUp .35s ease .5s both"
+              onclick="go('/audience')">${icons.arrowRight} Enter Room</button>
     </div>
   `, null, true));
 }

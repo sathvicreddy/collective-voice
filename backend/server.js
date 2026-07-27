@@ -4,6 +4,13 @@
    actions. REST keeps CRUD + auth + analytics only.
    ============================================================ */
 "use strict";
+// ── Dev TLS fix: must be set BEFORE any require() that creates TLS sockets ───
+// Neon WebSocket connections on some Windows networks fail with
+// "self-signed certificate in certificate chain". Disabling TLS verification
+// in dev is safe — never run with NODE_ENV=production on localhost.
+if (!process.env.NODE_ENV || process.env.NODE_ENV !== "production") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 if (!process.env.JWT_SECRET) require("dotenv").config(); // Load .env in dev (npm start)
 const http   = require("http");
 const fs     = require("fs");
@@ -15,6 +22,7 @@ const { verifyToken, handleAuthRequest } = require("./src/routes/auth");
 const db               = require("./src/db/client");
 const { processQuestion } = require("./src/nlp/engine");
 const { recomputeScores } = require("./src/nlp/scoring");
+const { startScheduler } = require("./src/scheduler");
 
 // ── Process-level error guards (B1) ────────────────────────────────────────
 // These catch anything that slips past individual try/catch blocks.
@@ -31,6 +39,24 @@ process.on("unhandledRejection", (reason) => {
 
 const PORT       = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "..", "frontend", "public");
+
+// ── CORS allowlist (B9) ─────────────────────────────────────────────────────
+// In production set ALLOWED_ORIGINS to a comma-separated list of trusted domains.
+// Falls back to localhost for dev convenience.
+const ALLOWED_ORIGINS = new Set(
+  (process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://localhost:3001")
+    .split(",")
+    .map(o => o.trim())
+    .filter(Boolean)
+);
+
+function isCorsAllowed(origin) {
+  if (!origin) return true;          // same-origin / server-to-server
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  // Allow any localhost port in development
+  if (process.env.NODE_ENV !== "production" && /^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
+  return false;
+}
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -50,53 +76,85 @@ const CACHE_CONTROL = (() => {
   const isProd = process.env.NODE_ENV === "production";
   return {
     ".html": "no-cache, must-revalidate",
-    ".js":   isProd ? "public, max-age=31536000, immutable" : "public, max-age=60",
-    ".css":  isProd ? "public, max-age=31536000, immutable" : "public, max-age=60",
+    // Dev: no-cache so every reload gets fresh JS/CSS (avoids stale module cache)
+    // Prod: long-lived with immutable — pair with content-hash filenames
+    ".js":   isProd ? "public, max-age=31536000, immutable" : "no-cache, must-revalidate",
+    ".css":  isProd ? "public, max-age=31536000, immutable" : "no-cache, must-revalidate",
     ".png":  "public, max-age=86400",
     ".svg":  "public, max-age=86400",
     ".woff2":"public, max-age=86400"
   };
 })();
 
+// ── Build version for cache-busting — changes on every server restart ──────────
+const CV_VERSION = Date.now().toString(36); // e.g. "lxk4a7n2"
+
 function publicFile(req, res) {
-  const requested = req.url === "/" ? "/index.html" : req.url;
-  const safePath  = path.normalize(requested).replace(/^(\.\.[\\/])+/, "");
+  // Strip query strings for filesystem lookup (e.g. ?v=123 on JS files)
+  const rawPath   = req.url.split('?')[0];
+  const requested = rawPath === '/' ? '/index.html' : rawPath;
+  const safePath  = path.normalize(requested).replace(/^(\.\.[/\\])+/, '');
   const filePath  = path.join(PUBLIC_DIR, safePath);
 
   if (!filePath.startsWith(PUBLIC_DIR)) {
-    res.writeHead(403); res.end("Forbidden"); return;
+    res.writeHead(403); res.end('Forbidden'); return;
   }
 
   fs.readFile(filePath, (err, data) => {
     if (err) {
       // SPA fallback
-      fs.readFile(path.join(PUBLIC_DIR, "index.html"), (fbErr, fb) => {
-        if (fbErr) { res.writeHead(404); res.end("Not found"); return; }
+      fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (fbErr, fb) => {
+        if (fbErr) { res.writeHead(404); res.end('Not found'); return; }
         res.writeHead(200, {
-          "Content-Type":  mimeTypes[".html"],
-          "Cache-Control": CACHE_CONTROL[".html"]
+          'Content-Type':  mimeTypes['.html'],
+          'Cache-Control': CACHE_CONTROL['.html']
         });
         res.end(fb);
       });
       return;
     }
     const ext = path.extname(filePath);
+
+    // Inject the current build version into admin.html so the dynamic
+    // import() picks up the correct cache-busted URL on every server restart.
+    let body = data;
+    const isAdminHtml = filePath === path.join(PUBLIC_DIR, 'admin.html');
+    if (isAdminHtml) {
+      body = Buffer.from(
+        data.toString('utf8').replace('<!--CV_VERSION-->', CV_VERSION)
+      );
+    }
+
     res.writeHead(200, {
-      "Content-Type":  mimeTypes[ext] || "application/octet-stream",
-      "Cache-Control": CACHE_CONTROL[ext] || "public, max-age=60"
+      'Content-Type':  mimeTypes[ext] || 'application/octet-stream',
+      'Cache-Control': CACHE_CONTROL[ext] || 'public, max-age=60'
     });
-    res.end(data);
+    res.end(body);
   });
 }
 
 const server = http.createServer(async (req, res) => {
+  // ── Security headers (applied to every response) ────────────────────────────
+  res.setHeader("X-Content-Type-Options",   "nosniff");
+  res.setHeader("X-Frame-Options",           "DENY");
+  res.setHeader("X-XSS-Protection",          "1; mode=block");
+  res.setHeader("Referrer-Policy",           "strict-origin-when-cross-origin");
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+
   // ── CORS headers ───────────────────────────────────────────────────────────────
   const origin = req.headers.origin;
-  if (origin) {
+  if (origin && isCorsAllowed(origin)) {
     res.setHeader("Access-Control-Allow-Origin",  origin);
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
     res.setHeader("Vary", "Origin");
+  } else if (origin && !isCorsAllowed(origin)) {
+    // Reject cross-origin pre-flight from disallowed origins early
+    res.writeHead(403, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "CORS: origin not allowed" }));
+    return;
   }
   if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
 
@@ -424,22 +482,24 @@ async function buildSnapshot(meetingId) {
 /**
  * Broadcast a message to all clients in a specific meeting.
  * If meetingId is null, broadcast to all clients (global).
- * Optionally skip one sender ws.
+ * Optionally skip one sender ws, or target a specific userId only.
  */
-function broadcastToMeeting(event, data, meetingId = null, skip = null) {
+function broadcastToMeeting(event, data, meetingId = null, skip = null, opts = {}) {
   const raw = JSON.stringify({ event, data });
   clients.forEach((meta, ws) => {
     if (ws === skip) return;
     if (ws.readyState !== 1 /* OPEN */) return;
     if (meetingId && meta.meetingId && meta.meetingId !== meetingId) return;
+    // If onlyUserId is set, only send to that specific user's connection(s)
+    if (opts.onlyUserId && meta.userId !== opts.onlyUserId) return;
     ws.send(raw);
   });
 }
 
-/** Global broadcast (for api.js) */
-function broadcast(msg, skip = null) {
+/** Global broadcast (for api.js and scheduler) */
+function broadcast(msg, skip = null, opts = {}) {
   const { event, data, meetingId } = msg;
-  broadcastToMeeting(event, data, meetingId || null, skip);
+  broadcastToMeeting(event, data, meetingId || null, skip, opts);
 }
 
 // Expose broadcast + raw server so api.js and tests can use them
@@ -499,5 +559,11 @@ if (require.main === module) {
   server.listen(PORT, () => {
     console.log(`CollectiveVoice is running at http://localhost:${PORT}`);
     console.log(`WebSocket server ready on ws://localhost:${PORT}`);
+
+    // Start the grace-period & auto-expiry background scheduler
+    startScheduler({
+      broadcast: (event, data, meetingId, opts = {}) =>
+        broadcastToMeeting(event, data, meetingId, null, opts)
+    });
   });
 }

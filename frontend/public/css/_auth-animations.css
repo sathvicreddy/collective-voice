@@ -1,0 +1,284 @@
+/* ============================================================
+   CollectiveVoice — Auth & Form Animation Enhancements
+   ============================================================ */
+
+/* ── Landing page hero entrance ─────────────────────────────── */
+.landing-desktop {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.landing-hero-left {
+  animation: slideInLeft 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.landing-hero-right {
+  animation: slideInRight 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+
+.landing-ai-badge {
+  animation: slideDown 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+
+.landing-hero-title {
+  animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+.landing-hero-sub {
+  animation: fadeIn 0.5s ease 0.3s both;
+}
+
+.landing-hero-btns {
+  animation: fadeIn 0.5s ease 0.4s both;
+}
+
+.landing-features {
+  animation: slideUp 0.5s ease 0.45s both;
+}
+
+/* Stagger landing feature items */
+.landing-feature-item:nth-child(1) { animation: slideUp 0.4s ease 0.5s both; }
+.landing-feature-item:nth-child(2) { animation: slideUp 0.4s ease 0.56s both; }
+.landing-feature-item:nth-child(3) { animation: slideUp 0.4s ease 0.62s both; }
+.landing-feature-item:nth-child(4) { animation: slideUp 0.4s ease 0.68s both; }
+
+/* Stats bar entrance */
+.landing-stat-item {
+  animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.landing-stat-item:nth-child(1) { animation-delay: 0.1s; }
+.landing-stat-item:nth-child(2) { animation-delay: 0.18s; }
+.landing-stat-item:nth-child(3) { animation-delay: 0.26s; }
+.landing-stat-item:nth-child(4) { animation-delay: 0.34s; }
+
+/* ── Desktop auth form ───────────────────────────────────────── */
+.auth-desktop {
+  animation: fadeIn 0.35s ease both;
+}
+
+.auth-left {
+  animation: slideInLeft 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-form-box {
+  animation: slideInRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
+}
+
+/* ── Mobile auth ─────────────────────────────────────────────── */
+.mobile-auth {
+  animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mobile-auth-header {
+  animation: slideDown 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
+}
+
+.mobile-auth-title {
+  animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+
+.mobile-auth-sub {
+  animation: fadeIn 0.4s ease 0.18s both;
+}
+
+/* Stagger auth fields */
+.auth-field:nth-child(1) { animation: slideUp 0.38s ease 0.15s both; }
+.auth-field:nth-child(2) { animation: slideUp 0.38s ease 0.22s both; }
+.auth-field:nth-child(3) { animation: slideUp 0.38s ease 0.29s both; }
+.auth-field:nth-child(4) { animation: slideUp 0.38s ease 0.36s both; }
+
+/* Submit button pop-in */
+.auth-submit-btn {
+  animation: scalePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.38s both;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.18s ease,
+              opacity 0.15s ease;
+}
+
+.auth-submit-btn:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 12px 32px rgba(91, 52, 255, 0.3);
+}
+
+.auth-submit-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Social row entrance */
+.auth-social-row {
+  animation: fadeIn 0.4s ease 0.5s both;
+}
+
+/* Guest card slide */
+.auth-guest-card {
+  animation: slideUp 0.4s ease 0.55s both;
+}
+
+/* ── Auth input focus enhancements ───────────────────────────── */
+.auth-input-wrap {
+  transition: all 0.22s ease;
+}
+
+.auth-input:focus {
+  outline: none;
+}
+
+.auth-input-wrap:focus-within {
+  box-shadow: 0 0 0 3px rgba(91, 52, 255, 0.15);
+  border-color: var(--primary, #5b34ff);
+}
+
+/* Auth input error shake */
+.auth-input.error,
+.auth-field.error .auth-input {
+  animation: shakeX 0.4s ease;
+  border-color: #e54040 !important;
+}
+
+/* ── Auth error banner slide ─────────────────────────────────── */
+#authError {
+  animation: slideDown 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Onboarding screen ───────────────────────────────────────── */
+.onboard-icon {
+  animation: scalePop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #5b34ff, #286dff);
+  color: white;
+  margin: 0 auto;
+  box-shadow: 0 20px 50px rgba(91, 52, 255, 0.3);
+}
+
+.onboard-icon svg {
+  width: 42px;
+  height: 42px;
+}
+
+/* Onboarding dots */
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d4d5e5;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: inline-block;
+}
+
+.dot.active {
+  background: var(--primary, #5b34ff);
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* ── Field focus state ───────────────────────────────────────── */
+.field--focused label {
+  color: var(--primary, #5b34ff);
+  transition: color 0.18s ease;
+}
+
+.field--focused input,
+.field--focused textarea,
+.field--focused select {
+  border-color: var(--primary, #5b34ff);
+  box-shadow: 0 0 0 3.5px rgba(91, 52, 255, 0.12);
+}
+
+/* ── Forgot / Reset screens ──────────────────────────────────── */
+.mobile-auth .mobile-auth-title {
+  animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+
+/* ── Home page stats entrance ────────────────────────────────── */
+.stat-card {
+  animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.05s; }
+.stat-card:nth-child(2) { animation-delay: 0.10s; }
+.stat-card:nth-child(3) { animation-delay: 0.15s; }
+.stat-card:nth-child(4) { animation-delay: 0.20s; }
+
+/* ── Notification slide-in ───────────────────────────────────── */
+.notif-item,
+.notification-card {
+  animation: slideInRight 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Session cards entrance ──────────────────────────────────── */
+.session-card,
+.poll-card {
+  animation: fadeIn 0.3s ease both;
+}
+
+/* ── Analytics bar fill ──────────────────────────────────────── */
+.bar-fill {
+  animation: progressFill 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+  animation-fill-mode: both;
+}
+
+/* ── Donut / chart entrance ──────────────────────────────────── */
+.donut-wrap {
+  animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Report sections ─────────────────────────────────────────── */
+.report-section {
+  animation: slideUp 0.35s ease both;
+}
+
+.report-section:nth-child(1) { animation-delay: 0.05s; }
+.report-section:nth-child(2) { animation-delay: 0.10s; }
+.report-section:nth-child(3) { animation-delay: 0.15s; }
+
+/* ── Bottom nav active tab transition ────────────────────────── */
+.bottom-nav button {
+  transition: color 0.2s ease, transform 0.15s ease;
+}
+
+.bottom-nav button:active {
+  transform: scale(0.9);
+}
+
+/* ── Sidebar nav hover ───────────────────────────────────────── */
+.nav-btn {
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-btn:hover {
+  transform: translateX(3px);
+}
+
+/* ── Switch toggle ───────────────────────────────────────────── */
+.switch {
+  transition: background 0.22s ease;
+}
+
+.switch::after {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Tabs click feedback ─────────────────────────────────────── */
+.tabs button,
+.segmented button {
+  transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tabs button:active,
+.segmented button:active {
+  transform: scale(0.96);
+}
+
+/* ── Quick-grid entrance ─────────────────────────────────────── */
+.quick-card {
+  animation: scaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.quick-grid .quick-card:nth-child(1) { animation-delay: 0.04s; }
+.quick-grid .quick-card:nth-child(2) { animation-delay: 0.08s; }
+.quick-grid .quick-card:nth-child(3) { animation-delay: 0.12s; }
+.quick-grid .quick-card:nth-child(4) { animation-delay: 0.16s; }

@@ -26,3 +26,6 @@
 @import './_create-meeting.css';
 @import './_meeting-header.css';
 @import './_report.css';
+
+/* Animation enhancements — loaded last to win cascade */
+@import './_auth-animations.css';

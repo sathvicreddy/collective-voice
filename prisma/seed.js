@@ -4,10 +4,10 @@
 "use strict";
 
 require("dotenv/config");
-const { PrismaClient } = require("@prisma/client");
+// Use the shared DB client so the Neon WebSocket adapter is applied
+// (works even when port 5432 is blocked — traffic goes over wss:// port 443).
+const db = require("../backend/src/db/client");
 const bcrypt = require("bcryptjs");
-
-const db = new PrismaClient();
 
 async function main() {
   console.log("🌱 Seeding CollectiveVoice database...");

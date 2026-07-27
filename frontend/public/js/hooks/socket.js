@@ -160,6 +160,11 @@ class SessionSocket {
         break;
     }
 
+    // Bubble ALL server events to the global document as a CustomEvent.
+    // This allows app.js (and other modules) to react to events like
+    // grace_period_started / meeting_expired without modifying socket.js.
+    document.dispatchEvent(new CustomEvent("cv:ws_event", { detail: { event, data } }));
+
     // Also fire any custom event handlers registered by views
     const handler = this._eventHandlers.get(event);
     if (handler) handler(data);

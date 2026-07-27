@@ -2,13 +2,16 @@
 // Learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   // PostgreSQL for production (Neon). For local dev swap back to sqlite + file:./dev.db
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // directUrl is used for prisma migrate (needs direct TCP). Comment out to use db push via pooler.
+  // directUrl = env("DIRECT_URL")
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────────
@@ -24,12 +27,13 @@ model User {
   createdAt    DateTime @default(now())
 
   // Relations
-  meetings     Meeting[]
-  questions    Question[]    @relation("QuestionAskedBy")
-  participants Participant[]
+  meetings      Meeting[]
+  questions     Question[]        @relation("QuestionAskedBy")
+  participants  Participant[]
   notifications Notification[]
-  resetTokens  ResetToken[]
+  resetTokens   ResetToken[]
   refreshTokens RefreshToken[]
+  enrollments   MeetingEnrollment[]
 }
 
 // ── Meetings ──────────────────────────────────────────────────────────────────
@@ -39,11 +43,12 @@ model Meeting {
   code        String   @unique // 6-digit join code
   title       String
   speaker     String
-  status      String   @default("upcoming") // upcoming | live | conducted | past
+  status      String   @default("upcoming") // upcoming | live | conducted | past | expired
   date        String   @default("")
   time        String   @default("")
   duration    String   @default("")
   scheduledAt DateTime? // ISO timestamp for sorting / display
+  graceEndsAt DateTime? // set when a grace period is active for this meeting
   description String   @default("")
   category    String   @default("")
   settingsJson String  @default("{}") // JSON blob for extra settings
@@ -54,9 +59,11 @@ model Meeting {
   owner       User?    @relation(fields: [ownerId], references: [id])
 
   // Children
-  questions   Question[]
-  polls       Poll[]
+  questions    Question[]
+  polls        Poll[]
   participants Participant[]
+  enrollments  MeetingEnrollment[]
+  gracePeriod  GracePeriod?
 }
 
 // ── Questions ─────────────────────────────────────────────────────────────────
@@ -196,4 +203,38 @@ model AuditLog {
   detailJson  String   @default("{}")     // JSON blob with before/after context
   ipAddress   String   @default("")
   createdAt   DateTime @default(now())
+}
+
+// ── Meeting Enrollment ────────────────────────────────────────────────────────
+// Created when an authenticated user joins a scheduled meeting via QR or code.
+// This is what makes a meeting appear in the user's personal upcoming list.
+
+model MeetingEnrollment {
+  id         String   @id @default(cuid())
+  enrolledAt DateTime @default(now())
+  joinMethod String   @default("code")  // "qr" | "code"
+
+  meetingId  String
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])   // one enrollment per user per meeting
+}
+
+// ── Grace Period ──────────────────────────────────────────────────────────────
+// Created when a scheduled meeting passes its scheduledAt without going live.
+// The host has until graceEndsAt to extend or reschedule before auto-expiry.
+
+model GracePeriod {
+  id            String    @id @default(cuid())
+  graceStartsAt DateTime
+  graceEndsAt   DateTime  // graceStartsAt + GRACE_PERIOD_MINUTES
+  hostAction    String?   // null | "extended" | "rescheduled" | "expired"
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  meetingId     String    @unique
+  meeting       Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 }

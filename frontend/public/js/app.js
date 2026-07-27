@@ -115,8 +115,10 @@ export async function validateMeetingCode() {
  * Core meeting-code lookup logic — shared by the form-based flow
  * (/join/id page) and the deep-link route (#/join/:code).
  *
- * Fetches the meeting by code, stores it in state.joinTarget, then
- * redirects to /join/preview (live) or /join/waiting (upcoming).
+ * Fetches the meeting by code, stores it in state.joinTarget, then:
+ *  - live meeting     → /join/preview (enter room immediately)
+ *  - upcoming meeting → enrollInMeeting() + /join/waiting (adds to user's list)
+ *  - expired meeting  → /join/expired
  * On failure, goes to /join/invalid.
  */
 export async function validateMeetingCodeDirect(code) {
@@ -125,9 +127,29 @@ export async function validateMeetingCodeDirect(code) {
     const response = await fetch(`/api/sessions/code/${code}`);
     if (!response.ok) { go("/join/invalid"); return; }
     const result = await response.json();
-    state.joinTarget = result.meeting;
+    const meeting = result.meeting;
+    state.joinTarget = meeting;
     state.isHost = false;
-    go(result.meeting.status === "upcoming" ? "/join/waiting" : "/join/preview");
+
+    if (meeting.status === "expired") {
+      go("/join/expired");
+      return;
+    }
+
+    if (meeting.status === "live") {
+      // Live meeting — skip enrollment, go straight to preview
+      go("/join/preview");
+      return;
+    }
+
+    // Upcoming/scheduled — enroll the user so this meeting appears in their list
+    if (state.token) {
+      // Fire-and-forget enrollment (don't block UI)
+      enrollInMeeting(code, "code").then(res => {
+        if (res?.action === "join_now") go("/join/preview");
+      }).catch(() => {});
+    }
+    go("/join/waiting");
   } catch {
     go("/join/invalid");
   }
@@ -276,6 +298,18 @@ export async function loadData() {
     state.activity         = activity;
     state.notifications    = notifications.notifications || [];
     state.sessionAnalytics = sessionAnalytics;
+
+    // Load user-specific meetings (enrolled + owned) — only if authenticated
+    if (state.token) {
+      const myRes = await api("/api/meetings/mine").catch(() => null);
+      if (myRes) {
+        state.myMeetings.all      = myRes.meetings  || [];
+        state.myMeetings.upcoming = myRes.upcoming  || [];
+        state.myMeetings.live     = myRes.live      || [];
+        state.myMeetings.past     = myRes.past      || [];
+        state.myMeetings.expired  = myRes.expired   || [];
+      }
+    }
 
     // Prune stale owned meeting IDs from localStorage (handles DB resets / deleted meetings)
     try {
@@ -485,13 +519,14 @@ export function render() {
   if (route === "/profile")   return renderProfile();
   if (route === "/settings")  return renderSettings();
 
-  if (route === "/join")          return renderJoin("start");
-  if (route === "/join/scan")     return renderJoin("scan");
-  if (route === "/join/id")       return renderJoin("id");
-  if (route === "/join/preview")  return renderJoin("preview");
-  if (route === "/join/waiting")  return renderJoin("waiting");
-  if (route === "/join/invalid")  return renderJoin("invalid");
-  if (route === "/joining")       return renderJoining();
+  if (route === "/join")            return renderJoin("start");
+  if (route === "/join/scan")       return renderJoin("scan");
+  if (route === "/join/id")         return renderJoin("id");
+  if (route === "/join/preview")    return renderJoin("preview");
+  if (route === "/join/waiting")    return renderJoin("waiting");
+  if (route === "/join/invalid")    return renderJoin("invalid");
+  if (route === "/join/expired")    return renderJoin("expired");
+  if (route === "/joining")         return renderJoining();
 
   // Deep-link: #/join/482916 → look up meeting by code and redirect to preview/waiting
   // Matches both 6-digit numeric codes and the 8-hex fallback format.
@@ -531,8 +566,13 @@ export function render() {
 // Render auth page immediately on load (don't wait for data)
 render();
 
-// Then load data and re-render
-loadData().then(render).catch(error => {
+// Then load data, dismiss splash, and re-render
+loadData().then(() => {
+  // Dismiss the splash screen now that data is ready
+  if (typeof window.cvHideSplash === "function") window.cvHideSplash();
+  render();
+}).catch(error => {
+  if (typeof window.cvHideSplash === "function") window.cvHideSplash();
   app.innerHTML = `
     <main class="content" style="display:grid;place-items:center;min-height:100vh">
       <section class="panel" style="max-width:400px;text-align:center;padding:40px">
@@ -543,9 +583,198 @@ loadData().then(render).catch(error => {
       </section>
     </main>
   `;
+
 });
 
 window.addEventListener("hashchange", () => {
   state.route = location.hash.replace("#", "") || "/home";
   render();
+});
+
+/* --- Global Meeting Action Helpers --------------------------------- */
+
+/**
+ * Enroll the current user in a meeting via code or QR.
+ * Called from the join flow after code validation.
+ */
+window.enrollInMeeting = async function enrollInMeeting(code, method = "code") {
+  if (!state.token) {
+    go("/login");
+    return null;
+  }
+  try {
+    const result = await api(`/api/sessions/code/${code}/enroll`, {
+      method: "POST",
+      body: JSON.stringify({ method })
+    });
+    // Update local state immediately
+    const m = result.meeting;
+    if (m && !state.myMeetings.all.find(x => x.id === m.id)) {
+      state.myMeetings.all.unshift(m);
+      if (m.status === "upcoming" || m.status === "scheduled") state.myMeetings.upcoming.unshift(m);
+      if (m.status === "live") state.myMeetings.live.unshift(m);
+    }
+    return result;
+  } catch (err) {
+    console.error("[Enroll] Failed:", err.message);
+    return null;
+  }
+};
+
+/**
+ * Host extends an overdue meeting's grace period.
+ * Shows a toast confirmation, re-renders meetings list.
+ */
+window.extendMeeting = async function extendMeeting(meetingId, minutes = 30) {
+  try {
+    const result = await api(`/api/meetings/${meetingId}/extend`, {
+      method: "POST",
+      body: JSON.stringify({ minutes })
+    });
+    // Update local state
+    const m = state.myMeetings.all.find(x => x.id === meetingId);
+    if (m && result.meeting) Object.assign(m, result.meeting);
+    showToast(`⏱ Meeting extended by ${minutes} minutes`);
+    if (state.route === "/meetings") render();
+    return result;
+  } catch (err) {
+    showToast(`Failed to extend: ${err.message}`, "error");
+    return null;
+  }
+};
+
+/**
+ * Host reschedules an overdue meeting.
+ * scheduledAt must be a future ISO datetime string.
+ */
+window.rescheduleMeeting = async function rescheduleMeeting(meetingId, scheduledAt) {
+  try {
+    const result = await api(`/api/meetings/${meetingId}/reschedule`, {
+      method: "POST",
+      body: JSON.stringify({ scheduledAt })
+    });
+    // Update local state
+    const m = state.myMeetings.all.find(x => x.id === meetingId);
+    if (m && result.meeting) Object.assign(m, result.meeting);
+    showToast(`📅 Meeting rescheduled`);
+    if (state.route === "/meetings") render();
+    return result;
+  } catch (err) {
+    showToast(`Failed to reschedule: ${err.message}`, "error");
+    return null;
+  }
+};
+
+/** Minimal toast notification helper */
+function showToast(msg, type = "success") {
+  const t = document.createElement("div");
+  t.className = `cv-toast cv-toast-${type}`;
+  t.textContent = msg;
+  t.style.cssText = [
+    "position:fixed", "bottom:24px", "left:50%", "transform:translateX(-50%)",
+    "background:" + (type === "error" ? "#e54040" : "#1a1a2e"),
+    "color:#fff", "padding:10px 20px", "border-radius:8px",
+    "font-size:14px", "font-weight:600", "z-index:9999",
+    "box-shadow:0 4px 24px rgba(0,0,0,0.25)", "pointer-events:none"
+  ].join(";");
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+window.showToast = showToast;
+
+/**
+ * Presents a simple inline date+time dialog for the host to reschedule a meeting.
+ * Falls back to window.prompt for date/time input (works on all devices).
+ */
+window.showRescheduleDialog = function showRescheduleDialog(meetingId) {
+  const dateStr = window.prompt(
+    "Enter new date for the meeting (YYYY-MM-DD):",
+    new Date().toISOString().slice(0, 10)
+  );
+  if (!dateStr) return;
+  const timeStr = window.prompt(
+    "Enter new time (HH:MM, 24-hour):",
+    new Date().toTimeString().slice(0, 5)
+  );
+  if (!timeStr) return;
+  const scheduledAt = new Date(`${dateStr}T${timeStr}`).toISOString();
+  if (isNaN(new Date(scheduledAt))) {
+    alert("Invalid date/time. Please try again.");
+    return;
+  }
+  rescheduleMeeting(meetingId, scheduledAt);
+};
+
+/* --- WebSocket Real-Time Event Handlers for Enrollment/Grace ---- */
+// These events arrive from the server scheduler and API routes.
+// They update local state without a full page reload.
+
+function handleGraceEvent(event, data) {
+  switch (event) {
+    case "grace_period_started": {
+      // Server told this user (the host) that their meeting just became overdue.
+      const m = state.myMeetings.all.find(x => x.id === data.meetingId);
+      if (m) {
+        m.graceEndsAt = data.graceEndsAt;
+        m._graceActive = true;
+      }
+      showToast(`⏱ "${data.title}" overdue — ${Math.round(data.graceMs / 60000)}m to extend or reschedule`);
+      // Re-render if on meetings page so the grace banner appears
+      if (state.route === "/meetings") render();
+      break;
+    }
+    case "meeting_expired": {
+      // Move the meeting from upcoming → expired in local state
+      const idx = state.myMeetings.upcoming.findIndex(x => x.id === data.meetingId);
+      if (idx !== -1) {
+        const [expired] = state.myMeetings.upcoming.splice(idx, 1);
+        expired.status = "expired";
+        state.myMeetings.expired.unshift(expired);
+        const m = state.myMeetings.all.find(x => x.id === data.meetingId);
+        if (m) m.status = "expired";
+      }
+      showToast(`❌ "${data.title}" has expired`, "error");
+      if (state.route === "/meetings") render();
+      break;
+    }
+    case "meeting_extended": {
+      const m = state.myMeetings.all.find(x => x.id === data.meetingId);
+      if (m) {
+        m.scheduledAt = data.newScheduledAt;
+        m.graceEndsAt = data.graceEndsAt;
+        m._graceActive = true;
+      }
+      showToast(`✅ Meeting extended by ${data.extendedByMins} minutes`);
+      if (state.route === "/meetings") render();
+      break;
+    }
+    case "meeting_rescheduled": {
+      const m = state.myMeetings.all.find(x => x.id === data.meetingId);
+      if (m) {
+        m.scheduledAt = data.newScheduledAt;
+        m.date = data.date;
+        m.time = data.time;
+        m.status = "upcoming";
+        m.graceEndsAt = null;
+        m._graceActive = false;
+        // Move back to upcoming if it was elsewhere
+        if (!state.myMeetings.upcoming.find(x => x.id === data.meetingId)) {
+          state.myMeetings.upcoming.unshift(m);
+        }
+      }
+      showToast(`📅 Meeting rescheduled to ${data.date} ${data.time}`);
+      if (state.route === "/meetings") render();
+      break;
+    }
+  }
+}
+
+// Hook into SessionStore's WS message pipeline for grace/enrollment events.
+// The SessionStore's dispatch() function already handles session events;
+// we intercept the grace-period events here at the app level.
+document.addEventListener("cv:ws_event", (e) => {
+  const { event, data } = e.detail || {};
+  if (["grace_period_started","meeting_expired","meeting_extended","meeting_rescheduled"].includes(event)) {
+    handleGraceEvent(event, data);
+  }
 });

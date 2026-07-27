@@ -26,3 +26,7 @@ Thumbs.db
 
 # NLP model cache (downloaded at runtime)
 .cache/
+
+# Backup / scratch files — never commit these
+*.bak
+*.orig

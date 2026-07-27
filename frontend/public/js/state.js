@@ -3,6 +3,16 @@ const state = {
   route: location.hash.replace("#", "") || "/welcome",
   home: null,
   meetings: [],
+  // User-specific meeting lists (from /api/meetings/mine)
+  // Only meetings the user has enrolled in (via QR or code) or owns.
+  myMeetings: {
+    all:      [],
+    upcoming: [],
+    live:     [],
+    past:     [],
+    expired:  []
+  },
+  myEnrollments: [],   // raw enrollment records from the server
   // NOTE: questions are owned by SessionStore — do NOT read state.questions anywhere
   activity: null,
   profile: null,

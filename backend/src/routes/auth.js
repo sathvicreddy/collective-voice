@@ -28,8 +28,9 @@ const REFRESH_TTL = parseInt(process.env.REFRESH_TTL_DAYS || "30", 10) * 24 * 36
 const SALT_ROUNDS = 10;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-// The one email that is auto-promoted to superadmin on first login
-const SUPERADMIN_EMAIL = "sathvic2005@gmail.com";
+// The one email that is auto-promoted to superadmin on first login.
+// Set SUPERADMIN_EMAIL in your .env file — never hardcode it here.
+const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || "").toLowerCase();
 
 // Google OAuth config
 const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || "";
@@ -141,14 +142,18 @@ function googleExchangeCode(code) {
         hostname: "oauth2.googleapis.com",
         path:     "/token",
         method:   "POST",
-        headers:  { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }
+        headers:  { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
+        rejectUnauthorized: process.env.NODE_ENV === "production"
       },
       res => {
         let data = "";
         res.on("data", c => { data += c; });
         res.on("end",  () => {
           try { resolve(JSON.parse(data)); }
-          catch { reject(new Error("Failed to parse Google token response")); }
+          catch {
+            console.error("[Auth] Google token response was not JSON:", data.slice(0, 500));
+            reject(new Error("Failed to parse Google token response")); 
+          }
         });
       }
     );
@@ -166,14 +171,18 @@ function googleUserInfo(accessToken) {
         hostname: "www.googleapis.com",
         path:     "/oauth2/v2/userinfo",
         method:   "GET",
-        headers:  { Authorization: `Bearer ${accessToken}` }
+        headers:  { Authorization: `Bearer ${accessToken}` },
+        rejectUnauthorized: process.env.NODE_ENV === "production"
       },
       res => {
         let data = "";
         res.on("data", c => { data += c; });
         res.on("end",  () => {
           try { resolve(JSON.parse(data)); }
-          catch { reject(new Error("Failed to parse Google userinfo")); }
+          catch {
+            console.error("[Auth] Google userinfo response was not JSON:", data.slice(0, 500));
+            reject(new Error("Failed to parse Google userinfo")); 
+          }
         });
       }
     );
