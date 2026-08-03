@@ -17,17 +17,37 @@ const { processQuestion } = require("./src/nlp/engine");
 const { recomputeScores } = require("./src/nlp/scoring");
 const { startScheduler } = require("./src/scheduler");
 
-// ── Process-level error guards (B1) ────────────────────────────────────────
-// These catch anything that slips past individual try/catch blocks.
-// Log the full stack trace, then exit so pm2/Docker can restart cleanly.
+// ── Process-level error guards ──────────────────────────────────────────────
+// Transient Neon/DB WebSocket drops are NOT fatal — log and continue.
+// Only exit on truly unrecoverable errors.
+const TRANSIENT_ERRORS = new Set([
+  "Connection terminated unexpectedly",
+  "Connection terminated",
+  "connect ECONNREFUSED",
+  "Can't reach database server",
+  "ECONNRESET",
+]);
+
+function isTransientDbError(err) {
+  const msg = (err?.message || err?.toString() || "");
+  return TRANSIENT_ERRORS.has(msg) || [...TRANSIENT_ERRORS].some(s => msg.includes(s));
+}
+
 process.on("uncaughtException", (err) => {
+  if (isTransientDbError(err)) {
+    console.warn(`[${new Date().toISOString()}] DB transient disconnect (ignored):`, err.message);
+    return; // Don't exit — Neon will reconnect on next request
+  }
   console.error(`[${new Date().toISOString()}] UNCAUGHT EXCEPTION:`, err.stack || err);
   process.exit(1);
 });
 process.on("unhandledRejection", (reason) => {
+  if (isTransientDbError(reason)) {
+    console.warn(`[${new Date().toISOString()}] DB transient rejection (ignored):`, reason?.message || reason);
+    return;
+  }
   console.error(`[${new Date().toISOString()}] UNHANDLED REJECTION:`, reason?.stack || reason);
-  // Don't process.exit(1) here — transient DB errors (e.g. Neon cold-start)
-  // would kill the server and prevent static files / OAuth redirects from working.
+  // Don't exit — transient DB errors would kill OAuth redirects and static file serving.
 });
 
 const PORT       = process.env.PORT || 3000;
@@ -69,8 +89,10 @@ const CACHE_CONTROL = (() => {
   const isProd = process.env.NODE_ENV === "production";
   return {
     ".html": "no-cache, must-revalidate",
-    ".js":   isProd ? "public, max-age=31536000, immutable" : "public, max-age=60",
-    ".css":  isProd ? "public, max-age=31536000, immutable" : "public, max-age=60",
+    // In dev: no-cache so every file change is immediately visible in the browser.
+    // In prod: immutable (use content-hash filenames for safe long caching).
+    ".js":   isProd ? "public, max-age=31536000, immutable" : "no-cache, must-revalidate",
+    ".css":  isProd ? "public, max-age=31536000, immutable" : "no-cache, must-revalidate",
     ".png":  "public, max-age=86400",
     ".svg":  "public, max-age=86400",
     ".woff2":"public, max-age=86400"
@@ -78,7 +100,10 @@ const CACHE_CONTROL = (() => {
 })();
 
 function publicFile(req, res) {
-  const requested = req.url === "/" ? "/index.html" : req.url;
+  // Strip query string (?v=...) before resolving file path so cache-busting
+  // params don't cause 404s on JS module imports.
+  const rawUrl    = req.url.split("?")[0];
+  const requested = rawUrl === "/" ? "/index.html" : rawUrl;
   const safePath  = path.normalize(requested).replace(/^(\.\.[\\/])+/, "");
   const filePath  = path.join(PUBLIC_DIR, safePath);
 
@@ -210,6 +235,9 @@ wss.on("connection", (ws, req) => {
   const wsUserId  = payload?.sub || null;
 
   clients.set(ws, { meetingId: null, userId: wsUserId, role: null, isAlive: true });
+  // Expose WS stats for /api/admin/health endpoint (read via process globals)
+  process._cvWsClients = clients.size;
+  process._cvWsActiveMeetings = new Set([...clients.values()].map(m => m.meetingId).filter(Boolean)).size;
   console.log(`[WS] Client connected (total: ${clients.size})`);
 
   // Update isAlive on pong response
@@ -406,14 +434,96 @@ wss.on("connection", (ws, req) => {
         break;
       }
 
-      // ── speaker_changed ────────────────────────────────
+      // ── speaker_invite ─────────────────────────────────────
+      // Moderator sends this to invite a specific participant as speaker.
+      // The server finds the correct WS connection by participantId and
+      // sends speaker_invite only to them (no name-matching needed).
+      case "speaker_invite": {
+        const { meetingId, participantId, speakerName } = data;
+        if (!meetingId) break;
+
+        // Auth: must be the meeting owner (check via meta.role set during join_meeting)
+        const senderMeta = clients.get(ws);
+        if (senderMeta?.role !== "owner") {
+          ws.send(JSON.stringify({ event: "error", data: { code: 403, message: "Only the meeting owner can invite a speaker" } }));
+          break;
+        }
+
+        // Look up the target participant in DB to get their userId/guestToken
+        const targetPart = await db.participant.findUnique({
+          where: { id: participantId },
+          select: { id: true, userId: true, guestToken: true, name: true }
+        }).catch(() => null);
+
+        if (!targetPart) break;
+
+        const resolvedName = speakerName || targetPart.name || "Participant";
+
+        // Find all WS connections that match this participant
+        let sent = 0;
+        clients.forEach((meta, clientWs) => {
+          if (clientWs.readyState !== 1) return;
+          if (meta.meetingId !== meetingId) return;
+          const matchById    = targetPart.userId    && meta.userId    === targetPart.userId;
+          const matchByGuest = targetPart.guestToken && meta.guestToken === targetPart.guestToken;
+          if (!matchById && !matchByGuest) return;
+          clientWs.send(JSON.stringify({
+            event: "speaker_invite",
+            data:  { participantId, speakerName: resolvedName, meetingId }
+          }));
+          sent++;
+        });
+
+        // Tell moderator whether we reached the client
+        ws.send(JSON.stringify({ event: "speaker_invite_sent", data: { participantId, reached: sent > 0 } }));
+        break;
+      }
+
+      // ── speaker_accepted ──────────────────────────────────────
+      // Participant confirms they accepted the invite. Broadcasts to all.
+      case "speaker_accepted": {
+        const { meetingId, participantId, speakerName } = data;
+        if (!meetingId) break;
+        // Update participant role in DB
+        await db.participant.update({
+          where: { id: participantId },
+          data:  { role: "speaker" }
+        }).catch(() => {});
+        // Tell everyone in the meeting who the new speaker is
+        broadcastToMeeting("speaker_changed", { participantId, speakerName, status: "accepted" }, meetingId);
+        break;
+      }
+
+      // ── speaker_declined ─────────────────────────────────────
+      case "speaker_declined": {
+        const { meetingId, participantId } = data;
+        if (!meetingId) break;
+        // Tell moderator the invite was declined
+        broadcastToMeeting("speaker_changed", { participantId, status: "declined" }, meetingId, ws);
+        break;
+      }
+
+      // ── speaker_revoked ──────────────────────────────────────
+      // Moderator removes the current speaker.
+      case "speaker_revoked": {
+        const { meetingId, participantId } = data;
+        if (!meetingId) break;
+        const rMeta = clients.get(ws);
+        if (rMeta?.role !== "owner") break;
+        await db.participant.update({
+          where: { id: participantId },
+          data:  { role: "participant" }
+        }).catch(() => {});
+        broadcastToMeeting("speaker_changed", { participantId, status: "revoked" }, meetingId);
+        break;
+      }
+
+      // ── speaker_changed (legacy) ───────────────────────────────
       case "speaker_changed": {
         const { meetingId, speakerId, speakerName } = data;
         if (!meetingId) break;
-        if (!await isOwner(ws, meetingId)) {
-          ws.send(JSON.stringify({ event: "error", data: { code: 403, message: "Only the meeting owner can change the speaker" } }));
-          break;
-        }
+        const legMeta = clients.get(ws);
+        if (legMeta?.role !== "owner") break;
         broadcastToMeeting("speaker_changed", { speakerId, speakerName }, meetingId);
         break;
       }

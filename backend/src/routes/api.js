@@ -272,6 +272,39 @@ async function handleApiRequest(req, res) {
     return json(res, 200, { meetings });
   }
 
+  // ── GET /api/meetings/:id ─────────────────────────────────
+  if (req.method === "GET" && url.pathname.match(/^\/api\/meetings\/[^/]+$/)) {
+    const id      = url.pathname.split("/").pop();
+    const meeting = await db.meeting.findUnique({
+      where:   { id },
+      include: {
+        owner:        { select: { id: true, name: true, email: true, picture: true } },
+        participants: { select: { id: true } },
+        enrollments:  { select: { userId: true } },
+        polls:        { select: { id: true } },
+      }
+    });
+    if (!meeting) return json(res, 404, { error: "Meeting not found" });
+
+    const auth        = await requireAuth(req);
+    const currentUser = auth?.user || null;
+    const isOwner     = currentUser ? meeting.ownerId === currentUser.id : false;
+    const settings    = (() => { try { return JSON.parse(meeting.settingsJson || "{}"); } catch { return {}; } })();
+
+    return json(res, 200, {
+      meeting: {
+        ...meeting,
+        participantCount: meeting.participants?.length ?? 0,
+        enrollmentCount:  meeting.enrollments?.length ?? 0,
+        pollCount:        meeting.polls?.length ?? 0,
+        settings,
+        isOwner,
+        // Convenience: short human-readable ID
+        shortId: meeting.code ? `CV-${meeting.code}` : meeting.id.slice(0, 8).toUpperCase()
+      }
+    });
+  }
+
   // ── GET /api/sessions/:id/qrcode ─────────────────────────
   if (req.method === "GET" && url.pathname.match(/^\/api\/sessions\/[^/]+\/qrcode$/)) {
     const id      = url.pathname.split("/")[3];
@@ -526,6 +559,28 @@ async function handleApiRequest(req, res) {
     return json(res, 201, { poll: { ...poll, endsAt: poll.endsAt?.getTime?.() ?? null } });
   }
 
+  // ── POST /api/polls/:id/end ───────────────────────────────
+  if (req.method === "POST" && url.pathname.match(/^\/api\/polls\/[^/]+\/end$/)) {
+    const id   = url.pathname.split("/")[3];
+    const poll = await db.poll.findUnique({ where: { id }, include: { options: true } });
+    if (!poll) return json(res, 404, { error: "Poll not found" });
+
+    const meeting = await db.meeting.findUnique({ where: { id: poll.meetingId } });
+    const authErr = await requireModerator(req, meeting);
+    if (authErr === "401") return json(res, 401, { error: "Unauthorized." });
+    if (authErr === "403") return json(res, 403, { error: "Forbidden." });
+
+    const updated = await db.poll.update({
+      where: { id },
+      data:  { active: false },
+      include: { options: true }
+    });
+
+    broadcast("poll_ended",   { ...updated, endsAt: updated.endsAt?.getTime?.() ?? null }, poll.meetingId);
+    broadcast("poll_updated", { ...updated, endsAt: updated.endsAt?.getTime?.() ?? null }, poll.meetingId);
+    return json(res, 200, { poll: { ...updated, endsAt: updated.endsAt?.getTime?.() ?? null } });
+  }
+
   // ── POST /api/announcements ──────────────────────────────
   if (req.method === "POST" && url.pathname === "/api/announcements") {
     const body      = await readBody(req);
@@ -540,6 +595,44 @@ async function handleApiRequest(req, res) {
     broadcast("announcement", { message: msg, time: new Date().toISOString() }, meetingId);
     return json(res, 200, { sent: true });
   }
+
+  // ── POST /api/sessions/:id/start ────────────────────────
+  if (req.method === "POST" && url.pathname.match(/^\/api\/sessions\/[^/]+\/start$/)) {
+    const id      = url.pathname.split("/")[3];
+    const meeting = await db.meeting.findUnique({ where: { id } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found" });
+    const authErr = await requireModerator(req, meeting);
+    if (authErr === "401") return json(res, 401, { error: "Unauthorized." });
+    if (authErr === "403") return json(res, 403, { error: "Forbidden." });
+
+    const updated = await db.meeting.update({ where: { id }, data: { status: "live" } });
+    // Broadcast to all WS clients in this meeting room (including those on the detail page)
+    broadcast("meeting_started",        { meetingId: id, status: "live" }, id);
+    broadcast("meeting_status_changed", { meetingId: id, status: "live" }, id);
+    // Also broadcast globally (null meetingId) so participants watching before joining a WS room also get it
+    broadcast("meeting_started",        { meetingId: id, status: "live" }, null);
+    broadcast("meeting_status_changed", { meetingId: id, status: "live" }, null);
+    return json(res, 200, { meeting: updated });
+  }
+
+  // ── POST /api/sessions/:id/end ──────────────────────────
+  if (req.method === "POST" && url.pathname.match(/^\/api\/sessions\/[^/]+\/end$/)) {
+    const id      = url.pathname.split("/")[3];
+    const meeting = await db.meeting.findUnique({ where: { id } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found" });
+    const authErr = await requireModerator(req, meeting);
+    if (authErr === "401") return json(res, 401, { error: "Unauthorized." });
+    if (authErr === "403") return json(res, 403, { error: "Forbidden." });
+
+    const updated = await db.meeting.update({ where: { id }, data: { status: "conducted" } });
+    // Broadcast meeting_ended to all participants in the room and globally
+    broadcast("meeting_ended",          { meetingId: id, status: "conducted" }, id);
+    broadcast("meeting_status_changed", { meetingId: id, status: "conducted" }, id);
+    broadcast("meeting_ended",          { meetingId: id, status: "conducted" }, null);
+    broadcast("meeting_status_changed", { meetingId: id, status: "conducted" }, null);
+    return json(res, 200, { meeting: updated });
+  }
+
 
   // ── POST /api/sessions ───────────────────────────────────
   if (req.method === "POST" && url.pathname === "/api/sessions") {
@@ -854,15 +947,22 @@ async function handleApiRequest(req, res) {
     return json(res, 200, { notifications });
   }
 
-  // ── GET /api/admin/users ── List users (admin/superadmin only) ──
+  // ── GET /api/admin/users ── List users ──────────────────────────
+  // ?view=customers  → returns customer/regular users (for the Users admin page)
+  // (no param)       → returns admin+superadmin users  (for Manage Admins page)
   if (req.method === "GET" && url.pathname === "/api/admin/users") {
     const auth = await requireAuth(req);
     if (!auth) return json(res, 401, { error: "Unauthorized." });
     if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
       return json(res, 403, { error: "Admin access required." });
     }
+    const view = url.searchParams.get("view");
+    const where = view === "customers"
+      ? { role: { notIn: ["admin", "superadmin"] } }   // customers / regular users
+      : { role: { in:    ["admin", "superadmin"] } };   // admins only (Manage Admins)
     const users = await db.user.findMany({
-      select: { id: true, name: true, email: true, role: true, picture: true, createdAt: true },
+      where,
+      select:  { id: true, name: true, email: true, role: true, picture: true, createdAt: true, googleId: true },
       orderBy: { createdAt: "desc" }
     });
     return json(res, 200, { users });
@@ -956,7 +1056,87 @@ async function handleApiRequest(req, res) {
     });
   }
 
-  // ── GET /api/admin/meetings ── All meetings ──
+  // ── GET /api/admin/health ── Server health metrics ──
+  if (req.method === "GET" && url.pathname === "/api/admin/health") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const mem     = process.memoryUsage();
+    const uptimeSec = Math.floor(process.uptime());
+    const hh = Math.floor(uptimeSec / 3600);
+    const mm = Math.floor((uptimeSec % 3600) / 60);
+    const ss = uptimeSec % 60;
+    const uptimeStr = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+
+    let dbStatus = "Healthy";
+    try { await db.user.count(); } catch { dbStatus = "Degraded"; }
+
+    // WS stats are stored on process globals by server.js on each connection event
+    const wsClients   = process._cvWsClients   ?? 0;
+    const wsActiveMtg = process._cvWsActiveMeetings ?? 0;
+
+    return json(res, 200, {
+      uptime: uptimeStr,
+      nodeVersion: process.version,
+      platform:    process.platform,
+      dbStatus,
+      wsConnections:    wsClients,
+      wsActiveMeetings: wsActiveMtg,
+      rateLimited: [],  // Reserved — real rate-limiter data lives in auth.js in-memory map
+      memory: {
+        heapUsedMB:  Math.round(mem.heapUsed  / 1024 / 1024),
+        heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+        rssMemMB:    Math.round(mem.rss       / 1024 / 1024),
+        memPct:      Math.round((mem.heapUsed / mem.heapTotal) * 100),
+      },
+    });
+  }
+
+  // ── GET /api/admin/audit ── Audit log with pagination + filters ──
+  if (req.method === "GET" && url.pathname === "/api/admin/audit") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
+
+    const limit      = Math.min(parseInt(url.searchParams.get("limit")  || "25"), 100);
+    const offset     = Math.max(parseInt(url.searchParams.get("offset") || "0"),  0);
+    const action     = url.searchParams.get("action")     || undefined;
+    const targetType = url.searchParams.get("targetType") || undefined;
+
+    const where = {};
+    if (action)     where.action     = action;
+    if (targetType) where.targetType = targetType;
+
+    const [logs, total] = await Promise.all([
+      db.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: offset,
+        take: limit,
+      }),
+      db.auditLog.count({ where }),
+    ]);
+
+    return json(res, 200, {
+      logs: logs.map(l => ({
+        id:         l.id,
+        adminId:    l.adminId,
+        adminName:  l.adminName,
+        adminRole:  l.adminRole,
+        action:     l.action,
+        actionType: l.actionType,
+        targetType: l.targetType,
+        targetName: l.targetName,
+        targetId:   l.targetId,
+        detail:     (() => { try { return JSON.parse(l.detailJson); } catch { return {}; } })(),
+        ipAddress:  l.ipAddress,
+        ts:         l.createdAt.toISOString(),
+      })),
+      total,
+    });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/admin/meetings") {
     const auth = await requireAuth(req);
     if (!auth) return json(res, 401, { error: "Unauthorized." });

@@ -1,0 +1,114 @@
+/* ============================================================
+   USERS PAGE — Table, Filters, Detail Panel, Modals
+   ============================================================ */
+
+/* ── Page count badge ── */
+.page-count {
+  font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 10px;
+}
+
+/* ── User detail panel ── */
+.user-detail-panel { font-size: 13px; }
+
+.udp-profile {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 4px 0 14px;
+}
+.udp-avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 700; flex-shrink: 0;
+}
+.udp-name-row {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; margin-bottom: 3px;
+}
+.udp-name { font-size: 16px; font-weight: 700; color: var(--ink); }
+.udp-email { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.udp-meta { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.udp-suspended-banner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--danger-light);
+  border: 1.5px solid rgba(229,64,64,.2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px; margin: 0 18px 12px;
+  font-size: 13px; font-weight: 600; color: var(--danger); flex-shrink: 0;
+}
+.udp-suspended-icon svg { width: 15px; height: 15px; }
+.udp-reactivate-btn {
+  margin-left: auto; padding: 4px 12px;
+  border: 1.5px solid var(--danger); border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 600; color: var(--danger);
+  background: var(--white); cursor: pointer;
+  transition: background var(--transition);
+}
+.udp-reactivate-btn:hover { background: var(--danger); color: #fff; }
+
+.dp-section-scroll { flex: 1; overflow-y: auto; }
+.udp-section { border-bottom: 1px solid var(--line-light); padding: 12px 18px; }
+.udp-section-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 10px;
+}
+.udp-view-all { font-size: 12px; font-weight: 600; color: var(--primary); cursor: pointer; }
+
+.udp-meeting-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid var(--line-light); font-size: 12.5px;
+}
+.udp-meeting-row:last-child { border-bottom: 0; }
+.udp-meeting-title {
+  flex: 1; font-weight: 500; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.udp-meeting-q { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.udp-caret { color: var(--muted); font-size: 14px; }
+
+.udp-q-row { padding: 7px 0; border-bottom: 1px solid var(--line-light); }
+.udp-q-row:last-child { border-bottom: 0; }
+.udp-q-text { font-size: 12.5px; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+.udp-q-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+
+.udp-vote-row { padding: 6px 0; border-bottom: 1px solid var(--line-light); }
+.udp-vote-row:last-child { border-bottom: 0; }
+.udp-vote-text { font-size: 12.5px; color: var(--ink); margin-bottom: 2px; }
+.udp-vote-meta { font-size: 11px; color: var(--muted); display: flex; gap: 8px; }
+
+.udp-notif-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid var(--line-light); font-size: 12px;
+}
+.udp-notif-row:last-child { border-bottom: 0; }
+.udp-notif-type {
+  font-size: 9.5px; font-weight: 700; padding: 2px 6px;
+  border-radius: var(--radius-full); white-space: nowrap;
+  text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0;
+}
+.udp-notif-type.system   { background: var(--blue-soft);    color: var(--primary); }
+.udp-notif-type.security { background: var(--warning-light); color: var(--warning); }
+.udp-notif-type.meeting  { background: var(--success-light); color: var(--success); }
+.udp-notif-text { flex: 1; color: var(--ink-secondary); line-height: 1.4; }
+.udp-ago { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+
+.udp-show-more { font-size: 12px; color: var(--muted); padding: 6px 0 2px; cursor: pointer; }
+
+.udp-footer {
+  display: flex; gap: 8px; padding: 12px 18px;
+  border-top: 1.5px solid var(--line);
+  flex-shrink: 0; flex-wrap: wrap;
+}
+.udp-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 12px; border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 600;
+  border: 1.5px solid var(--line); background: var(--white); color: var(--ink);
+  cursor: pointer; transition: all var(--transition); white-space: nowrap;
+}
+.udp-btn svg { width: 13px; height: 13px; }
+.udp-btn:hover { border-color: var(--primary); color: var(--primary); }
+.udp-btn.reactivate { color: var(--success); border-color: rgba(36,184,111,.3); }
+.udp-btn.reactivate:hover { background: var(--success-light); border-color: var(--success); }
+.udp-btn.danger { color: var(--danger); border-color: rgba(229,64,64,.25); }
+.udp-btn.danger:hover { background: var(--danger-light); border-color: var(--danger); }
+.udp-btn.role, .udp-btn.reset { color: var(--ink); }

@@ -1,6 +1,7 @@
 /* Audit Log Page — connected to real backend */
 import { IC } from '../icons.js';
 import { adminGet } from '../api.js';
+import { state } from '../state.js';
 import { colorForInit, textColorForInit } from '../utils.js';
 
 let _logs = null;
@@ -52,7 +53,7 @@ export function renderAuditLog() {
   if (!_logs) {
     loadAuditData().then(() => {
       const el = document.getElementById('admin-content-area');
-      if (el) el.innerHTML = renderAuditLog();
+      if (el && state.currentPage === 'audit') el.innerHTML = renderAuditLog();
     });
     return `<div class="page active" id="page-audit"><div class="page-loading">Loading audit log…</div></div>`;
   }

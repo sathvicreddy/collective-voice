@@ -7,9 +7,17 @@
 import { dispatch } from "../store/SessionStore.js";
 import { state }    from "../state.js";
 
-const WS_URL = `ws://${location.host}`;
-const RECONNECT_DELAY_MS   = 3000;
+const RECONNECT_DELAY_MS    = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
+
+// Build the WS URL, including the JWT auth token if the user is logged in.
+// This lets the server set meta.role = 'owner' for the meeting host at
+// connection time — without it the isOwner check always returns false.
+function _buildWsUrl() {
+  const token = state.token || localStorage.getItem("cv_token") || "";
+  const base  = `ws://${location.host}`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+}
 
 class SessionSocket {
   constructor() {
@@ -25,7 +33,7 @@ class SessionSocket {
     if (this._ws && (this._ws.readyState === WebSocket.OPEN || this._ws.readyState === WebSocket.CONNECTING)) return;
     dispatch({ type: "HEALTH_UPDATED", payload: { connection: "connecting" } });
     try {
-      this._ws = new WebSocket(WS_URL);
+      this._ws = new WebSocket(_buildWsUrl());
     } catch {
       this._scheduleReconnect(); return;
     }
@@ -84,7 +92,34 @@ class SessionSocket {
         if (Array.isArray(data.myVotes)) {
           state.myVotes = new Set(data.myVotes);
         }
+        // Store participantId — used for speaker invite accept/decline
+        if (data.participantId) {
+          state.myParticipantId = data.participantId;
+        }
         dispatch({ type: "SESSION_LOADED", payload: data });
+        break;
+
+      // ── Meeting lifecycle ──────────────────────────────────────
+      // Host started the meeting: activate participant Join buttons, etc.
+      case "meeting_started":
+        dispatch({ type: "MEETING_STATUS_CHANGED", payload: { status: "live", meetingId: data.meetingId } });
+        document.dispatchEvent(new CustomEvent("cv:meeting_started", { detail: data }));
+        break;
+
+      // Generic status change (started, ended, rescheduled)
+      case "meeting_status_changed":
+        dispatch({ type: "MEETING_STATUS_CHANGED", payload: { status: data.status, meetingId: data.meetingId } });
+        document.dispatchEvent(new CustomEvent("cv:meeting_status_changed", { detail: data }));
+        if (data.status === "conducted" || data.status === "expired") {
+          dispatch({ type: "MEETING_ENDED", payload: data });
+          document.dispatchEvent(new CustomEvent("cv:meeting_ended", { detail: data }));
+        }
+        break;
+
+      // Host explicitly ended the session
+      case "meeting_ended":
+        dispatch({ type: "MEETING_ENDED", payload: data });
+        document.dispatchEvent(new CustomEvent("cv:meeting_ended", { detail: data }));
         break;
 
       // Question lifecycle
@@ -118,9 +153,11 @@ class SessionSocket {
       case "poll_created":
         dispatch({ type: "POLL_CREATED", payload: data });
         break;
-
       case "poll_updated":
         dispatch({ type: "POLL_UPDATED", payload: data });
+        break;
+      case "poll_ended":
+        dispatch({ type: "POLL_UPDATED", payload: { ...data, active: false } });
         break;
 
       // Participants
@@ -133,10 +170,20 @@ class SessionSocket {
         dispatch({ type: "STATS_UPDATED", payload: data });
         break;
 
-      // Speaker assignment — triggers view switch in all tabs
+      // Speaker invitation — show confirm popup on the invited client only
+      case "speaker_invite":
+        document.dispatchEvent(new CustomEvent("cv:speaker_invite", { detail: data }));
+        break;
+
+      // Ack sent back to moderator: did the invite reach a live WS connection?
+      case "speaker_invite_sent":
+        dispatch({ type: "SPEAKER_INVITE_SENT", payload: data });
+        break;
+
+      // Speaker assignment confirmed/declined/revoked — broadcast to all
       case "speaker_changed":
         dispatch({ type: "SPEAKER_ASSIGNED", payload: data });
-        // Fire any custom handler registered by session.js
+        document.dispatchEvent(new CustomEvent("cv:speaker_changed", { detail: data }));
         break;
 
       // Announcements
@@ -176,7 +223,8 @@ class SessionSocket {
     dispatch({ type: "HEALTH_UPDATED", payload: { connection: "connected", sync: "syncing" } });
     this._pollingInterval = setInterval(async () => {
       try {
-        const meetingId = state.session?.sessionId || "m_ai_education";
+        const meetingId = state.session?.sessionId;
+        if (!meetingId) return; // No active session, skip polling
         const res  = await fetch(`/api/session/live?meetingId=${meetingId}`);
         if (!res.ok) return;
         const data = await res.json();

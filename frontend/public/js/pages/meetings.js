@@ -401,7 +401,7 @@ export function renderMeetings() {
                   <button class="btn" style="margin-top:12px" onclick="go('/meetings/create')">${icons.plus} Create Meeting</button>
                 </div>
               ` : upcoming.map(m => { const { dateStr, timeStr } = fmtMtg(m); return `
-                <div class="mtg-list-row">
+                <div class="mtg-list-row" style="cursor:pointer" onclick="openMeetingDetail('${m.id}')">
                   <div class="icon-box" style="width:38px;height:38px;flex-shrink:0">${icons.calendar}</div>
                   <div class="mtg-list-info">
                     <strong class="mtg-list-title">${m.title}</strong>
@@ -413,7 +413,7 @@ export function renderMeetings() {
                   </div>
                   <div class="mtg-list-actions">
                     <span class="mtg-time-badge ${m.badge === 'In 2h' ? 'soon' : ''}">${m.badge || "Upcoming"}</span>
-                    <button class="mtg-more-btn">${icons.moreVertical}</button>
+                    <button class="mtg-more-btn" onclick="event.stopPropagation()">${icons.moreVertical}</button>
                   </div>
                 </div>
               `; }).join("")}
@@ -427,7 +427,7 @@ export function renderMeetings() {
                   <p class="mtg-empty-sub">Start or join a live meeting to see it here.</p>
                 </div>
               ` : ongoing.map(m => { const { dateStr, timeStr } = fmtMtg(m); return `
-                <div class="mtg-list-row">
+                <div class="mtg-list-row" style="cursor:pointer" onclick="openMeetingDetail('${m.id}')">
                   <div class="icon-box green" style="width:38px;height:38px;flex-shrink:0">${icons.radio}</div>
                   <div class="mtg-list-info">
                     <strong class="mtg-list-title">${m.title}</strong>
@@ -439,7 +439,7 @@ export function renderMeetings() {
                   </div>
                   <div class="mtg-list-actions">
                     <span class="badge success"><span class="live-dot"></span> Live</span>
-                    <button class="btn small" onclick="go('/join/preview')">${icons.arrowRight} Join</button>
+                    <button class="btn small" onclick="event.stopPropagation();openMeetingDetail('${m.id}')">${icons.arrowRight} Join</button>
                   </div>
                 </div>
               `; }).join("")}
@@ -556,42 +556,208 @@ export function renderJoin(step = "start") {
       </div>
       <button class="btn" style="width:100%;margin-top:100px" onclick="validateMeetingCode()">${icons.arrowRight} Join Meeting</button>
     `,
-    preview: `
-      <h1 class="screen-title">Meeting Details</h1>
-      <p class="subtle">Review meeting details before joining.</p>
-      <section class="panel stack" style="margin-top:24px;padding:20px">
-        <div class="row">
-          <h2 style="font-size:17px;font-weight:700">${meeting.title}</h2>
-          <span class="badge success"><span class="live-dot"></span> Live</span>
-        </div>
-        <div class="stack" style="gap:8px">
-          <div class="info-row">${icons.calendar} <span>${meeting.date}</span></div>
-          <div class="info-row">${icons.clock} <span>${meeting.time} (${meeting.duration})</span></div>
-          <div class="info-row">${icons.users} <span>${meeting.participants || 0} participants</span></div>
-          <div class="info-row">${icons.user} <span>${meeting.speaker} · Moderator</span></div>
-        </div>
-        <p style="font-size:14px;color:var(--ink-secondary);margin-top:4px">${meeting.description}</p>
-      </section>
-      <section class="panel row" style="margin:18px 0;padding:14px 18px;gap:14px">
-        <div class="icon-box">${icons.users}</div>
-        <span>You are joining as<br><strong style="font-size:15px">Audience</strong></span>
-      </section>
-      <button class="btn" style="width:100%" onclick="go('/joining')">${icons.arrowRight} Join Now</button>
-    `,
-    waiting: `
-      <div class="center-screen" style="text-align:center">
-        <div class="logo-hero">
-          <div class="big-mark" style="background:linear-gradient(135deg,#ff8a2a,#ffb366)">${icons.clock}</div>
-          <div>
-            <h1 class="screen-title">Meeting Not Started</h1>
-            <p class="subtle" style="max-width:260px;margin:6px auto 0">This meeting hasn't started yet. It has been added to your Upcoming Meetings.</p>
+    preview: (() => {
+      /* Build speaker initials avatar */
+      const speakerName = meeting.speaker || "Host";
+      const speakerInitials = speakerName.split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase() || "H";
+      const participantCount = meeting.participants || 0;
+
+      /* Avatar colours for the overlapping participant circles */
+      const avatarColors = ["#7c3aed","#2563eb","#059669","#d97706","#dc2626","#7c3aed","#0891b2"];
+      const avatarLetters = ["A","B","C","D","E","F"];
+      const shownAvatars = avatarLetters.slice(0, Math.min(5, participantCount));
+
+      /* Mobile phone content */
+      const mobileHtml = `
+        <div class="jp-page">
+          <div class="jp-hero">
+            <div class="jp-hero-pattern"></div>
+            <div class="jp-live-badge"><span class="jp-live-dot"></span> Live Now</div>
+            <h1 class="jp-hero-title">${meeting.title || "Live Meeting"}</h1>
+            <div class="jp-hero-speaker">
+              <div class="jp-speaker-avatar">${speakerInitials}</div>
+              <div class="jp-speaker-info">
+                <span class="jp-speaker-name">${speakerName}</span>
+                <span class="jp-speaker-role">Moderator</span>
+              </div>
+            </div>
+            <div class="jp-hero-stats">
+              <span class="jp-stat">${icons.users} ${participantCount} participants</span>
+              ${meeting.duration ? `<span class="jp-stat">${icons.clock} ${meeting.duration}</span>` : ""}
+              ${meeting.date ? `<span class="jp-stat">${icons.calendar} ${meeting.date}</span>` : ""}
+            </div>
+          </div>
+
+          <div class="jp-info-card">
+            <div class="jp-info-rows">
+              ${meeting.time ? `
+              <div class="jp-info-row">
+                <div class="jp-info-icon">${icons.clock}</div>
+                <div><div class="jp-info-label">Time</div><div class="jp-info-value">${meeting.time}</div></div>
+              </div>` : ""}
+              ${meeting.duration ? `
+              <div class="jp-info-row">
+                <div class="jp-info-icon">${icons.calendar}</div>
+                <div><div class="jp-info-label">Duration</div><div class="jp-info-value">${meeting.duration}</div></div>
+              </div>` : ""}
+              <div class="jp-info-row">
+                <div class="jp-info-icon">${icons.users}</div>
+                <div><div class="jp-info-label">Participants</div><div class="jp-info-value">${participantCount} joined</div></div>
+              </div>
+            </div>
+
+            <div class="jp-role-chip">
+              <div class="icon-box" style="width:32px;height:32px;flex-shrink:0">${icons.users}</div>
+              <div>
+                <div class="jp-role-label">You are joining as</div>
+                <div class="jp-role-value">Audience</div>
+              </div>
+            </div>
+
+            ${meeting.description ? `<p class="jp-desc">${meeting.description}</p>` : ""}
+          </div>
+
+          ${shownAvatars.length > 0 ? `
+          <div class="jp-participants">
+            <div class="jp-participants-label">Who's inside</div>
+            <div class="jp-avatars">
+              ${shownAvatars.map((l, i) => `<div class="jp-avatar-circle" style="background:${avatarColors[i % avatarColors.length]}">${l}</div>`).join("")}
+              ${participantCount > 5 ? `<div class="jp-avatar-circle jp-avatar-more">+${participantCount - 5}</div>` : ""}
+            </div>
+          </div>` : ""}
+
+          <div class="jp-actions">
+            <button class="jp-join-btn" onclick="go('/joining')">${icons.arrowRight} Join Now</button>
+            <button class="jp-back-btn" onclick="history.back()">← Back</button>
           </div>
         </div>
-        ${meetingCard(meeting)}
-        <button class="btn" style="width:100%" onclick="go('/meetings')">${icons.calendar} View Upcoming Meetings</button>
-        <button class="link-btn" style="text-align:center" onclick="go('/home')">Go to Home</button>
-      </div>
-    `,
+      `;
+
+      /* Desktop left panel — large gradient hero */
+      const desktopLeft = `
+        <div class="jp-desktop-left">
+          <div class="jp-desktop-hero-content">
+            <div class="jp-live-badge" style="margin-bottom:22px"><span class="jp-live-dot"></span> Live Now</div>
+            <h1 class="jp-desktop-title">${meeting.title || "Live Meeting"}</h1>
+            <p class="jp-desktop-sub">${meeting.description || "Join this live meeting to participate in the conversation and ask questions."}</p>
+            <div class="jp-desktop-stats">
+              <div class="jp-desktop-stat">
+                <span class="jp-desktop-stat-val">${participantCount}</span>
+                <span class="jp-desktop-stat-label">Participants</span>
+              </div>
+              ${meeting.duration ? `
+              <div class="jp-desktop-stat">
+                <span class="jp-desktop-stat-val">${meeting.duration}</span>
+                <span class="jp-desktop-stat-label">Duration</span>
+              </div>` : ""}
+            </div>
+          </div>
+          <div class="jp-desktop-avatars">
+            ${shownAvatars.map((l, i) => `<div class="jp-desktop-avatar" style="background:${avatarColors[i % avatarColors.length]}">${l}</div>`).join("")}
+            ${participantCount > 5 ? `<span class="jp-desktop-avatar-label">+${participantCount - 5} more joined</span>` : participantCount > 0 ? `<span class="jp-desktop-avatar-label">are inside</span>` : ""}
+          </div>
+        </div>
+      `;
+
+      /* Desktop right panel — detail card */
+      const desktopRight = `
+        <div class="jp-desktop-right">
+          <div class="jp-desktop-card">
+            <div class="jp-desktop-card-header">
+              <div class="jp-desktop-card-title">Meeting Details</div>
+              <div class="jp-desktop-detail-rows">
+                <div class="jp-desktop-detail-row">
+                  <div class="jp-desktop-detail-icon">${icons.user}</div>
+                  <div>
+                    <div class="jp-desktop-detail-label">Speaker / Moderator</div>
+                    <div class="jp-desktop-detail-value">${speakerName}</div>
+                  </div>
+                </div>
+                ${meeting.date ? `
+                <div class="jp-desktop-detail-row">
+                  <div class="jp-desktop-detail-icon">${icons.calendar}</div>
+                  <div>
+                    <div class="jp-desktop-detail-label">Date</div>
+                    <div class="jp-desktop-detail-value">${meeting.date}</div>
+                  </div>
+                </div>` : ""}
+                ${meeting.time ? `
+                <div class="jp-desktop-detail-row">
+                  <div class="jp-desktop-detail-icon">${icons.clock}</div>
+                  <div>
+                    <div class="jp-desktop-detail-label">Time</div>
+                    <div class="jp-desktop-detail-value">${meeting.time}${meeting.duration ? ` · ${meeting.duration}` : ""}</div>
+                  </div>
+                </div>` : ""}
+                <div class="jp-desktop-detail-row">
+                  <div class="jp-desktop-detail-icon">${icons.users}</div>
+                  <div>
+                    <div class="jp-desktop-detail-label">Participants</div>
+                    <div class="jp-desktop-detail-value">${participantCount} joined</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="jp-desktop-card-body">
+              <div class="jp-desktop-role">
+                <div class="icon-box" style="width:32px;height:32px;flex-shrink:0">${icons.users}</div>
+                <div>
+                  <div class="jp-role-label">You are joining as</div>
+                  <div class="jp-role-value">Audience</div>
+                </div>
+              </div>
+              <button class="jp-desktop-join-btn" onclick="go('/joining')">${icons.arrowRight} Join Now</button>
+              <button class="jp-desktop-back-btn" onclick="history.back()">← Back to Meetings</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      return { mobile: mobileHtml, desktopLeft, desktopRight };
+    })(),
+    waiting: (() => {
+      const meetingId = state.joinTarget?.id || "";
+      const waitingHtml = `
+        <div class="center-screen" style="text-align:center" id="cv-waiting-room">
+          <div class="logo-hero">
+            <div class="big-mark" style="background:linear-gradient(135deg,#ff8a2a,#ffb366)">${icons.clock}</div>
+            <div>
+              <h1 class="screen-title">Meeting Not Started Yet</h1>
+              <p class="subtle" style="max-width:260px;margin:6px auto 0">Waiting for the host to start. You'll be notified automatically.</p>
+            </div>
+          </div>
+          ${meetingCard(meeting)}
+          <div id="cv-waiting-actions" style="margin-top:16px">
+            <button class="btn" id="cv-waiting-join-btn" style="width:100%;opacity:0.4;pointer-events:none" disabled
+              onclick="go('/joining')">${icons.arrowRight} Join Now (waiting for host…)</button>
+            <button class="btn secondary" style="width:100%;margin-top:8px" onclick="go('/meetings')">${icons.calendar} View Upcoming Meetings</button>
+          </div>
+        </div>
+      `;
+      // Attach WS listener after DOM is painted
+      if (meetingId) {
+        setTimeout(() => {
+          const joinBtn = document.getElementById("cv-waiting-join-btn");
+          function onMeetingStarted(e) {
+            const d = e.detail || {};
+            if (d.meetingId && d.meetingId !== meetingId) return;
+            // Activate the Join button
+            if (joinBtn) {
+              joinBtn.disabled = false;
+              joinBtn.style.opacity = "1";
+              joinBtn.style.pointerEvents = "auto";
+              joinBtn.innerHTML = `${icons.arrowRight} Meeting is Live — Join Now!`;
+              joinBtn.style.background = "var(--success, #16a34a)";
+            }
+            document.removeEventListener("cv:meeting_started", onMeetingStarted);
+            document.removeEventListener("cv:meeting_status_changed", onMeetingStarted);
+          }
+          document.addEventListener("cv:meeting_started", onMeetingStarted);
+          document.addEventListener("cv:meeting_status_changed", onMeetingStarted);
+        }, 0);
+      }
+      return waitingHtml;
+    })(),
     invalid: `
       <div class="center-screen" style="text-align:center">
         <div class="logo-hero">
@@ -628,7 +794,20 @@ export function renderJoin(step = "start") {
       </div>
     `
   };
-  shell(phone(screens[step], "meetings", true));
+
+  // Preview step uses the new rich split layout; all others use the phone shell
+  if (step === "preview") {
+    const { mobile, desktopLeft, desktopRight } = screens.preview;
+    const desktopMain = `
+      <div class="jp-desktop-wrap">
+        ${desktopLeft}
+        ${desktopRight}
+      </div>
+    `;
+    shell(phone(mobile, "meetings", true), "", desktopMain, "");
+  } else {
+    shell(phone(screens[step], "meetings", true));
+  }
   // After the scan screen HTML is painted, start the camera RAF loop
   if (step === "scan") setTimeout(mountScanScreen, 0);
 }
@@ -646,7 +825,307 @@ export function renderJoining() {
       <button class="btn" onclick="go('/audience')">${icons.arrowRight} Enter Room</button>
     </div>
   `, null, true));
+  // Auto-navigate after a brief connection animation so the participant
+  // doesn't get stuck on the spinner if they don't click the button.
+  setTimeout(() => { if (window.go) window.go("/audience"); }, 800);
 }
+
+/* --- Meeting Start Page (Host) ----------------------------- */
+/**
+ * Shown to the HOST when they click on one of their scheduled / live meetings
+ * from the Meetings list. Provides the full-width rich UI with share options,
+ * enrolled-participant count, QR code, settings summary and a prominent
+ * "Start Meeting Now" / "Continue Meeting" CTA.
+ */
+export function renderMeetingStart() {
+  // state.joinTarget is always set by openMeetingDetail() before navigating here
+  const meeting = state.joinTarget || state.meetings[0] || {};
+
+  /* ---- Derived display values ---- */
+  const title       = meeting.title       || "Your Meeting";
+  const description = meeting.description || "Share the link below to invite your participants.";
+  const speakerName = meeting.speaker     || state.profile?.user?.name || "Host";
+  const speakerInit = speakerName.split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase() || "H";
+  const participants = meeting.participants || 0;
+  const isLive      = meeting.status === "live";
+  const joinLink    = meeting.code
+    ? `${location.origin}/#/join/${meeting.code}`
+    : `${location.origin}/#/join/...`;
+
+  /* ---- Time formatting ---- */
+  let displayDate = "—", displayTime = "—", displayDur = "—";
+  const raw = meeting.scheduledAt || meeting.date || meeting.createdAt;
+  if (raw) {
+    const d = new Date(raw);
+    if (!isNaN(d)) {
+      displayDate = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      displayTime = meeting.time || d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true });
+    }
+  } else if (meeting.date) {
+    displayDate = meeting.date;
+    displayTime = meeting.time || "—";
+  }
+  if (meeting.duration) {
+    const mins = Number(meeting.duration);
+    if (mins < 60) displayDur = `${mins}m`;
+    else { const h = Math.floor(mins / 60); const r = mins % 60; displayDur = r ? `${h}h ${r}m` : `${h}h`; }
+  }
+
+  /* ---- Countdown until scheduled time ---- */
+  let countdownHtml = "";
+  if (!isLive && raw) {
+    const msUntil = new Date(raw) - Date.now();
+    if (msUntil > 0) {
+      const hrs  = Math.floor(msUntil / 3600000);
+      const mins = Math.floor((msUntil % 3600000) / 60000);
+      const secs = Math.floor((msUntil % 60000) / 1000);
+      const timer = hrs > 0
+        ? `${hrs}h ${String(mins).padStart(2,"0")}m`
+        : `${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`;
+      countdownHtml = `
+        <div class="ms-countdown-wrap">
+          <span class="ms-countdown-label">Starts in</span>
+          <span class="ms-countdown-timer" id="ms-countdown">${timer}</span>
+        </div>
+      `;
+    }
+  }
+
+  /* ---- Avatar palette for enrolled participants ---- */
+  const avatarColors = ["#7c3aed","#2563eb","#059669","#d97706","#dc2626","#0891b2"];
+  const avatarLetters = ["A","B","C","D","E","F","G","H"];
+  const shownAvatars = avatarLetters.slice(0, Math.min(6, participants));
+
+  /* ---- Settings chips ---- */
+  const cfg = meeting.settings || {};
+  const settingChips = [
+    { label: "Questions", on: cfg.allowQuestions !== false },
+    { label: "Chat",      on: cfg.enableChat     !== false },
+    { label: "Upvotes",   on: cfg.upvoteReact    !== false },
+    { label: "Recording", on: !!cfg.recordMeeting }
+  ];
+
+  /* ==== MOBILE content ==== */
+  const mobileHtml = `
+    <div class="ms-page">
+      <div class="ms-hero${isLive ? " ms-hero--live" : ""}">
+        <div class="ms-hero-pattern"></div>
+        <div class="ms-host-badge">${icons.user} Host</div>
+        <h1 class="ms-hero-title">${title}</h1>
+        <div class="ms-hero-meta">
+          <span>${icons.calendar} ${displayDate}</span>
+          <span>${icons.clock} ${displayTime}</span>
+          ${displayDur !== "—" ? `<span>${icons.clock} ${displayDur}</span>` : ""}
+        </div>
+        ${countdownHtml}
+      </div>
+
+      <div class="ms-card">
+        <!-- Meeting details -->
+        <div class="ms-card-section">
+          <div class="ms-section-label">Meeting Details</div>
+          <div class="ms-detail-rows">
+            <div class="ms-detail-row">
+              <div class="ms-detail-icon">${icons.user}</div>
+              <div><div class="ms-detail-label">Host</div><div class="ms-detail-value">${speakerName}</div></div>
+            </div>
+            <div class="ms-detail-row">
+              <div class="ms-detail-icon">${icons.calendar}</div>
+              <div><div class="ms-detail-label">Date</div><div class="ms-detail-value">${displayDate}</div></div>
+            </div>
+            <div class="ms-detail-row">
+              <div class="ms-detail-icon">${icons.clock}</div>
+              <div><div class="ms-detail-label">Time · Duration</div><div class="ms-detail-value">${displayTime} · ${displayDur}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Enrolled participants -->
+        <div class="ms-card-section">
+          <div class="ms-section-label">Enrolled</div>
+          <div class="ms-enrolled">
+            <div class="ms-enrolled-left">
+              <span class="ms-enrolled-count">${participants}</span>
+              <span class="ms-enrolled-label">participant${participants !== 1 ? "s" : ""} registered</span>
+            </div>
+            <div class="ms-enrolled-avatars">
+              ${shownAvatars.map((l, i) => `<div class="ms-enrolled-avatar" style="background:${avatarColors[i % avatarColors.length]}">${l}</div>`).join("")}
+            </div>
+          </div>
+        </div>
+
+        <!-- Share link -->
+        <div class="ms-card-section">
+          <div class="ms-section-label">Invite Participants</div>
+          <div class="ms-share-row">
+            <input class="ms-share-input" readonly value="${joinLink}" onclick="this.select()" id="ms-join-link-input">
+            <button class="ms-share-copy-btn" id="ms-copy-btn"
+              onclick="
+                navigator.clipboard.writeText('${joinLink}').then(() => {
+                  const b = document.getElementById('ms-copy-btn');
+                  if (b) { const o = b.innerHTML; b.innerHTML = '✓ Copied!'; b.style.color='var(--success)'; setTimeout(() => { b.innerHTML = o; b.style.color=''; }, 1500); }
+                }).catch(() => document.getElementById('ms-join-link-input')?.select());
+              ">
+              ${icons.link} Copy
+            </button>
+          </div>
+          <div class="ms-share-icons">
+            <button class="ms-share-icon-btn">${icons.share} Share</button>
+            <button class="ms-share-icon-btn">${icons.mail} Email</button>
+            ${meeting.id ? `<button class="ms-share-icon-btn" onclick="shareMeetingQR('${meeting.id}')">${icons.qrCode || icons.share} QR</button>` : ""}
+          </div>
+        </div>
+
+        ${meeting.id ? `
+        <!-- QR code -->
+        <div class="ms-card-section">
+          <div class="ms-section-label">QR Code</div>
+          <div class="ms-qr-row">
+            <div class="ms-qr-img-wrap">
+              <img src="/api/sessions/${meeting.id}/qrcode" alt="Join QR" onerror="this.style.display='none'">
+            </div>
+            <div class="ms-qr-text">
+              <strong>Scan to join</strong>
+              <p>Participants can scan this QR code to join instantly.</p>
+              <button class="ms-share-copy-btn" onclick="shareMeetingQR('${meeting.id}')">${icons.share} Share QR</button>
+            </div>
+          </div>
+        </div>` : ""}
+
+        <!-- Settings -->
+        <div class="ms-card-section">
+          <div class="ms-section-label">Settings</div>
+          <div class="ms-settings-grid">
+            ${settingChips.map(c => `<div class="ms-setting-chip ${c.on ? "on" : "off"}">${c.on ? "✓" : "✗"} ${c.label}</div>`).join("")}
+          </div>
+        </div>
+
+        <!-- CTA -->
+        <div class="ms-card-section">
+          <button class="ms-start-btn" onclick="go('/moderator')">
+            ${icons.zap} ${isLive ? "Continue Meeting" : "Start Meeting Now"}
+          </button>
+          <button class="ms-secondary-btn" onclick="go('/meetings')">
+            ← Back to Meetings
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  /* ==== DESKTOP split layout ==== */
+  const desktopMain = `
+    <div class="ms-desktop-wrap">
+
+      <!-- LEFT column: hero + stats + share -->
+      <div class="ms-desktop-left">
+        <div class="ms-desktop-hero">
+          <div class="ms-desktop-hero-content">
+            <div class="ms-desktop-badge">${icons.user} &nbsp;You are the Host</div>
+            <h1 class="ms-desktop-title">${title}</h1>
+            <p class="ms-desktop-desc">${description}</p>
+            <div class="ms-desktop-meta-row">
+              <span class="ms-desktop-meta-item">${icons.calendar} ${displayDate}</span>
+              <span class="ms-desktop-meta-item">${icons.clock} ${displayTime}</span>
+              ${displayDur !== "—" ? `<span class="ms-desktop-meta-item">${icons.clock} ${displayDur}</span>` : ""}
+              <span class="ms-desktop-meta-item">${icons.user} ${speakerName}</span>
+            </div>
+            ${countdownHtml}
+          </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="ms-desktop-stats-row">
+          <div class="ms-desktop-stat-card">
+            <span class="ms-desktop-stat-val">${participants}</span>
+            <span class="ms-desktop-stat-label">Enrolled</span>
+          </div>
+          <div class="ms-desktop-stat-card">
+            <span class="ms-desktop-stat-val">${displayDur !== "—" ? displayDur : "—"}</span>
+            <span class="ms-desktop-stat-label">Duration</span>
+          </div>
+          <div class="ms-desktop-stat-card">
+            <span class="ms-desktop-stat-val" style="font-size:14px;padding-top:4px">${isLive ? "🟢 Live" : "🗓 Scheduled"}</span>
+            <span class="ms-desktop-stat-label">Status</span>
+          </div>
+        </div>
+
+        <!-- Share card -->
+        <div class="ms-desktop-share-card">
+          <div class="ms-desktop-share-title">${icons.link} Invite Participants</div>
+          <div class="ms-share-row">
+            <input class="ms-share-input" readonly value="${joinLink}" onclick="this.select()" id="ms-join-link-input-desk">
+            <button class="ms-share-copy-btn" id="ms-copy-btn-desk"
+              onclick="
+                navigator.clipboard.writeText('${joinLink}').then(() => {
+                  const b = document.getElementById('ms-copy-btn-desk');
+                  if (b) { const o = b.innerHTML; b.innerHTML = '✓ Copied!'; b.style.color='var(--success)'; setTimeout(() => { b.innerHTML = o; b.style.color=''; }, 1500); }
+                }).catch(() => document.getElementById('ms-join-link-input-desk')?.select());
+              ">
+              ${icons.link} Copy Link
+            </button>
+          </div>
+          <div class="ms-share-icons" style="margin-top:12px">
+            <button class="ms-share-icon-btn">${icons.share} Share</button>
+            <button class="ms-share-icon-btn">${icons.mail} Email</button>
+            ${meeting.id ? `<button class="ms-share-icon-btn" onclick="shareMeetingQR('${meeting.id}')">${icons.qrCode || icons.share} QR Code</button>` : ""}
+          </div>
+
+          ${meeting.id ? `
+          <div class="ms-qr-row" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line-light)">
+            <div class="ms-qr-img-wrap">
+              <img src="/api/sessions/${meeting.id}/qrcode" alt="Join QR" onerror="this.style.display='none'">
+            </div>
+            <div class="ms-qr-text">
+              <strong>Scan to join instantly</strong>
+              <p>Share this QR code — participants scan it to enter the room.</p>
+              <button class="ms-share-copy-btn" onclick="shareMeetingQR('${meeting.id}')">${icons.share} Share QR</button>
+            </div>
+          </div>` : ""}
+        </div>
+      </div>
+
+      <!-- RIGHT sidebar -->
+      <div class="ms-desktop-right">
+        <div class="ms-desktop-right-card">
+          <div class="ms-desktop-right-header">Host Controls</div>
+          <div class="ms-desktop-right-body">
+            <button class="ms-desktop-start-btn" onclick="go('/moderator')">
+              ${icons.zap} ${isLive ? "Continue Meeting" : "Start Meeting Now"}
+            </button>
+            <button class="ms-desktop-edit-btn" onclick="go('/meetings')">← Back to Meetings</button>
+          </div>
+        </div>
+
+        <!-- Settings summary -->
+        <div class="ms-desktop-right-card">
+          <div class="ms-desktop-right-header">Meeting Settings</div>
+          <div class="ms-desktop-right-body">
+            <div class="ms-settings-grid">
+              ${settingChips.map(c => `<div class="ms-setting-chip ${c.on ? "on" : "off"}">${c.on ? "✓" : "✗"} ${c.label}</div>`).join("")}
+            </div>
+          </div>
+        </div>
+
+        <!-- Host info card -->
+        <div class="ms-desktop-right-card">
+          <div class="ms-desktop-right-header">Host</div>
+          <div class="ms-desktop-right-body" style="display:flex;align-items:center;gap:12px">
+            <div class="ms-enrolled-avatar" style="width:44px;height:44px;font-size:16px;border-radius:50%;background:linear-gradient(135deg,#5b34ff,#7c3aed);border:none;margin-left:0;display:grid;place-items:center;color:#fff;font-weight:700">${speakerInit}</div>
+            <div>
+              <div style="font-weight:700;font-size:14px;color:var(--ink)">${speakerName}</div>
+              <div style="font-size:12px;color:var(--muted)">Moderator · Host</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  `;
+
+  shell(phone(mobileHtml, "meetings", true), "", desktopMain, "");
+}
+
 
 /* --- Helpers for Create Flow ------------------------------- */
 /** Format raw minutes into a human-readable label (e.g. 90 → "1h 30m") */
@@ -1136,39 +1615,7 @@ export function renderCreate(step = "type") {
 }
 
 /* --- Conducted Meetings ------------------------------------ */
-export function renderConductedMeetings() {
-  const conducted = state.meetings.filter(m => m.status === "conducted" || m.status === "past");
-  shell(phone(`
-    <h1 class="screen-title">Conducted Meetings</h1>
-    <p class="subtle">Hosted sessions, participants, questions, analytics, and reports.</p>
-    <div class="stack" style="margin-top:18px">
-      ${conducted.map(meeting => `
-        <article class="meeting-card">
-          <div class="icon-box green">${icons.checkCircle}</div>
-          <div>
-            <h3>${meeting.title}</h3>
-            <p class="subtle">${icons.users} ${meeting.participants || 0} participants · ${icons.messageCircle} ${meeting.questionsCount||0} questions · ${icons.thumbsUp} ${meeting.upvotes||0} upvotes</p>
-            <p class="subtle">${icons.calendar} ${meeting.date} · ${icons.clock} ${meeting.time}</p>
-          </div>
-          <button class="btn secondary small" onclick="openReport('${meeting.id}')">${icons.barChart} Report</button>
-        </article>
-      `).join("")}
-      <button class="btn" style="width:100%;margin-top:8px" onclick="go('/analytics')">${icons.barChart} Open Session Analytics</button>
-    </div>
-  `, "activity", true), analyticsDesktop());
-}
 
-/* --- Analytics Desktop Panel (helper for conducted) -------- */
-function analyticsDesktop() {
-  if (!state.sessionAnalytics) return "";
-  const analytics = state.sessionAnalytics.analytics;
-  return `
-    <div class="panel" style="padding:22px">
-      <h1 class="title">Post-Session Analytics</h1>
-      <p class="subtle" style="margin-top:6px">${analytics.aiSummary}</p>
-    </div>
-  `;
-}
 
 /* =============================================================
    Camera QR Scanner (A4)

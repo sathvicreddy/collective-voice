@@ -1,6 +1,7 @@
 /* Content Moderation Page — connected to real backend */
 import { IC } from '../icons.js';
 import { adminGet, adminDelete, adminPatch } from '../api.js';
+import { state } from '../state.js';
 
 let _questions = null;
 let _counts = { total: 0, flagged: 0, answered: 0 };
@@ -32,7 +33,7 @@ export function renderContentModeration() {
   if (!_questions) {
     loadModerationData().then(() => {
       const el = document.getElementById('admin-content-area');
-      if (el) el.innerHTML = renderContentModeration();
+      if (el && state.currentPage === 'moderation') el.innerHTML = renderContentModeration();
     });
     return `<div class="page active" id="page-moderation"><div class="page-loading">Loading flagged content…</div></div>`;
   }

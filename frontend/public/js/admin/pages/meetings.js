@@ -9,6 +9,11 @@ let _searchQ  = '';
 let _statusFilter = 'All';
 let _detail = null; // { questions, polls, participants }
 
+export function resetMeetingsCache() {
+  _meetings = null;
+  _detail = null;
+}
+
 function initials(name) {
   if (!name) return '?';
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
@@ -47,7 +52,7 @@ export function renderMeetings() {
   if (!_meetings) {
     loadMeetingsData().then(() => {
       const el = document.getElementById('admin-content-area');
-      if (el) el.innerHTML = renderMeetings();
+      if (el && state.currentPage === 'meetings') el.innerHTML = renderMeetings();
     });
     return `<div class="page active" id="page-meetings"><div class="page-loading">Loading meetings…</div></div>`;
   }

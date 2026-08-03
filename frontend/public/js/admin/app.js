@@ -5,20 +5,19 @@ import { IC } from './icons.js';
 import { state } from './state.js';
 import { renderSidebar, renderTopbar } from './shell.js';
 
-/* Page renders */
+/* Page renders & cache resets */
 import { renderOverview }           from './pages/overview.js';
 import { renderLiveNow }            from './pages/live-now.js';
-import { renderMeetings }           from './pages/meetings.js';
-import { renderUsers }              from './pages/users.js';
+import { renderMeetings, resetMeetingsCache } from './pages/meetings.js';
+import { renderUsers, resetUsersCache }    from './pages/users.js';
 import { renderContentModeration }  from './pages/moderation.js';
 import { renderNLPEngine }          from './pages/nlp.js';
 import { renderSystemHealth }       from './pages/health.js';
 import { renderAuditLog }           from './pages/audit.js';
-import { renderManageAdmins }       from './pages/manage-admins.js';
+import { renderManageAdmins, resetManageAdminsCache } from './pages/manage-admins.js';
 
 /* ── Routing ── */
 function getPageContent(pageId) {
-  // Reset page-level caches when navigating away so fresh data loads
   switch(pageId) {
     case 'overview':      return renderOverview();
     case 'live-now':      return renderLiveNow();
@@ -39,6 +38,13 @@ window.adminNavigate = function(pageId) {
   state.meetingContextMenu = null;
   state.selectedMeetingId  = null;
   state.selectedUserId     = null;
+
+  // Only reset the cache for the page we're actually going to
+  // (Resetting ALL caches caused async fetches from other pages to
+  //  fire and overwrite the content area with the wrong page's HTML)
+  if (pageId === 'meetings')      resetMeetingsCache();
+  if (pageId === 'users')         resetUsersCache();
+  if (pageId === 'manage-admins') resetManageAdminsCache();
 
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === pageId));
   const content = document.getElementById('admin-content-area');

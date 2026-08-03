@@ -9,7 +9,8 @@ import { dispatch, getSessionState } from "./store/SessionStore.js";
 // Import Page Renderers
 import { renderWelcome, renderOnboarding, renderLogin, renderForgot, renderReset } from "./pages/auth.js";
 import { renderHome, homejoinLive } from "./pages/home.js";
-import { renderMeetings, renderJoin, renderJoining, renderCreate, renderConductedMeetings } from "./pages/meetings.js";
+import { renderMeetings, renderJoin, renderJoining, renderCreate } from "./pages/meetings.js";
+import { renderMeetingDetail } from "./pages/meetingDetail.js";
 import { renderActivity } from "./pages/activity.js";
 import { renderProfile } from "./pages/profile.js";
 import { renderSettings } from "./pages/settings.js";
@@ -239,6 +240,36 @@ window.selectMeetingType = function(type) {
   go('/meetings/create/details');
 };
 
+/**
+ * Navigate to the correct "meeting detail" page when a user clicks on a
+ * meeting card in the meetings list.
+ *
+ * - If the user is the HOST of this meeting → /meetings/start (host start page)
+ * - Otherwise → /join/preview (participant join preview page)
+ *
+ * @param {string} meetingId  The meeting's UUID
+ */
+/**
+ * Navigate to the dedicated meeting detail page.
+ * Role detection (host vs participant) is handled inside renderMeetingDetail
+ * by calling GET /api/meetings/:id which returns isOwner based on the JWT.
+ */
+window.openMeetingDetail = function(meetingId) {
+  // Store a quick reference in state (the detail page will re-fetch full data)
+  const all = [
+    ...(state.meetings || []),
+    ...(state.myMeetings?.all || []),
+    ...(state.myMeetings?.upcoming || []),
+    ...(state.myMeetings?.live || []),
+    ...(state.myMeetings?.past || []),
+  ];
+  state.joinTarget = all.find(m => m.id === meetingId) || { id: meetingId };
+  // Navigate to the unified detail page — role is determined server-side
+  go('/meetings/detail/' + meetingId);
+};
+
+
+
 // Auth handlers
 window.authSubmit = authSubmit;
 window.authForgot = authForgot;
@@ -385,9 +416,11 @@ export async function loadData() {
           }
         }
       } else {
-        // Token invalid / refresh failed — clear auth
-        state.token = null;
+        // Token invalid / refresh failed — clear all auth-related state
+        state.token   = null;
         state.profile = null;
+        state.isHost  = false;
+        state.session = null;
         try {
           localStorage.removeItem("cv_token");
           localStorage.removeItem("cv_refresh_token");
@@ -510,12 +543,16 @@ export function render() {
   if (route === "/home")     return renderHome();
   if (route === "/meetings") return renderMeetings();
 
+  // /meetings/detail/:id — per-meeting detail page (host or participant view)
+  const meetingDetailMatch = route.match(/^\/meetings\/detail\/(.+)$/);
+  if (meetingDetailMatch) { renderMeetingDetail(meetingDetailMatch[1]); return; }
+
   if (route === "/activity")            return renderActivity("questions");
   if (route === "/activity/overview")   return renderActivity("overview");
   if (route === "/activity/meetings")   return renderActivity("meetings");
   if (route === "/activity/insights")   return renderActivity("insights");
 
-  if (route === "/conducted") return renderConductedMeetings();
+  if (route === "/conducted") { go("/meetings"); return; } // removed page; redirect to meetings list
   if (route === "/profile")   return renderProfile();
   if (route === "/settings")  return renderSettings();
 
@@ -542,6 +579,7 @@ export function render() {
   if (route === "/meetings/create/invite" ||
       route === "/meetings/create/review")   return renderCreate("details");
   if (route === "/meetings/created")         return renderCreate("done");
+  if (route === "/meetings/start") { go("/meetings"); return; } // removed page; redirect to meetings list
 
   // Session routes — role-guarded
   if (route === "/audience")  return renderAudience();

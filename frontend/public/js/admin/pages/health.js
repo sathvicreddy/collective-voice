@@ -1,6 +1,7 @@
 /* System Health Page — connected to real backend */
 import { IC } from '../icons.js';
 import { adminGet } from '../api.js';
+import { state } from '../state.js';
 
 let _health = null;
 let _healthErrorFilter = 'errors';
@@ -20,8 +21,10 @@ export function renderSystemHealth() {
   if (!_health) {
     loadHealthData().then(() => {
       const el = document.getElementById('admin-content-area');
-      if (el) el.innerHTML = renderSystemHealth();
-      startHealthAutoRefresh();
+      if (el && state.currentPage === 'health') {
+        el.innerHTML = renderSystemHealth();
+        startHealthAutoRefresh();
+      }
     });
     return `<div class="page active" id="page-health"><div class="page-loading">Loading system health…</div></div>`;
   }

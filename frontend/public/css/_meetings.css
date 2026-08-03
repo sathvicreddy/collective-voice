@@ -772,3 +772,1229 @@
   overflow: hidden;
 }
 
+/* ============================================================
+   Meeting Join Preview Page  (jp-* namespace)
+   Shown to participants before they enter a live room.
+   ============================================================ */
+
+/* Full-page hero wrapper */
+.jp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 100%;
+  animation: fadeIn .4s ease-out;
+}
+
+/* Gradient banner at the top */
+.jp-hero {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a0533 0%, #2d1558 40%, #5b34ff 100%);
+  padding: 32px 28px 80px;
+  margin-bottom: -48px;
+}
+
+.jp-hero-pattern {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 80% 20%, rgba(124,92,255,0.4) 0%, transparent 50%),
+    radial-gradient(circle at 20% 80%, rgba(41,113,255,0.3) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.jp-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-full);
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #fff;
+  margin-bottom: 18px;
+}
+
+.jp-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 3px rgba(74,222,128,0.3);
+  animation: pulseDot 1.6s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(74,222,128,0.3); }
+  50%       { box-shadow: 0 0 0 6px rgba(74,222,128,0.1); }
+}
+
+.jp-hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+  margin: 0 0 10px;
+}
+
+.jp-hero-speaker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.jp-speaker-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.jp-speaker-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.jp-speaker-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.95);
+}
+
+.jp-speaker-role {
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+}
+
+.jp-hero-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.jp-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.8);
+  font-weight: 500;
+}
+
+.jp-stat svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0.85;
+}
+
+/* Info card floats over the hero */
+.jp-info-card {
+  position: relative;
+  z-index: 2;
+  margin: 0 16px;
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 60px rgba(25,28,70,0.14);
+  border: 1px solid var(--line-light);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.jp-info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jp-info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+.jp-info-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--soft);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
+.jp-info-icon svg { width: 14px; height: 14px; }
+
+.jp-info-label {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.jp-info-value {
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* "Joining as" role chip */
+.jp-role-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--soft);
+  border-radius: var(--radius);
+  border: 1px solid var(--line-light);
+}
+
+.jp-role-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.jp-role-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Description */
+.jp-desc {
+  font-size: 13px;
+  color: var(--ink-secondary);
+  line-height: 1.6;
+  padding-top: 4px;
+  border-top: 1px solid var(--line-light);
+}
+
+/* Participant avatars row */
+.jp-participants {
+  padding: 16px 16px 0;
+}
+
+.jp-participants-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 10px;
+}
+
+.jp-avatars {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.jp-avatar-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--white);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  margin-left: -8px;
+  flex-shrink: 0;
+}
+
+.jp-avatar-circle:first-child { margin-left: 0; }
+
+.jp-avatar-more {
+  background: var(--soft);
+  color: var(--ink-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  border: 2px solid var(--white);
+}
+
+/* CTA section */
+.jp-actions {
+  padding: 16px;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jp-join-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--radius-full);
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #5b34ff, #7c3aed);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(91,52,255,0.35);
+  transition: all var(--transition-bounce);
+  letter-spacing: -.01em;
+}
+
+.jp-join-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgba(91,52,255,0.45);
+}
+
+.jp-join-btn:active { transform: translateY(0); }
+
+.jp-join-btn svg { width: 18px; height: 18px; }
+
+.jp-back-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.jp-back-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Desktop split layout for join preview */
+.jp-desktop-wrap {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 32px;
+  align-items: start;
+  min-height: 100%;
+}
+
+.jp-desktop-left {
+  background: linear-gradient(145deg, #1a0533 0%, #2d1558 40%, #4c1d95 70%, #5b34ff 100%);
+  border-radius: var(--radius-xl);
+  padding: 48px 44px;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+
+.jp-desktop-left::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139,92,246,0.5) 0%, transparent 70%);
+}
+
+.jp-desktop-left::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: -40px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59,130,246,0.3) 0%, transparent 70%);
+}
+
+.jp-desktop-hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.jp-desktop-title {
+  font-size: 32px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -.03em;
+  line-height: 1.2;
+  margin: 0 0 14px;
+}
+
+.jp-desktop-sub {
+  font-size: 15px;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.6;
+  max-width: 360px;
+  margin: 0 0 28px;
+}
+
+.jp-desktop-stats {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.jp-desktop-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.jp-desktop-stat-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.jp-desktop-stat-label {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  font-weight: 500;
+}
+
+.jp-desktop-avatars {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-top: 32px;
+}
+
+.jp-desktop-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  margin-left: -10px;
+  flex-shrink: 0;
+}
+
+.jp-desktop-avatar:first-child { margin-left: 0; }
+
+.jp-desktop-avatar-label {
+  margin-left: 14px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+}
+
+/* Right panel for desktop */
+.jp-desktop-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.jp-desktop-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--line-light);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.jp-desktop-card-header {
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.jp-desktop-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.jp-desktop-detail-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.jp-desktop-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.jp-desktop-detail-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--soft);
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.jp-desktop-detail-icon svg { width: 13px; height: 13px; }
+
+.jp-desktop-detail-label {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 1px;
+}
+
+.jp-desktop-detail-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.jp-desktop-card-body {
+  padding: 18px 22px;
+}
+
+.jp-desktop-role {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--soft);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+}
+
+.jp-desktop-join-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--radius-full);
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #5b34ff, #7c3aed);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(91,52,255,0.35);
+  transition: all var(--transition-bounce);
+}
+
+.jp-desktop-join-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgba(91,52,255,0.45);
+}
+
+.jp-desktop-join-btn svg { width: 18px; height: 18px; }
+
+.jp-desktop-back-btn {
+  width: 100%;
+  padding: 11px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-top: 8px;
+}
+
+.jp-desktop-back-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ============================================================
+   Meeting Start Page  (ms-* namespace)
+   Shown to HOSTS when they click on their scheduled meetings.
+   ============================================================ */
+
+.ms-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 100%;
+  animation: fadeIn .4s ease-out;
+}
+
+/* Top gradient banner */
+.ms-hero {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: linear-gradient(135deg, #0f2027 0%, #203a43 40%, #2c5364 100%);
+  padding: 28px 24px 72px;
+  margin-bottom: -44px;
+}
+
+.ms-hero.ms-hero--live {
+  background: linear-gradient(135deg, #1a0030 0%, #2d0058 40%, #5b34ff 100%);
+}
+
+.ms-hero-pattern {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(91,52,255,0.4) 0%, transparent 45%),
+    radial-gradient(circle at 10% 90%, rgba(41,182,246,0.25) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.ms-host-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-full);
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #fff;
+  margin-bottom: 16px;
+}
+
+.ms-host-badge svg { width: 12px; height: 12px; }
+
+.ms-hero-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+  margin: 0 0 8px;
+}
+
+.ms-hero-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+}
+
+.ms-hero-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ms-hero-meta svg { width: 12px; height: 12px; }
+
+/* Countdown timer in hero */
+.ms-countdown-wrap {
+  margin-top: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+}
+
+.ms-countdown-label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.ms-countdown-timer {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+
+/* Floating action card */
+.ms-card {
+  position: relative;
+  z-index: 2;
+  margin: 0 14px;
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 60px rgba(25,28,70,0.14);
+  border: 1px solid var(--line-light);
+  overflow: hidden;
+}
+
+.ms-card-section {
+  padding: 20px;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.ms-card-section:last-child { border-bottom: none; }
+
+.ms-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* Detail rows */
+.ms-detail-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ms-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ms-detail-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--soft);
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.ms-detail-icon svg { width: 13px; height: 13px; }
+
+.ms-detail-label {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 1px;
+}
+
+.ms-detail-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Participants enrolled bar */
+.ms-enrolled {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ms-enrolled-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ms-enrolled-count {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -.03em;
+}
+
+.ms-enrolled-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ms-enrolled-avatars {
+  display: flex;
+  align-items: center;
+}
+
+.ms-enrolled-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--white);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  margin-left: -7px;
+  flex-shrink: 0;
+}
+
+.ms-enrolled-avatar:first-child { margin-left: 0; }
+
+/* Share / invite row */
+.ms-share-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.ms-share-input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--ink-secondary);
+  background: var(--bg);
+  cursor: text;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-share-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.ms-share-copy-btn:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.ms-share-copy-btn svg { width: 12px; height: 12px; }
+
+.ms-share-icons {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ms-share-icon-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--line);
+  background: var(--white);
+  color: var(--ink-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.ms-share-icon-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.ms-share-icon-btn svg { width: 13px; height: 13px; }
+
+/* QR code display */
+.ms-qr-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ms-qr-img-wrap {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius);
+  background: var(--soft);
+  border: 1.5px solid var(--line-light);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.ms-qr-img-wrap img {
+  width: 80px;
+  height: 80px;
+  display: block;
+}
+
+.ms-qr-text strong {
+  font-size: 13px;
+  color: var(--ink);
+  display: block;
+  margin-bottom: 3px;
+}
+
+.ms-qr-text p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+/* Settings summary */
+.ms-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ms-setting-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ms-setting-chip.on {
+  background: var(--green-soft);
+  color: var(--success-dark);
+}
+
+.ms-setting-chip.off {
+  background: var(--red-soft);
+  color: #c0392b;
+}
+
+/* Primary start button */
+.ms-start-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+  border-radius: var(--radius-full);
+  font-size: 16px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #5b34ff 0%, #7c3aed 60%, #9333ea 100%);
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(91,52,255,0.38);
+  letter-spacing: -.01em;
+  transition: all var(--transition-bounce);
+  position: relative;
+  overflow: hidden;
+}
+
+.ms-start-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+}
+
+.ms-start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 44px rgba(91,52,255,0.48);
+}
+
+.ms-start-btn:active { transform: translateY(0); }
+
+.ms-start-btn svg { width: 20px; height: 20px; }
+
+.ms-secondary-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-top: 10px;
+}
+
+.ms-secondary-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Desktop host start page split layout */
+.ms-desktop-wrap {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 28px;
+  align-items: start;
+}
+
+.ms-desktop-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ms-desktop-hero {
+  background: linear-gradient(145deg, #1a0533 0%, #2d1558 40%, #4c1d95 80%, #5b34ff 100%);
+  border-radius: var(--radius-xl);
+  padding: 40px 40px 36px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ms-desktop-hero::before {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139,92,246,0.45) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.ms-desktop-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: -40px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59,130,246,0.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.ms-desktop-hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.ms-desktop-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: var(--radius-full);
+  padding: 5px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.ms-desktop-title {
+  font-size: 30px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -.03em;
+  line-height: 1.2;
+  margin: 0 0 10px;
+}
+
+.ms-desktop-desc {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.6;
+  max-width: 440px;
+  margin: 0 0 28px;
+}
+
+.ms-desktop-meta-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.ms-desktop-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  font-weight: 500;
+}
+
+.ms-desktop-meta-item svg { width: 14px; height: 14px; opacity: 0.8; }
+
+/* Stats row in desktop */
+.ms-desktop-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.ms-desktop-stat-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-light);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--shadow-sm);
+}
+
+.ms-desktop-stat-val {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -.03em;
+}
+
+.ms-desktop-stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Share panel in desktop left column */
+.ms-desktop-share-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--line-light);
+  box-shadow: var(--shadow-sm);
+  padding: 22px;
+}
+
+.ms-desktop-share-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ms-desktop-share-title svg { width: 16px; height: 16px; color: var(--primary); }
+
+/* Right sidebar card */
+.ms-desktop-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ms-desktop-right-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--line-light);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.ms-desktop-right-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line-light);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ms-desktop-right-body {
+  padding: 16px 20px;
+}
+
+.ms-desktop-start-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+  border-radius: var(--radius-full);
+  font-size: 15px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #5b34ff 0%, #7c3aed 60%, #9333ea 100%);
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(91,52,255,0.38);
+  transition: all var(--transition-bounce);
+  position: relative;
+  overflow: hidden;
+}
+
+.ms-desktop-start-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+}
+
+.ms-desktop-start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 44px rgba(91,52,255,0.48);
+}
+
+.ms-desktop-start-btn svg { width: 18px; height: 18px; }
+
+.ms-desktop-edit-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.ms-desktop-edit-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Responsive: stack columns on narrower screens */
+@media (max-width: 1000px) {
+  .jp-desktop-wrap,
+  .ms-desktop-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+

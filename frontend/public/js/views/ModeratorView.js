@@ -158,8 +158,54 @@ function renderQuestionQueue(questions, search = "", sortBy = "score") {
   `;
 }
 
+      // ── BAR_COLORS per option (matches the image: blue, blue, green, yellow) ──
+const POLL_BAR_COLORS = ["#4f46e5", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+
 // ── ActivePollsPanel ──────────────────────────────────────────
-function renderPollsPanel(poll) {
+function renderPollsPanel(poll, allPolls = []) {
+  const historyPolls = allPolls.filter(p => !p.active);
+
+  const historyTable = `
+    <div class="mod-panel" style="margin-top:16px">
+      <div class="mod-panel-header">
+        <div class="mod-panel-title">${icons.barChart}<h2>Poll History</h2></div>
+      </div>
+      ${historyPolls.length === 0 ? `
+        <p class="mod-poll-history-empty">No previous polls yet.</p>
+      ` : `
+        <div class="mod-poll-history-table-wrap">
+          <table class="mod-poll-history-table">
+            <thead>
+              <tr>
+                <th>Poll Question</th>
+                <th>Type</th>
+                <th>Responses</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${historyPolls.map(p => `
+                <tr>
+                  <td class="mod-ph-question">${p.question}</td>
+                  <td class="mod-ph-type">Multiple Choice</td>
+                  <td class="mod-ph-resp">${p.totalVotes || 0}</td>
+                  <td><span class="mod-ph-status ${p.active ? "live" : "done"}">${p.active ? "Live" : "Completed"}</span></td>
+                  <td><button class="mod-ph-action-btn" onclick="moderatorViewPollResults('${p.id}')">View Results</button></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `}
+      <div class="mod-poll-create-row">
+        <button class="mod-poll-create-btn" onclick="moderatorCreatePoll()">
+          ${icons.plus || "+"} &nbsp;Create New Poll
+        </button>
+      </div>
+    </div>
+  `;
+
   if (!poll) {
     return `
       <div class="mod-panel">
@@ -169,41 +215,76 @@ function renderPollsPanel(poll) {
         <div class="mod-empty-state">
           <div class="mod-empty-icon">${icons.barChart}</div>
           <p>No active poll right now.</p>
-          <button class="mod-outline-btn" onclick="moderatorCreatePoll()">Start a Poll</button>
+          <button class="mod-poll-create-btn" onclick="moderatorCreatePoll()" style="margin-top:12px">
+            ${icons.plus || "+"} &nbsp;Create New Poll
+          </button>
         </div>
       </div>
+      ${historyTable}
     `;
   }
 
-  const endsInMs = (poll.endsAt || 0) - Date.now();
+  const endsInMs  = (poll.endsAt || 0) - Date.now();
   const endsInSec = Math.max(0, Math.floor(endsInMs / 1000));
-  const mm = String(Math.floor(endsInSec / 60)).padStart(2, "0");
-  const ss = String(endsInSec % 60).padStart(2, "0");
-  const total = poll.totalVotes || 1;
+  const timerMM   = String(Math.floor(endsInSec / 60)).padStart(2, "0");
+  const timerSS   = String(endsInSec % 60).padStart(2, "0");
+  const total      = Math.max(1, poll.totalVotes || 0);
 
   return `
-    <div class="mod-panel">
-      <div class="mod-panel-header">
-        <div class="mod-panel-title">${icons.barChart}<h2>Active Poll</h2></div>
-        <span class="mod-poll-timer">${icons.clock} ends in ${mm}:${ss}</span>
+    <div class="mod-panel mod-active-poll-panel">
+      <!-- Active Poll Header -->
+      <div class="mod-ap-top-badge">${icons.barChart} Active Poll</div>
+
+      <div class="mod-ap-title-row">
+        <h2 class="mod-ap-question">${poll.question}</h2>
+        <div class="mod-ap-timer-block">
+          <span class="mod-ap-timer-value" id="mod-poll-timer-val">${timerMM}:${timerSS}</span>
+          <span class="mod-ap-timer-label">Time Left</span>
+          <button class="mod-ap-end-btn" onclick="moderatorEndPoll('${poll.id}')">
+            ${icons.square || "◼"} End Poll
+          </button>
+        </div>
       </div>
-      <p class="mod-poll-question">"${poll.question}"</p>
-      <div class="mod-poll-bars">
+
+      <!-- Metadata row -->
+      <div class="mod-ap-meta-row">
+        <span class="mod-ap-meta-chip">${icons.checkSquare || "☑"} Multiple Choice</span>
+        <span class="mod-ap-meta-chip">${icons.users} ${poll.totalVotes || 0} responses</span>
+        <span class="mod-ap-live-chip">Live</span>
+      </div>
+
+      <!-- Result bars -->
+      <div class="mod-ap-bars">
         ${poll.options.map((opt, i) => {
-          const pct = Math.round((opt.votes / total) * 100);
+          const pct   = Math.round(((opt.votes || 0) / total) * 100);
+          const color = POLL_BAR_COLORS[i % POLL_BAR_COLORS.length];
           return `
-            <div class="mod-poll-row">
-              <span class="mod-poll-label">${opt.label}</span>
-              <div class="mod-poll-track">
-                <div class="mod-poll-fill" style="width:${pct}%;background:${BAR_COLORS[i % BAR_COLORS.length]}"></div>
+            <div class="mod-ap-bar-row">
+              <div class="mod-ap-bar-num" style="background:${color}">${i + 1}</div>
+              <div class="mod-ap-bar-body">
+                <div class="mod-ap-bar-label">${opt.label}</div>
+                <div class="mod-ap-bar-track">
+                  <div class="mod-ap-bar-fill" style="width:${pct}%;background:${color}"></div>
+                </div>
               </div>
-              <span class="mod-poll-pct">${pct}%</span>
+              <div class="mod-ap-bar-stats">
+                <span class="mod-ap-bar-votes">${opt.votes || 0} votes</span>
+                <span class="mod-ap-bar-pct" style="color:${color}">${pct}%</span>
+              </div>
             </div>
           `;
         }).join("")}
       </div>
-      <span class="mod-poll-votes">${icons.users} ${poll.totalVotes} votes</span>
+
+      <!-- Footer -->
+      <div class="mod-ap-footer">
+        <span class="mod-ap-footer-note">${icons.info || "ⓘ"} You can download the results after the poll ends.</span>
+        <button class="mod-ap-download-btn" onclick="moderatorDownloadPollResults('${poll.id}')">
+          ${icons.download || "↓"} Download Results
+        </button>
+      </div>
     </div>
+    ${historyTable}
   `;
 }
 
@@ -457,7 +538,7 @@ function paintModeratorView(container, state) {
       <!-- Left column: queue + polls -->
       <div class="mod-left-col">
         ${renderQuestionQueue(ranked, _searchTerm, _sortBy)}
-        ${renderPollsPanel(poll)}
+        ${renderPollsPanel(poll, state.polls || [])}
       </div>
 
       <!-- Right column: quick actions + participants + health + activity -->
@@ -574,9 +655,240 @@ export async function moderatorBroadcastAnnouncement() {
   dispatch({ type: "QUESTION_ADDED", payload: { id: `ann_${Date.now()}`, type: "announcement", text: `📢 ${msg}` } });
 }
 
+/* ── Poll management handlers ─────────────────────────────────
+   moderatorCreatePoll  — opens the create-poll modal overlay
+   moderatorEndPoll     — ends the active poll immediately
+   moderatorDownloadPollResults — downloads CSV of results
+   moderatorViewPollResults     — shows a result breakdown overlay
+   ──────────────────────────────────────────────────────────── */
+
 export function moderatorCreatePoll() {
-  alert("Poll creation UI — coming soon!");
+  // Remove stale modal if any
+  document.getElementById("mod-create-poll-modal")?.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "mod-create-poll-modal";
+  overlay.className = "mod-modal-overlay";
+  overlay.innerHTML = `
+    <div class="mod-modal-box" id="mod-create-poll-box">
+      <div class="mod-modal-header">
+        <h2 class="mod-modal-title">Create New Poll</h2>
+        <button class="mod-modal-close" onclick="document.getElementById('mod-create-poll-modal').remove()">&times;</button>
+      </div>
+
+      <div class="mod-modal-body">
+        <label class="mod-modal-label">Poll Question <span style="color:#ef4444">*</span></label>
+        <input id="mod-poll-question" class="mod-modal-input"
+          placeholder="e.g. Which topic would you like us to cover next?" maxlength="200" />
+
+        <label class="mod-modal-label" style="margin-top:18px">Options <span style="color:#ef4444">*</span>
+          <span style="font-weight:400;font-size:12px;color:#6b7280">(min 2, max 6)</span>
+        </label>
+        <div id="mod-poll-options-list" class="mod-poll-options-list">
+          <div class="mod-poll-option-row">
+            <span class="mod-poll-opt-num" style="background:#4f46e5">1</span>
+            <input class="mod-modal-input mod-poll-opt-input" placeholder="Option 1" />
+          </div>
+          <div class="mod-poll-option-row">
+            <span class="mod-poll-opt-num" style="background:#3b82f6">2</span>
+            <input class="mod-modal-input mod-poll-opt-input" placeholder="Option 2" />
+          </div>
+        </div>
+        <button class="mod-add-option-btn" id="mod-add-option-btn"
+          onclick="_modAddPollOption()">
+          + Add Option
+        </button>
+
+        <label class="mod-modal-label" style="margin-top:18px">Duration</label>
+        <div class="mod-poll-duration-row">
+          <button class="mod-dur-btn active" data-dur="300" onclick="_modSetDuration(this, 300)">5 min</button>
+          <button class="mod-dur-btn" data-dur="600" onclick="_modSetDuration(this, 600)">10 min</button>
+          <button class="mod-dur-btn" data-dur="900" onclick="_modSetDuration(this, 900)">15 min</button>
+          <button class="mod-dur-btn" data-dur="1800" onclick="_modSetDuration(this, 1800)">30 min</button>
+        </div>
+        <input type="hidden" id="mod-poll-duration" value="300" />
+      </div>
+
+      <div class="mod-modal-footer">
+        <button class="mod-modal-cancel-btn" onclick="document.getElementById('mod-create-poll-modal').remove()">Cancel</button>
+        <button class="mod-modal-submit-btn" onclick="_modSubmitPoll()">Launch Poll</button>
+      </div>
+    </div>
+  `;
+
+  // Close on backdrop click
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("visible"));
+  document.getElementById("mod-poll-question")?.focus();
 }
+
+// ── Internal helpers (not exported) ───────────────────────────
+const _POLL_OPT_COLORS = ["#4f46e5","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"];
+
+window._modAddPollOption = function() {
+  const list = document.getElementById("mod-poll-options-list");
+  if (!list) return;
+  const count = list.querySelectorAll(".mod-poll-option-row").length;
+  if (count >= 6) return;
+  const row = document.createElement("div");
+  row.className = "mod-poll-option-row";
+  const color = _POLL_OPT_COLORS[count % _POLL_OPT_COLORS.length];
+  row.innerHTML = `
+    <span class="mod-poll-opt-num" style="background:${color}">${count + 1}</span>
+    <input class="mod-modal-input mod-poll-opt-input" placeholder="Option ${count + 1}" />
+    <button class="mod-poll-opt-remove" onclick="this.parentElement.remove(); _modRenumberOptions()">&times;</button>
+  `;
+  list.appendChild(row);
+  if (count + 1 >= 6) document.getElementById("mod-add-option-btn").disabled = true;
+  row.querySelector("input")?.focus();
+};
+
+window._modRenumberOptions = function() {
+  const rows = document.querySelectorAll(".mod-poll-option-row");
+  rows.forEach((r, i) => {
+    const badge = r.querySelector(".mod-poll-opt-num");
+    const input = r.querySelector("input");
+    if (badge) { badge.textContent = i + 1; badge.style.background = _POLL_OPT_COLORS[i % _POLL_OPT_COLORS.length]; }
+    if (input) input.placeholder = `Option ${i + 1}`;
+  });
+  const addBtn = document.getElementById("mod-add-option-btn");
+  if (addBtn) addBtn.disabled = rows.length >= 6;
+};
+
+window._modSetDuration = function(btn, secs) {
+  document.querySelectorAll(".mod-dur-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const inp = document.getElementById("mod-poll-duration");
+  if (inp) inp.value = secs;
+};
+
+window._modSubmitPoll = async function() {
+  const question = document.getElementById("mod-poll-question")?.value.trim();
+  if (!question) {
+    document.getElementById("mod-poll-question")?.classList.add("mod-input-error");
+    return;
+  }
+  const options = [...document.querySelectorAll(".mod-poll-opt-input")]
+    .map(i => i.value.trim()).filter(Boolean);
+  if (options.length < 2) { alert("Please add at least 2 options."); return; }
+
+  const durSecs = parseInt(document.getElementById("mod-poll-duration")?.value || "300", 10);
+  const endsAt  = Date.now() + durSecs * 1000;
+  const meetingId = state.session?.sessionId;
+
+  const submitBtn = document.querySelector(".mod-modal-submit-btn");
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Launching…"; }
+
+  try {
+    const res = await fetch("/api/polls", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}) },
+      body: JSON.stringify({ question, options, endsAt, meetingId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    dispatch({ type: "POLL_CREATED", payload: data.poll });
+    document.getElementById("mod-create-poll-modal")?.remove();
+  } catch(e) {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Launch Poll"; }
+    alert("Error: " + e.message);
+  }
+};
+
+export async function moderatorEndPoll(pollId) {
+  if (!pollId) return;
+  try {
+    await fetch(`/api/polls/${pollId}/end`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}) }
+    });
+    dispatch({ type: "POLL_UPDATED", payload: { id: pollId, active: false } });
+  } catch(e) {
+    console.warn("[moderatorEndPoll]", e);
+  }
+}
+window.moderatorEndPoll = moderatorEndPoll;
+
+export function moderatorDownloadPollResults(pollId) {
+  const ss = getSessionState();
+  const poll = ss.polls?.find(p => p.id === pollId);
+  if (!poll) { alert("Poll not found."); return; }
+
+  const total = Math.max(1, poll.totalVotes || 0);
+  const rows  = [("Option,Votes,Percentage")];
+  (poll.options || []).forEach(o => {
+    const pct = Math.round(((o.votes || 0) / total) * 100);
+    rows.push(`"${o.label}",${o.votes || 0},${pct}%`);
+  });
+  rows.push(`"TOTAL",${poll.totalVotes || 0},100%`);
+
+  const csv  = rows.join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `poll-results-${pollId}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+window.moderatorDownloadPollResults = moderatorDownloadPollResults;
+
+export function moderatorViewPollResults(pollId) {
+  const ss = getSessionState();
+  const poll = ss.polls?.find(p => p.id === pollId);
+  if (!poll) { alert("Poll not found."); return; }
+
+  document.getElementById("mod-poll-results-modal")?.remove();
+  const total = Math.max(1, poll.totalVotes || 0);
+  const overlay = document.createElement("div");
+  overlay.id = "mod-poll-results-modal";
+  overlay.className = "mod-modal-overlay";
+  overlay.innerHTML = `
+    <div class="mod-modal-box">
+      <div class="mod-modal-header">
+        <h2 class="mod-modal-title">Poll Results</h2>
+        <button class="mod-modal-close" onclick="document.getElementById('mod-poll-results-modal').remove()">&times;</button>
+      </div>
+      <div class="mod-modal-body">
+        <p style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:16px">${poll.question}</p>
+        <div class="mod-ap-bars" style="gap:14px">
+          ${(poll.options || []).map((opt, i) => {
+            const pct   = Math.round(((opt.votes || 0) / total) * 100);
+            const color = _POLL_OPT_COLORS[i % _POLL_OPT_COLORS.length];
+            return `
+              <div class="mod-ap-bar-row">
+                <div class="mod-ap-bar-num" style="background:${color}">${i + 1}</div>
+                <div class="mod-ap-bar-body">
+                  <div class="mod-ap-bar-label">${opt.label}</div>
+                  <div class="mod-ap-bar-track">
+                    <div class="mod-ap-bar-fill" style="width:${pct}%;background:${color}"></div>
+                  </div>
+                </div>
+                <div class="mod-ap-bar-stats">
+                  <span class="mod-ap-bar-votes">${opt.votes || 0} votes</span>
+                  <span class="mod-ap-bar-pct" style="color:${color}">${pct}%</span>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+        <p style="margin-top:16px;font-size:12px;color:#6b7280">Total responses: ${poll.totalVotes || 0}</p>
+      </div>
+      <div class="mod-modal-footer">
+        <button class="mod-modal-cancel-btn" onclick="document.getElementById('mod-poll-results-modal').remove()">Close</button>
+        <button class="mod-modal-submit-btn" onclick="moderatorDownloadPollResults('${poll.id}')">Download CSV</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("visible"));
+}
+window.moderatorViewPollResults = moderatorViewPollResults;
+
 
 /**
  * Called when the moderator clicks a participant row or "Make Speaker" button.
@@ -612,13 +924,16 @@ export function moderatorMakeSpeaker(id, name, initials) {
     });
   }
 
-  // Phase 4: emit speaker_changed via WebSocket so ALL other tabs receive it too
-  const meetingId = state.session?.sessionId || "m_ai_education";
-  getSocket().emit("speaker_changed", {
-    meetingId,
-    speakerId:   _currentSpeakerId,
-    speakerName: _currentSpeakerName
-  });
+  // Phase 4: emit speaker_invite so the TARGET participant receives an invite popup.
+  // The server routes the invite to the correct WS connection by participantId (DB id).
+  if (_currentSpeakerId) {
+    const meetingId = state.session?.sessionId || "m_ai_education";
+    getSocket().emit("speaker_invite", {
+      meetingId,
+      participantId: _currentSpeakerId,
+      speakerName:   _currentSpeakerName
+    });
+  }
 }
 
 /** End the session: PATCH status → conducted, then navigate to session report */
@@ -645,13 +960,12 @@ export async function moderatorEndSession() {
     if (idx !== -1) state.meetings[idx] = { ...state.meetings[idx], status: "conducted" };
   }
 
-  // Persist to backend
+  // Persist to backend and broadcast to all participants
   if (meetingId) {
-    fetch(`/api/meetings/${meetingId}/status`, {
-      method: "PATCH",
+    fetch(`/api/sessions/${meetingId}/end`, {
+      method: "POST",
       headers: { "Content-Type": "application/json", ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}) },
-      body: JSON.stringify({ status: "conducted" })
-    }).catch(() => {}); // fire-and-forget
+    }).catch(() => {}); // fire-and-forget; WS broadcast happens server-side
   }
   go('/report');
 }

@@ -10,35 +10,31 @@ afterAll(async () => {
 });
 
 describe("DB — User CRUD", () => {
-  const testEmail = `db_test_${Date.now()}@example.com`;
-  let createdId;
+  const testEmail = `db_test_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@example.com`;
 
-  test("create user", async () => {
+  test("User CRUD cycle (create, find, update, delete)", async () => {
+    // 1. Create
     const user = await db.user.create({
       data: { name: "DB Test", email: testEmail, passwordHash: "hash123" }
     });
     expect(user.id).toBeTruthy();
     expect(user.email).toBe(testEmail);
-    createdId = user.id;
-  });
 
-  test("find user by email", async () => {
-    const user = await db.user.findUnique({ where: { email: testEmail } });
-    expect(user).not.toBeNull();
-    expect(user.name).toBe("DB Test");
-  });
+    // 2. Find
+    const found = await db.user.findUnique({ where: { id: user.id } });
+    expect(found).not.toBeNull();
+    expect(found.name).toBe("DB Test");
 
-  test("update user name", async () => {
+    // 3. Update
     const updated = await db.user.update({
-      where: { id: createdId },
+      where: { id: found.id },
       data:  { name: "DB Test Updated" }
     });
     expect(updated.name).toBe("DB Test Updated");
-  });
 
-  test("delete user", async () => {
-    await db.user.delete({ where: { id: createdId } });
-    const gone = await db.user.findUnique({ where: { id: createdId } });
+    // 4. Delete
+    await db.user.delete({ where: { id: found.id } });
+    const gone = await db.user.findUnique({ where: { id: found.id } });
     expect(gone).toBeNull();
   });
 });

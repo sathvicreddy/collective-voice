@@ -1,6 +1,7 @@
 /* Live Now Page — connected to real backend */
 import { IC } from '../icons.js';
 import { adminGet, adminPost } from '../api.js';
+import { state } from '../state.js';
 import { initials, qBars, qLegend } from '../utils.js';
 
 let _liveMeetings = null;
@@ -28,7 +29,7 @@ export function renderLiveNow() {
   if (!_liveMeetings) {
     loadLiveNowData().then(() => {
       const el = document.getElementById('admin-content-area');
-      if (el) el.innerHTML = renderLiveNow();
+      if (el && state.currentPage === 'live-now') el.innerHTML = renderLiveNow();
     });
     return `<div class="page active" id="page-live-now"><div class="page-loading">Loading live meetings…</div></div>`;
   }

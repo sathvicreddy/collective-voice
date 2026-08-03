@@ -9,6 +9,10 @@ let _searchQ = '';
 let _roleFilter = 'All';
 let _confirmDeleteId = null;
 
+export function resetUsersCache() {
+  _users = null;
+}
+
 function initials(name) {
   if (!name) return '?';
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
@@ -27,7 +31,7 @@ function ago(date) {
 
 export async function loadUsersData() {
   try {
-    const data = await adminGet('/api/admin/users');
+    const data = await adminGet('/api/admin/users?view=customers');
     _users = data.users || [];
   } catch (err) {
     console.error('[Users] load error:', err.message);
@@ -49,7 +53,7 @@ export function renderUsers() {
   if (!_users) {
     loadUsersData().then(() => {
       const el = document.getElementById('admin-content-area');
-      if (el) el.innerHTML = renderUsers();
+      if (el && state.currentPage === 'users') el.innerHTML = renderUsers();
     });
     return `<div class="page active" id="page-users"><div class="page-loading">Loading users…</div></div>`;
   }

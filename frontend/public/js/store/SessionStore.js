@@ -182,6 +182,32 @@ function reducer(action) {
       break;
     }
 
+    // ── Meeting lifecycle ────────────────────────────────────────
+    case "MEETING_STATUS_CHANGED": {
+      const { status } = action.payload;
+      _state.meetingStatus = status;
+      if (status === "live") {
+        _state.meetingEnded = false;
+        _addActivity("system", "Meeting is now live!");
+      }
+      break;
+    }
+
+    case "MEETING_ENDED": {
+      _state.meetingEnded  = true;
+      _state.meetingStatus = action.payload?.status || "conducted";
+      _addActivity("system", "The meeting has ended.");
+      break;
+    }
+
+    case "ANNOUNCEMENT": {
+      const { message } = action.payload;
+      if (message) {
+        _addActivity("announcement", `📣 ${message}`);
+      }
+      break;
+    }
+
     case "RESET": {
       _state = _initialState();
       break;

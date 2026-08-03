@@ -16,12 +16,17 @@
   align-items: start;
 }
 
+.desktop-single-col {
+  display: block;
+}
+
 @media (max-width: 1000px) {
   .desktop-full-layout>.phone {
     display: flex !important;
   }
 
-  .desktop-two-col {
+  .desktop-two-col,
+  .desktop-single-col {
     display: none !important;
   }
 }

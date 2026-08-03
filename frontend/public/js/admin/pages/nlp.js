@@ -1,6 +1,7 @@
 /* NLP Engine Page — connected to real backend */
 import { IC } from '../icons.js';
 import { adminGet, adminPost } from '../api.js';
+import { state } from '../state.js';
 
 let _nlpConfig = null;
 let nlpThreshold = 0.60;
@@ -40,7 +41,7 @@ export function renderNLPEngine() {
   if (!_nlpConfig) {
     loadNLPConfig().then(() => {
       const el = document.getElementById('admin-content-area');
-      if (el) el.innerHTML = renderNLPEngine();
+      if (el && state.currentPage === 'nlp') el.innerHTML = renderNLPEngine();
     });
     return `<div class="page active" id="page-nlp"><div class="page-loading">Loading NLP config…</div></div>`;
   }

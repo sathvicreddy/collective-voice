@@ -1,0 +1,127 @@
+/* ============================================================
+   LIVE NOW PAGE — Toolbar, Cards Grid, Table View, Placeholders
+   ============================================================ */
+
+/* ── Toolbar ── */
+.livenow-toolbar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.view-toggle {
+  display: flex; align-items: center; gap: 2px;
+  background: var(--bg); border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm); padding: 3px;
+}
+.view-toggle-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 6px;
+  font-size: 12.5px; font-weight: 500; color: var(--muted);
+  transition: all var(--transition); border: 0; background: transparent;
+}
+.view-toggle-btn.active {
+  background: var(--white); color: var(--ink);
+  font-weight: 600; box-shadow: var(--shadow-sm);
+}
+.view-toggle-btn svg { width: 14px; height: 14px; }
+.livenow-toolbar .spacer { flex: 1; }
+
+.sort-select-wrap {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--muted);
+}
+.sort-select {
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--line); background: var(--white);
+  font-size: 13px; color: var(--ink); outline: none; cursor: pointer;
+  transition: border-color var(--transition);
+}
+.sort-select:focus { border-color: var(--primary); }
+
+/* ── Live Now Cards (larger than overview cards) ── */
+.livenow-cards-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 16px; margin-bottom: 24px;
+}
+@media (max-width: 1000px) { .livenow-cards-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.livenow-card {
+  background: var(--white); border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg); padding: 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  transition: box-shadow var(--transition), transform var(--transition);
+  animation: fadeIn .3s ease both;
+}
+.livenow-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+
+.livenow-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.livenow-card-title {
+  font-size: 15.5px; font-weight: 700; color: var(--ink);
+  letter-spacing: -.01em; margin-top: 6px;
+}
+.livenow-card-host {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--ink-secondary);
+}
+.livenow-stats-row {
+  display: grid; grid-template-columns: auto 1fr 1fr;
+  gap: 12px; align-items: start;
+}
+.livenow-stat-label { font-size: 10.5px; color: var(--muted); font-weight: 500; margin-bottom: 3px; }
+.livenow-stat-value { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; }
+.livenow-stat-small { font-size: 14px; font-weight: 700; color: var(--ink); }
+
+/* ── Moderate button ── */
+.moderate-btn {
+  padding: 7px 16px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 600; color: #fff;
+  background: var(--primary); border: 0;
+  transition: background var(--transition), transform var(--transition);
+}
+.moderate-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
+
+/* ── Question status bars ── */
+.question-bars { display: flex; gap: 6px; }
+.q-bar { flex: 1; height: 4px; border-radius: 2px; }
+.q-bar.pending  { background: var(--warning); }
+.q-bar.review   { background: var(--primary); }
+.q-bar.answered { background: var(--success); }
+.q-legend { display: flex; gap: 10px; flex-wrap: wrap; }
+.q-legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+.q-legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Participant avatars stack ── */
+.participants-avatars { display: flex; align-items: center; }
+.participants-avatars .pa-avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--white); background: var(--soft);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700; color: var(--primary);
+  margin-right: -6px;
+}
+.pa-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.pa-more { font-size: 10px; font-weight: 700; color: var(--muted); margin-left: 10px; }
+
+/* ── No-live placeholder ── */
+.no-live-placeholder {
+  background: var(--white); border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg); padding: 60px 40px; text-align: center;
+}
+.no-live-icon {
+  width: 80px; height: 80px; margin: 0 auto 16px;
+  background: var(--soft); border-radius: var(--radius-xl);
+  display: flex; align-items: center; justify-content: center;
+}
+.no-live-icon svg { width: 36px; height: 36px; color: var(--primary); }
+.no-live-title { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+.no-live-sub { font-size: 13.5px; color: var(--muted); max-width: 320px; margin: 0 auto; }
+
+/* ── Coming soon placeholder ── */
+.coming-soon-wrap {
+  min-height: 300px; display: flex; align-items: center;
+  justify-content: center; flex-direction: column;
+  gap: 12px; text-align: center; color: var(--muted);
+}
+.coming-soon-wrap svg { width: 48px; height: 48px; opacity: .35; }
+.coming-soon-title { font-size: 18px; font-weight: 700; color: var(--ink); }

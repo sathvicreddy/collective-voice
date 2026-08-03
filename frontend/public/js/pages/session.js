@@ -126,10 +126,8 @@ function mountSession() {
     .then(data => dispatch({ type: "SESSION_LOADED", payload: data }))
     .catch(() => {});
 
-  // Listen for speaker_changed events to auto-promote this tab if needed
-  socket.on("speaker_changed", (data) => {
-    sessionPromoteToSpeaker(data.speakerId);
-  });
+  // Listen for speaker_changed — show confirmation popup to the targeted participant
+  // (handled by module-level cv:speaker_invite CustomEvent listener below)
 
   _renderActiveView(container);
 }
@@ -143,8 +141,14 @@ function _renderActiveView(container) {
   else renderParticipantView(container);
 }
 
-// ── Entry points (called by router in app.js) ─────────────────
+// ── Entry points (called by router in app.js) ───────────────────────────
+function _requireAuth() {
+  if (!state.token) { go("/login"); return false; }
+  return true;
+}
+
 export function renderAudience() {
+  if (!_requireAuth()) return;
   // Participants and anyone navigating to /audience
   // If they're the host, redirect to /moderator
   if (state.isHost) { go("/moderator"); return; }
@@ -152,12 +156,14 @@ export function renderAudience() {
 }
 
 export function renderModerator() {
+  if (!_requireAuth()) return;
   // Only the host can access /moderator
   if (!state.isHost) { go("/audience"); return; }
   mountSession();
 }
 
 export function renderSpeaker() {
+  if (!_requireAuth()) return;
   // /speaker route: only accessible if assigned as speaker or is host
   if (!state.isHost && state.session?.role !== "speaker") {
     go("/audience"); return;
@@ -167,28 +173,111 @@ export function renderSpeaker() {
 
 // ── Global handlers ───────────────────────────────────────────
 
-/**
- * Called by the moderator when assigning a question to a speaker.
- * This marks that specific user as a speaker in the shared session store.
- * In a real app this would emit a socket event so the assignee's UI switches;
- * here we update state.session.role if the current user is the assigned speaker.
- */
 export function sessionPromoteToSpeaker(userId) {
-  // If current user matches, switch their local role to speaker
   const me = state.profile?.user?.id;
-  if (me && me === userId) {
-    state.session.role = "speaker";
-    state.session.activeView = "speaker";
-    mountSession();
+  if (me && me === userId) _doPromoteToSpeaker(null);
+}
+
+// ── Module-level speaker invite listener ──────────────────────
+// Registered once at module load — fires for every cv:speaker_invite event
+// regardless of when mountSession() is called. No race conditions.
+document.addEventListener("cv:speaker_invite", (e) => {
+  const { participantId, speakerName, meetingId } = e.detail || {};
+  if (!participantId) return;
+  const role = state.session?.activeView;
+  if (role === "moderator" || role === "speaker") return;
+  _showSpeakerInvitePopup(speakerName || "Speaker", participantId, meetingId);
+});
+
+document.addEventListener("cv:speaker_changed", (e) => {
+  const { status, participantId } = e.detail || {};
+  if (status === "revoked") {
+    _removeSpeakerPopup();
+    // If the current user was the speaker, demote them back to audience
+    const myPid   = state.myParticipantId;
+    const myRole  = state.session?.role;
+    const isMe    = participantId && myPid && participantId === myPid;
+    const isSpeaker = myRole === "speaker";
+    if (isMe || isSpeaker) {
+      state.session            = state.session || {};
+      state.session.role       = "participant";
+      state.session.activeView = "participant";
+      // Re-mount so the speaker sees the audience UI immediately
+      mountSession();
+    }
   }
+});
+
+/** Renders the speaker-invite confirmation modal */
+function _showSpeakerInvitePopup(assignedName, participantId, meetingId) {
+  _removeSpeakerPopup();
+
+  const overlay = document.createElement("div");
+  overlay.id = "cv-speaker-invite-overlay";
+  overlay.style.cssText = [
+    "position:fixed;inset:0;z-index:99999",
+    "display:flex;align-items:center;justify-content:center",
+    "background:rgba(15,10,40,0.55);backdrop-filter:blur(6px)",
+    "animation:cvFadeIn 0.25s ease"
+  ].join(";");
+
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:36px 32px;max-width:420px;width:92%;text-align:center;box-shadow:0 24px 64px rgba(99,102,241,0.22),0 4px 16px rgba(0,0,0,0.12);animation:cvSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)">
+      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;line-height:1">🎙️</div>
+      <h2 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#1a1035">You've been invited to speak!</h2>
+      <p style="margin:0 0 6px;font-size:14px;color:#6b7280;line-height:1.5">
+        The moderator has selected <strong style="color:#6366f1">${assignedName}</strong> as the current speaker.
+      </p>
+      <p style="margin:0 0 28px;font-size:13px;color:#9ca3af">Accept to enter the Speaker view and answer questions live. Decline to stay in the Audience.</p>
+      <div style="display:flex;gap:12px">
+        <button id="cv-spk-decline" style="flex:1;padding:13px 20px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;font-size:14px;font-weight:600;color:#6b7280;cursor:pointer;transition:all 0.2s">✕ Decline</button>
+        <button id="cv-spk-accept" style="flex:1;padding:13px 20px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);font-size:14px;font-weight:700;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,0.4);transition:all 0.2s">🎙️ Accept</button>
+      </div>
+    </div>
+    <style>
+      @keyframes cvFadeIn{from{opacity:0}to{opacity:1}}
+      @keyframes cvSlideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+    </style>
+  `;
+
+  document.body.appendChild(overlay);
+
+  document.getElementById("cv-spk-accept").addEventListener("click", () => {
+    _removeSpeakerPopup();
+    const socket = getSocket();
+    const mid = meetingId || state.session?.sessionId;
+    const pid = participantId || state.myParticipantId;
+    socket.emit("speaker_accepted", { meetingId: mid, participantId: pid, speakerName: assignedName });
+    _doPromoteToSpeaker(pid);
+  });
+
+  document.getElementById("cv-spk-decline").addEventListener("click", () => {
+    _removeSpeakerPopup();
+    const socket = getSocket();
+    const mid = meetingId || state.session?.sessionId;
+    const pid = participantId || state.myParticipantId;
+    socket.emit("speaker_declined", { meetingId: mid, participantId: pid });
+  });
+}
+
+function _removeSpeakerPopup() {
+  document.getElementById("cv-speaker-invite-overlay")?.remove();
+}
+
+function _doPromoteToSpeaker(participantId) {
+  state.session            = state.session || {};
+  state.session.role       = "speaker";
+  state.session.activeView = "speaker";
+  if (participantId) state.myParticipantId = participantId;
+  mountSession();
 }
 
 export function sessionSwitchView(viewId) {
   state.session.activeView = viewId;
-  // Update active tab highlight without full re-mount
   document.querySelectorAll(".ses-nav-tab").forEach(btn => {
     btn.classList.toggle("ses-tab-active", btn.getAttribute("onclick").includes(`'${viewId}'`));
   });
   const container = document.querySelector("#sessionViewContent");
   if (container) _renderActiveView(container);
 }
+

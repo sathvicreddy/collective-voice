@@ -1,6 +1,7 @@
 /* Overview Page — connected to real backend */
 import { IC } from '../icons.js';
 import { adminGet } from '../api.js';
+import { state } from '../state.js';
 import { fmt, initials, avatarStack } from '../utils.js';
 
 // Cache so we don't re-fetch on every tab switch
@@ -25,7 +26,8 @@ export function renderOverview() {
     // Start async load and show loading state
     loadOverviewData().then(() => {
       const el = document.getElementById('admin-content-area');
-      if (el) el.innerHTML = renderOverview();
+      // Guard: only update DOM if user is still on this page
+      if (el && state.currentPage === 'overview') el.innerHTML = renderOverview();
     });
     return `<div class="page active" id="page-overview"><div class="page-loading">Loading overview…</div></div>`;
   }

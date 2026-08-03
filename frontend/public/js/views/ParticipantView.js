@@ -185,15 +185,31 @@ let _votedPollOptions  = {};
 
 export function renderParticipantView(container) {
   const ss = getSessionState();
+
+  // If the meeting is known to be over, show the ended screen immediately.
+  if (ss.meetingEnded) {
+    _paintEndedScreen(container);
+    return;
+  }
+
+  // Lazy-load session data if not yet populated
   if (ss.questions.length === 0) {
     const mid = state.session?.sessionId || "";
-    fetch(`/api/session/live${mid ? `?meetingId=${mid}` : ""}`)
-      .then(r => r.json())
-      .then(data => dispatch({ type: "SESSION_LOADED", payload: data }));
+    if (mid) {
+      fetch(`/api/session/live?meetingId=${mid}`)
+        .then(r => r.json())
+        .then(data => dispatch({ type: "SESSION_LOADED", payload: data }));
+    }
   }
 
   if (_unsubscribe) _unsubscribe();
-  _unsubscribe = subscribe((state) => paintParticipantView(container, state));
+  _unsubscribe = subscribe((sessionState) => {
+    if (sessionState.meetingEnded) {
+      _paintEndedScreen(container);
+    } else {
+      paintParticipantView(container, sessionState);
+    }
+  });
   paintParticipantView(container, ss);
 }
 
@@ -244,6 +260,27 @@ export function teardownParticipantView() {
   _optimisticUpvotes = {};
 }
 
+/** Meeting-ended screen — shown to all participants when the host ends the meeting */
+function _paintEndedScreen(container) {
+  if (!container) return;
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                min-height:60vh;text-align:center;padding:40px;gap:16px">
+      <div style="width:72px;height:72px;border-radius:50%;background:#f0fdf4;
+                  display:grid;place-items:center;font-size:32px">🏁</div>
+      <h2 style="font-size:22px;font-weight:800;color:var(--ink)">Meeting has ended</h2>
+      <p style="color:var(--muted);font-size:14px;max-width:340px">
+        The host has ended this session. Thank you for participating!
+      </p>
+      <p style="color:var(--muted-light);font-size:12px">Redirecting you back in 3 seconds…</p>
+    </div>
+  `;
+  // Redirect to meetings list after 3s
+  setTimeout(() => {
+    if (window.go) window.go("/meetings");
+  }, 3000);
+}
+
 // ── Global Handlers ───────────────────────────────────────────
 export function participantUpdateCharCount(textarea) {
   const el = document.querySelector("#participantCharCount");
@@ -266,7 +303,8 @@ export function participantSubmitQuestion() {
   if (input) input.value = "";
 
   // Phase 4: emit via WebSocket (server handles NLP + scoring + broadcast)
-  const meetingId = state.session?.sessionId || "m_ai_education";
+  const meetingId = state.session?.sessionId;
+  if (!meetingId) return;
   const socket = getSocket();
   socket.emit("submit_question", {
     meetingId,
@@ -294,7 +332,8 @@ export function participantUpvote(id, btn) {
   }
 
   // Phase 4: emit via WebSocket — server applies toggle logic and echoes your_vote_changed
-  const meetingId = state.session?.sessionId || "m_ai_education";
+  const meetingId = state.session?.sessionId;
+  if (!meetingId) return;
   const socket = getSocket();
   socket.emit("upvote", { meetingId, questionId: id });
   // Server broadcasts question_upvoted (vote count for all) → QUESTION_UPVOTED dispatch
