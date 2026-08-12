@@ -1,0 +1,27 @@
+{
+  "name": "CollectiveVoice",
+  "short_name": "CVoice",
+  "description": "Crowd-prioritised Q&A with live voting and AI question clustering for meetings and events.",
+  "theme_color": "#5b34ff",
+  "background_color": "#f7f8fc",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "lang": "en"
+}

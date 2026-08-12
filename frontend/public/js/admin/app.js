@@ -15,6 +15,8 @@ import { renderNLPEngine }          from './pages/nlp.js';
 import { renderSystemHealth }       from './pages/health.js';
 import { renderAuditLog }           from './pages/audit.js';
 import { renderManageAdmins, resetManageAdminsCache } from './pages/manage-admins.js';
+import { renderAdminNotifications, resetAdminNotificationsCache } from './pages/notifications.js';
+import { renderAdminMessages, resetAdminMessagesCache } from './pages/messages.js';
 
 /* ── Routing ── */
 function getPageContent(pageId) {
@@ -27,7 +29,9 @@ function getPageContent(pageId) {
     case 'nlp':           return renderNLPEngine();
     case 'health':        return renderSystemHealth();
     case 'audit':         return renderAuditLog();
-    case 'manage-admins': return renderManageAdmins();
+    case 'manage-admins':    return renderManageAdmins();
+    case 'notifications':    return renderAdminNotifications();
+    case 'messages':         return renderAdminMessages();
     default:              return renderOverview();
   }
 }
@@ -45,6 +49,8 @@ window.adminNavigate = function(pageId) {
   if (pageId === 'meetings')      resetMeetingsCache();
   if (pageId === 'users')         resetUsersCache();
   if (pageId === 'manage-admins') resetManageAdminsCache();
+  if (pageId === 'notifications') resetAdminNotificationsCache();
+  if (pageId === 'messages')      resetAdminMessagesCache();
 
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === pageId));
   const content = document.getElementById('admin-content-area');

@@ -17,6 +17,8 @@ const _initialState = () => ({
   },
   sessionTimer: 0,        // seconds elapsed
   isQuestionsPaused: false,
+  typingCount: 0,         // live count of participants typing
+  nowAnswering: null,     // { questionId, text } or null
   healthStatus: {
     connection: "connected",   // connected | connecting | disconnected
     sync: "synced",            // synced | syncing | error
@@ -210,6 +212,25 @@ function reducer(action) {
 
     case "RESET": {
       _state = _initialState();
+      break;
+    }
+
+    case "TYPING_UPDATED": {
+      _state.typingCount = action.payload?.count ?? 0;
+      break;
+    }
+
+    case "REACTION_UPDATED": {
+      // Merge reaction counts into the matching question
+      const { questionId, counts } = action.payload;
+      _state.questions = _state.questions.map(q =>
+        q.id === questionId ? { ...q, reactionCounts: counts } : q
+      );
+      break;
+    }
+
+    case "NOW_ANSWERING": {
+      _state.nowAnswering = action.payload; // null clears the banner
       break;
     }
 

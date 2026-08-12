@@ -32,7 +32,7 @@ export function topbar(showBack = false) {
   const user = state.profile?.user || {};
   const userName = user.name || "";
   const avatarLetter = userName ? userName[0].toUpperCase() : "A";
-  const notifCount = state.notifications?.length || 0;
+  const notifCount = (state.notifications || []).filter(n => n.read === false).length;
   return `
     ${statusBar()}
     <div class="topbar">
@@ -56,7 +56,7 @@ export function desktopTopbar(title = "", subtitle = "", dateRange = "") {
   const name     = user.name || "Guest";
   const role     = user.role || "Member";
   const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  const notifCount = state.notifications?.length || 0;
+  const notifCount = (state.notifications || []).filter(n => n.read === false).length;
   return `
     <div class="desktop-topbar">
       <div>
@@ -127,7 +127,7 @@ export function sidebar() {
     ["/profile",  "Profile",      icons.user]
   ];
   const bottomNavItems = [
-    ["/support",  "Help & Support", icons.info],
+    ["/help",  "Help & Support", icons.info],
     ["/settings", "Settings",       icons.settings]
   ];
 
@@ -291,12 +291,18 @@ export function meetingCard(meeting, action = "") {
 }
 
 export function questionCard(question, index, moderator = false) {
+  // Safely escape question text to prevent XSS from user-submitted content
+  const safeText = String(question.text || "").replace(/[<>&"']/g, c => ({
+    "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;"
+  })[c]);
+  const safeId   = String(question.id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+
   return `
     <article class="question-card">
       <div class="rank">${index + 1}</div>
       <div class="stack">
         <div class="row">
-          <h3 style="font-size:14px;font-weight:600">${question.text}</h3>
+          <h3 style="font-size:14px;font-weight:600">${safeText}</h3>
           <span class="badge ${question.status === "Answered" ? "success" : "warning"}">${question.status}</span>
         </div>
         <div class="meta">
@@ -307,15 +313,15 @@ export function questionCard(question, index, moderator = false) {
         </div>
         ${moderator ? `
           <div class="row" style="gap:6px;flex-wrap:wrap">
-            <button class="btn secondary small" onclick="go('/question/${question.id}')">${icons.eye} Details</button>
-            <button class="btn secondary small" onclick="markAnswered('${question.id}')">${icons.check} Answered</button>
-            <button class="btn secondary small" onclick="setQuestionStatus('${question.id}', 'Deferred')">${icons.pause} Defer</button>
-            <button class="btn secondary small" onclick="setQuestionStatus('${question.id}', 'Flagged')">${icons.flag} Flag</button>
+            <button class="btn secondary small" onclick="go('/question/${safeId}')">${icons.eye} Details</button>
+            <button class="btn secondary small" onclick="window.moderatorAnswerQuestion && moderatorAnswerQuestion('${safeId}')">${icons.check} Answered</button>
+            <button class="btn secondary small" onclick="window.moderatorDeferQuestion && moderatorDeferQuestion('${safeId}')">${icons.pause} Defer</button>
+            <button class="btn secondary small" onclick="window.moderatorFlagQuestion && moderatorFlagQuestion('${safeId}')">${icons.flag} Flag</button>
           </div>
         ` : `
           <div class="row" style="gap:6px">
-            <button class="btn secondary small" onclick="go('/question/${question.id}')">${icons.eye} Details</button>
-            <button class="btn secondary small" onclick="upvote('${question.id}')">${icons.thumbsUp} Upvote</button>
+            <button class="btn secondary small" onclick="go('/question/${safeId}')">${icons.eye} Details</button>
+            <button class="btn secondary small" onclick="window.participantUpvote && participantUpvote('${safeId}')">${icons.thumbsUp} Upvote</button>
           </div>
         `}
       </div>

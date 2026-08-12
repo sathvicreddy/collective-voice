@@ -6,6 +6,20 @@ import { api, go } from "./utils/api.js";
 import { icons } from "./utils/icons.js";
 import { dispatch, getSessionState } from "./store/SessionStore.js";
 
+// ── Restore saved theme immediately (before first render) to avoid flash ──
+try {
+  const prefs = JSON.parse(localStorage.getItem("cv_settings_prefs") || "{}");
+  if (prefs.theme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else if (prefs.theme === "system") {
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  }
+  if (prefs.compact) document.body?.classList.add("compact-mode");
+} catch { /* non-fatal */ }
+
+
 // Import Page Renderers
 import { renderWelcome, renderOnboarding, renderLogin, renderForgot, renderReset } from "./pages/auth.js";
 import { renderHome, homejoinLive } from "./pages/home.js";
@@ -22,6 +36,11 @@ import { renderAnalytics } from "./pages/analytics.js";
 import { renderNotifications } from "./pages/notifications.js";
 import { renderQuestionDetail } from "./pages/questions.js";
 import { renderSessionReport } from "./pages/report.js";
+import { renderHelp } from "./pages/help.js";
+import { initPWA } from "./utils/pwa.js";
+
+// Register service worker + initialise offline queue support
+initPWA();
 
 // View-level handlers (registered globally for inline onclick)
 import {
@@ -30,12 +49,13 @@ import {
   moderatorFlagQuestion, moderatorAnswerQuestion,
   moderatorTogglePause, moderatorClearAnswered,
   moderatorBroadcastAnnouncement, moderatorCreatePoll, moderatorMakeSpeaker,
-  moderatorEndSession, moderatorGoLive
+  moderatorEndSession, moderatorGoLive, moderatorMarkAnswering
 } from "./views/ModeratorView.js";
 import { speakerSaveNotes, speakerStartAnswering, speakerSkipQuestion, speakerMarkAnswered, speakerDeferQuestion } from "./views/SpeakerView.js";
 import {
   participantUpdateCharCount, participantSubmitQuestion,
-  participantUpvote, participantVotePoll
+  participantUpvote, participantVotePoll,
+  participantTypingStart, participantTypingStop, participantReact
 } from "./views/ParticipantView.js";
 import { authSubmit, authForgot, authReset } from "./pages/auth.js";
 
@@ -232,6 +252,47 @@ window.validateMeetingCodeDirect = validateMeetingCodeDirect;
 window.createMeeting = createMeeting;
 window.renderActivity = renderActivity;
 
+/* ----------------------------------------------------------------
+   Landing Page Helpers
+   Exposed globally so onclick attributes in renderWelcome() work.
+   ---------------------------------------------------------------- */
+
+/**
+ * Smooth-scroll to a landing page section by element ID.
+ * IMPORTANT: Uses scrollIntoView — does NOT touch location.hash,
+ * so the SPA hashchange router is never triggered.
+ */
+window.scrollToSection = function scrollToSection(sectionId) {
+  const el = document.getElementById(sectionId);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+};
+
+/** Scroll back to the very top of the landing page. */
+window.scrollToLandingTop = function scrollToLandingTop() {
+  const top = document.getElementById("landing-top");
+  if (top) {
+    top.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+};
+
+/**
+ * Auth-guarded "Create a Meeting" button on the landing page.
+ * - Logged-in users go straight to the create flow.
+ * - Guest/unauthenticated users are sent to signup first.
+ */
+window.landingCreateMeeting = function landingCreateMeeting() {
+  if (state.token) {
+    go("/meetings/create");
+  } else {
+    go("/signup");
+  }
+};
+
+
 // Dedicated meeting type selection handlers (used by type-selection card buttons)
 window.selectMeetingType = function(type) {
   state.createDraft.type  = type;
@@ -293,6 +354,7 @@ window.moderatorCreatePoll         = moderatorCreatePoll;
 window.moderatorMakeSpeaker        = moderatorMakeSpeaker;
 window.moderatorEndSession         = moderatorEndSession;
 window.moderatorGoLive             = moderatorGoLive;
+window.moderatorMarkAnswering      = moderatorMarkAnswering;
 
 // Home page handlers
 window.homejoinLive                = homejoinLive;
@@ -309,6 +371,9 @@ window.participantUpdateCharCount = participantUpdateCharCount;
 window.participantSubmitQuestion  = participantSubmitQuestion;
 window.participantUpvote          = participantUpvote;
 window.participantVotePoll        = participantVotePoll;
+window.participantTypingStart     = participantTypingStart;
+window.participantTypingStop      = participantTypingStop;
+window.participantReact           = participantReact;
 
 /* --- Data Loading & Router --------------------------------- */
 export async function loadData() {
@@ -537,8 +602,29 @@ export function render() {
   if (route === "/reset")          return renderReset();
   if (route === "/auth-callback")  { handleGoogleCallback(); return; }
 
-  // All other routes need data
-  if (!state.home) return;
+  // All other routes need data to be loaded first
+  if (!state.home) {
+    // Only show loading skeleton if the user is authenticated (has a token).
+    // If there's no token, there's nothing to load — send to welcome page.
+    if (!state.token) {
+      go("/welcome");
+      return;
+    }
+    // Show a slim loading skeleton while data loads — no blank white screen
+    const app = document.querySelector("#app");
+    if (app && !app.querySelector(".loading-skeleton")) {
+      app.innerHTML = `
+        <div class="loading-skeleton" style="display:grid;place-items:center;min-height:100vh;background:#f5f4ff">
+          <div style="text-align:center">
+            <div style="width:48px;height:48px;border-radius:50%;border:4px solid #e0dbff;border-top-color:#5b34ff;animation:spin .8s linear infinite;margin:0 auto 16px"></div>
+            <p style="color:#8890b0;font-size:14px;font-weight:500">Loading CollectiveVoice…</p>
+          </div>
+        </div>
+        <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+      `;
+    }
+    return;
+  }
 
   if (route === "/home")     return renderHome();
   if (route === "/meetings") return renderMeetings();
@@ -597,8 +683,14 @@ export function render() {
   }
   if (route.startsWith("/question/")) return renderQuestionDetail(route.split("/").pop());
   if (route === "/notifications") return renderNotifications();
+  if (route === "/help")          return renderHelp();
 
-  renderHome(); // Fallback
+  // Nothing matched — fall back to appropriate home depending on auth state
+  if (state.token) {
+    renderHome();
+  } else {
+    go("/welcome");
+  }
 }
 
 // Render auth page immediately on load (don't wait for data)
@@ -619,7 +711,14 @@ loadData().then(render).catch(error => {
 });
 
 window.addEventListener("hashchange", () => {
-  state.route = location.hash.replace("#", "") || "/home";
+  const hash = location.hash.replace("#", "");
+  // When hash is empty (e.g. browser Back pressed from a hash route to no-hash),
+  // restore an appropriate default:
+  //  - Authenticated users  → /home  (their dashboard)
+  //  - Unauthenticated users → /welcome (the landing page)
+  // This prevents pressing Back on the login page from showing the
+  // authenticated home dashboard when the user is not logged in.
+  state.route = hash || (state.token ? "/home" : "/welcome");
   render();
 });
 

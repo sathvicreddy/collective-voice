@@ -170,7 +170,27 @@ function renderTipsPanel() {
   `;
 }
 
-// ── Main Render ────────────────────────────────────────────────
+// ── Admin Announcement Banner ────────────────────────────────────────
+let _spkAdminAnnouncement = null;
+let _spkAnnouncementListenerAttached = false;
+
+function _spkRenderAdminBanner() {
+  if (!_spkAdminAnnouncement) return "";
+  const { subject, body, senderName } = _spkAdminAnnouncement;
+  return `
+    <div class="cv-admin-announcement" role="alert" aria-live="assertive" id="cvAdminAnnouncement">
+      <span class="cv-admin-announce-icon">📢</span>
+      <div class="cv-admin-announce-body">
+        <strong class="cv-admin-announce-subject">${subject || "Announcement"}</strong>
+        ${body ? `<span class="cv-admin-announce-text">${body}</span>` : ""}
+        ${senderName ? `<span class="cv-admin-announce-from">— ${senderName}</span>` : ""}
+      </div>
+      <button class="cv-admin-announce-dismiss" onclick="(function(){window._cvDismissAnnouncement&&window._cvDismissAnnouncement()})()" title="Dismiss">✕</button>
+    </div>
+  `;
+}
+
+// ── Main Render ────────────────────────────────────────────
 let _unsubscribe = null;
 
 export function renderSpeakerView(container) {
@@ -180,6 +200,26 @@ export function renderSpeakerView(container) {
     fetch(`/api/session/live?meetingId=${meetingId}`)
       .then(r => r.json())
       .then(data => dispatch({ type: "SESSION_LOADED", payload: data }));
+  }
+
+  // Register live admin announcement listener once per view mount
+  if (!_spkAnnouncementListenerAttached) {
+    _spkAnnouncementListenerAttached = true;
+    document.addEventListener("cv:meeting_announcement", (e) => {
+      _spkAdminAnnouncement = e.detail;
+      const existing = document.getElementById("cvAdminAnnouncement");
+      const bannerHtml = _spkRenderAdminBanner();
+      if (existing) {
+        existing.outerHTML = bannerHtml;
+      } else {
+        const sessionRoot = document.querySelector("#sessionViewContent");
+        if (sessionRoot) sessionRoot.insertAdjacentHTML("afterbegin", bannerHtml);
+      }
+      window._cvDismissAnnouncement = () => {
+        _spkAdminAnnouncement = null;
+        document.getElementById("cvAdminAnnouncement")?.remove();
+      };
+    });
   }
 
   if (_unsubscribe) _unsubscribe();
@@ -196,7 +236,13 @@ function paintSpeakerView(container, s) {
   // Speaker name from store (set when moderator clicks "Make Speaker")
   const speakerName = s.currentSpeaker?.name || state.profile?.user?.name || "Speaker";
 
+  // Answering banner — mirrors ParticipantView, gives speaker confirmation
+  const answeringBanner = s.nowAnswering?.text
+    ? `<div class="cv-answering-banner" role="status" aria-live="polite">🎤 <strong>Now answering:</strong> ${s.nowAnswering.text}</div>`
+    : "";
+
   container.innerHTML = `
+    ${answeringBanner}
     <!-- Session Header -->
     <div class="spk-header">
       <div>
@@ -235,6 +281,8 @@ function paintSpeakerView(container, s) {
 
 export function teardownSpeakerView() {
   if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+  _spkAdminAnnouncement = null;
+  _spkAnnouncementListenerAttached = false;
 }
 
 // ── Global Handlers ───────────────────────────────────────────

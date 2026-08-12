@@ -13,6 +13,9 @@ const { json, readBody } = require("../utils/helpers");
 const { processQuestion } = require("../nlp/engine");
 const { recomputeScores } = require("../nlp/scoring");
 const { handleAuthRequest, verifyToken } = require("./auth");
+const { buildMeetingDigest }             = require("../utils/reportSummary");
+const { sendDigestEmail }                = require("../utils/mailer");
+const { notifyUser, notifyAdmins }       = require("../utils/notify");
 
 // ── NLP in-memory cache ───────────────────────────────────────
 // Questions are stored in Prisma but kept in RAM for fast NLP access.
@@ -431,6 +434,16 @@ async function handleApiRequest(req, res) {
 
     const { _embedding: _emb2, ...cachedForClient } = cached ?? dbRowToCluster(row);
     broadcast("question_upvoted", { id, votes: row.votes, score: cachedForClient.score ?? row.score }, meetingId);
+
+    // §3: Upvote milestone — notify question author every 10 upvotes
+    if (!existingVote && row.votes > 0 && row.votes % 10 === 0 && row.askedById) {
+      notifyUser(row.askedById, {
+        type:  "Questions",
+        title: `Your question reached ${row.votes} upvotes!`,
+        body:  `"${row.text.slice(0, 80)}" hit ${row.votes} upvotes.`
+      }).catch(() => {});
+    }
+
     return json(res, 200, { question: cachedForClient, voted: !existingVote });
   }
 
@@ -478,6 +491,16 @@ async function handleApiRequest(req, res) {
     recomputeScores(meetingId, cache);
 
     broadcast("question_status_changed", { id, status: "Answered" }, meetingId);
+
+    // §3: Notify question author that their question was answered
+    if (row.askedById) {
+      notifyUser(row.askedById, {
+        type:  "Questions",
+        title: "Your question was answered!",
+        body:  `"${row.text.slice(0, 80)}" was marked as answered.`
+      }).catch(() => {});
+    }
+
     return json(res, 200, { question: cached ?? dbRowToCluster(row) });
   }
 
@@ -501,6 +524,18 @@ async function handleApiRequest(req, res) {
     recomputeScores(meetingId, cache);
 
     broadcast("question_status_changed", { id, status: newStatus }, meetingId);
+
+    // §3: Notify admins when a question is flagged
+    if (newStatus === "Flagged") {
+      notifyAdmins({
+        type:      "content",
+        priority:  "high",
+        title:     "Question flagged in meeting",
+        body:      `Question flagged: "${row.text.slice(0, 100)}"`,
+        relatedId: id
+      }).catch(() => {});
+    }
+
     return json(res, 200, { question: cached ?? dbRowToCluster(row) });
   }
 
@@ -612,13 +647,57 @@ async function handleApiRequest(req, res) {
     // Also broadcast globally (null meetingId) so participants watching before joining a WS room also get it
     broadcast("meeting_started",        { meetingId: id, status: "live" }, null);
     broadcast("meeting_status_changed", { meetingId: id, status: "live" }, null);
+
+    // §3: Notify all enrolled users that the meeting is now live
+    // Use createMany for the DB writes, then push WS individually per connected user.
+    // createMany does not return created rows in all Prisma versions, so we construct
+    // the WS payload manually rather than relying on the return value.
+    (async () => {
+      try {
+        const enrollments = await db.meetingEnrollment.findMany({
+          where:  { meetingId: id },
+          select: { userId: true }
+        });
+        if (enrollments.length === 0) return;
+        const notifData = enrollments.map(e => ({
+          userId:  e.userId,
+          type:    "Meeting Updates",
+          title:   `Meeting is now live: ${updated.title}`,
+          body:    `"${updated.title}" has started. Join now!`,
+          time:    "Just now",
+          source:  "system",
+          read:    false
+        }));
+        await db.notification.createMany({ data: notifData, skipDuplicates: true });
+        // Push WS individually to each enrolled connected user
+        const { pushNotificationToUser } = require("../../server");
+        if (pushNotificationToUser) {
+          for (const e of enrollments) {
+            pushNotificationToUser(e.userId, {
+              type:  "Meeting Updates",
+              title: `Meeting is now live: ${updated.title}`,
+              body:  `"${updated.title}" has started. Join now!`,
+              time:  "Just now",
+              read:  false,
+              source: "system"
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[notify] meeting-live fan-out error:", err.message);
+      }
+    })();
+
     return json(res, 200, { meeting: updated });
   }
 
   // ── POST /api/sessions/:id/end ──────────────────────────
   if (req.method === "POST" && url.pathname.match(/^\/api\/sessions\/[^/]+\/end$/)) {
     const id      = url.pathname.split("/")[3];
-    const meeting = await db.meeting.findUnique({ where: { id } });
+    const meeting = await db.meeting.findUnique({
+      where: { id },
+      include: { owner: { select: { email: true, name: true } } }
+    });
     if (!meeting) return json(res, 404, { error: "Meeting not found" });
     const authErr = await requireModerator(req, meeting);
     if (authErr === "401") return json(res, 401, { error: "Unauthorized." });
@@ -630,6 +709,12 @@ async function handleApiRequest(req, res) {
     broadcast("meeting_status_changed", { meetingId: id, status: "conducted" }, id);
     broadcast("meeting_ended",          { meetingId: id, status: "conducted" }, null);
     broadcast("meeting_status_changed", { meetingId: id, status: "conducted" }, null);
+
+    // Fire-and-forget post-meeting digest email — never blocks the HTTP response
+    buildMeetingDigest(id)
+      .then(summary => sendDigestEmail({ ...meeting, ...updated }, summary))
+      .catch(err => console.error("[Digest] Email send failed:", err.message));
+
     return json(res, 200, { meeting: updated });
   }
 
@@ -746,7 +831,99 @@ async function handleApiRequest(req, res) {
     return json(res, 200, { deleted: true });
   }
 
-  // ── GET /api/activity ────────────────────────────────────
+  // ── GET /api/templates ───────────────────────────────────────
+  // List all templates owned by the authenticated user.
+  if (req.method === "GET" && url.pathname === "/api/templates") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    const templates = await db.meetingTemplate.findMany({
+      where:   { ownerId: auth.user.id },
+      orderBy: { createdAt: "desc" }
+    });
+    return json(res, 200, { templates });
+  }
+
+  // ── POST /api/templates ──────────────────────────────────────
+  if (req.method === "POST" && url.pathname === "/api/templates") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    const body = await readBody(req);
+    const template = await db.meetingTemplate.create({
+      data: {
+        title:        String(body.title       || "").slice(0, 200),
+        category:     String(body.category    || "").slice(0, 100),
+        duration:     String(body.duration    || "").slice(0, 50),
+        settingsJson: JSON.stringify(body.settingsJson || {}),
+        ownerId:      auth.user.id
+      }
+    });
+    return json(res, 201, { template });
+  }
+
+  // ── GET /api/templates/:id ───────────────────────────────────
+  if (req.method === "GET" && url.pathname.match(/^\/api\/templates\/[^/]+$/)) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    const tid = url.pathname.split("/").pop();
+    const template = await db.meetingTemplate.findUnique({ where: { id: tid } });
+    if (!template) return json(res, 404, { error: "Template not found" });
+    if (template.ownerId !== auth.user.id) return json(res, 403, { error: "Forbidden." });
+    return json(res, 200, { template });
+  }
+
+  // ── DELETE /api/templates/:id ────────────────────────────────
+  if (req.method === "DELETE" && url.pathname.match(/^\/api\/templates\/[^/]+$/)) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    const tid = url.pathname.split("/").pop();
+    const template = await db.meetingTemplate.findUnique({ where: { id: tid } });
+    if (!template) return json(res, 404, { error: "Template not found" });
+    if (template.ownerId !== auth.user.id) return json(res, 403, { error: "Forbidden." });
+    await db.meetingTemplate.delete({ where: { id: tid } });
+    return json(res, 200, { deleted: true });
+  }
+
+  // ── GET /api/admin/meetings/:id/export.csv ───────────────────
+  // Admin-facing CSV export for meeting Q&A data.
+  // TODO(pdf-export): PDF export needs a library decision (e.g. pdfkit) — deferred
+  if (req.method === "GET" && url.pathname.match(/^\/api\/admin\/meetings\/[^/]+\/export\.csv$/)) {
+    const segs      = url.pathname.split("/");  // ["","api","admin","meetings","<id>","export.csv"]
+    const meetingId = segs[4];
+    const meeting   = await db.meeting.findUnique({ where: { id: meetingId } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found" });
+
+    const questions = await db.question.findMany({
+      where:   { meetingId },
+      orderBy: { score: "desc" }
+    });
+
+    // CSV serialiser — wrap all string values in double-quotes, escape embedded quotes as ""
+    const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["Rank", "Question", "Votes", "Status", "Asked By", "Similar Grouped", "Created At"].join(",");
+    const rows   = questions.map((q, i) => {
+      const similar = Math.max(0, JSON.parse(q.membersJson || "[]").length - 1);
+      return [
+        i + 1,
+        esc(q.text),
+        q.votes || 0,
+        esc(q.status),
+        esc(q.askedByName || "Anonymous"),
+        similar,
+        esc(new Date(q.createdAt).toISOString())
+      ].join(",");
+    });
+
+    const csv = [header, ...rows].join("\n");
+    res.writeHead(200, {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="cv-${meeting.code}-${Date.now()}.csv"`,
+      "Cache-Control": "no-store"
+    });
+    res.end(csv);
+    return;
+  }
+
+
   if (req.method === "GET" && url.pathname === "/api/activity") {
     const auth      = await requireAuth(req);
     const meetingId = url.searchParams.get("meetingId") || "m_ai_education";
@@ -947,7 +1124,99 @@ async function handleApiRequest(req, res) {
     return json(res, 200, { notifications });
   }
 
-  // ── GET /api/admin/users ── List users ──────────────────────────
+  // ── PATCH /api/notifications/mark-read ──────────────────
+  // Marks all (or a single) notification as read for the current user.
+  // Body: { id?: string }  — omit `id` to mark all as read.
+  if (req.method === "PATCH" && url.pathname === "/api/notifications/mark-read") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+
+    const body = await readBody(req).catch(() => ({}));
+    const { id } = body;
+
+    if (id) {
+      // Mark a single notification as read
+      await db.notification.updateMany({
+        where: { id, userId: auth.user.id },
+        data:  { read: true }
+      }).catch(() => {});
+    } else {
+      // Mark all as read
+      await db.notification.updateMany({
+        where: { userId: auth.user.id, read: false },
+        data:  { read: true }
+      }).catch(() => {});
+    }
+    return json(res, 200, { ok: true });
+  }
+
+  // ── GET /api/user/export ─────────────────────────────────
+  // Returns all of the authenticated user's data as a JSON blob.
+  // The frontend triggers a file download from this response.
+  if (req.method === "GET" && url.pathname === "/api/user/export") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    const { user } = auth;
+
+    const [meetings, questions, notifications, enrollments] = await Promise.all([
+      db.meeting.findMany({ where: { ownerId: user.id } }),
+      db.question.findMany({ where: { askedById: user.id } }),
+      db.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
+      db.meetingEnrollment.findMany({ where: { userId: user.id } }).catch(() => [])
+    ]);
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      profile: {
+        id:        user.id,
+        name:      user.name,
+        email:     user.email,
+        createdAt: user.createdAt
+      },
+      meetings,
+      questions,
+      notifications,
+      enrollments
+    };
+
+    const filename = `collectivevoice-data-${user.id.slice(0, 8)}-${Date.now()}.json`;
+    res.writeHead(200, {
+      "Content-Type":        "application/json; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control":       "no-store"
+    });
+    res.end(JSON.stringify(exportData, null, 2));
+    return;
+  }
+
+  // ── DELETE /api/user/account ─────────────────────────────
+  // Permanently deletes the authenticated user's own account.
+  // Requires the user's current password as confirmation (unless Google-only).
+  if (req.method === "DELETE" && url.pathname === "/api/user/account") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    const { user } = auth;
+
+    const body = await readBody(req).catch(() => ({}));
+    const { password } = body;
+
+    // Password accounts must confirm their password
+    if (user.passwordHash) {
+      if (!password) return json(res, 400, { error: "Please enter your password to confirm account deletion." });
+      const match = await require("bcryptjs").compare(password, user.passwordHash);
+      if (!match) return json(res, 400, { error: "Incorrect password. Account not deleted." });
+    }
+
+    // Delete all user data (Prisma cascades handle most relations)
+    await db.user.delete({ where: { id: user.id } }).catch(err => {
+      console.error("[API] Account deletion failed:", err.message);
+      throw err;
+    });
+
+    return json(res, 200, { ok: true, message: "Account permanently deleted." });
+  }
+
+
   // ?view=customers  → returns customer/regular users (for the Users admin page)
   // (no param)       → returns admin+superadmin users  (for Manage Admins page)
   if (req.method === "GET" && url.pathname === "/api/admin/users") {
@@ -956,14 +1225,24 @@ async function handleApiRequest(req, res) {
     if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
       return json(res, 403, { error: "Admin access required." });
     }
-    const view = url.searchParams.get("view");
-    const where = view === "customers"
-      ? { role: { notIn: ["admin", "superadmin"] } }   // customers / regular users
-      : { role: { in:    ["admin", "superadmin"] } };   // admins only (Manage Admins)
+    const view   = url.searchParams.get("view");
+    const search = url.searchParams.get("search")?.trim() || "";
+    const roleWhere = view === "customers"
+      ? { role: { notIn: ["admin", "superadmin"] } }
+      : { role: { in:    ["admin", "superadmin"] } };
+    // Optional search filter — case-insensitive substring on name or email
+    const searchWhere = search
+      ? { OR: [
+          { name:  { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ]}
+      : {};
+    const where = { AND: [roleWhere, searchWhere] };
     const users = await db.user.findMany({
       where,
       select:  { id: true, name: true, email: true, role: true, picture: true, createdAt: true, googleId: true },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      take: search ? 20 : undefined, // limit autocomplete results
     });
     return json(res, 200, { users });
   }
@@ -1006,6 +1285,23 @@ async function handleApiRequest(req, res) {
     await writeAudit(auth, "user.delete", "danger", "User", target.name, `userId:${targetId}`,
       { email: target.email }, req);
     return json(res, 200, { ok: true });
+  }
+
+  // ── GET /api/admin/users/:id/notifications ── User notification history ──
+  const userNotifsMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/notifications$/);
+  if (req.method === "GET" && userNotifsMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin access required." });
+    }
+    const targetUserId = userNotifsMatch[1];
+    const notifications = await db.notification.findMany({
+      where: { userId: targetUserId },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+    });
+    return json(res, 200, { notifications });
   }
 
   // ── GET /api/admin/stats ── Platform-wide stats ──
@@ -1704,6 +2000,332 @@ async function handleApiRequest(req, res) {
     }
 
     return json(res, 200, { meeting: updatedMeeting });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // §4 — Admin → User Messaging
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── POST /api/admin/messages ── Send a message to users ──
+  if (req.method === "POST" && url.pathname === "/api/admin/messages") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin access required." });
+    }
+
+    const body = await readBody(req);
+    const { subject, body: msgBody, audience, targetUserId, meetingId: targetMeetingId } = body;
+    if (!subject?.trim()) return json(res, 400, { error: "subject is required." });
+    if (!msgBody?.trim())  return json(res, 400, { error: "body is required." });
+    const validAudiences = ["single", "all_users", "meeting_participants", "admins"];
+    if (!validAudiences.includes(audience)) {
+      return json(res, 400, { error: `audience must be one of: ${validAudiences.join(", ")}` });
+    }
+
+    // Superadmin-only audiences — enforced server-side
+    if ((audience === "all_users" || audience === "admins") && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Only superadmins can message all users or all admins." });
+    }
+    if (audience === "single" && !targetUserId) {
+      return json(res, 400, { error: "targetUserId is required for audience: single." });
+    }
+    if (audience === "meeting_participants" && !targetMeetingId) {
+      return json(res, 400, { error: "meetingId is required for audience: meeting_participants." });
+    }
+
+    // Resolve recipient list
+    let recipientIds = [];
+    if (audience === "single") {
+      const target = await db.user.findUnique({ where: { id: targetUserId }, select: { id: true } });
+      if (!target) return json(res, 404, { error: "Target user not found." });
+      recipientIds = [targetUserId];
+    } else if (audience === "all_users") {
+      const users = await db.user.findMany({ select: { id: true } });
+      recipientIds = users.map(u => u.id).filter(id => id !== auth.user.id);
+    } else if (audience === "meeting_participants") {
+      // Check meeting exists and the caller can moderate it
+      const meeting = await db.meeting.findUnique({ where: { id: targetMeetingId } });
+      if (!meeting) return json(res, 404, { error: "Meeting not found." });
+      // Regular admins can only message participants of meetings they own
+      if (auth.user.role !== "superadmin" && meeting.ownerId !== auth.user.id) {
+        return json(res, 403, { error: "You can only message participants of meetings you own." });
+      }
+      // Fetch both Participant.userId and MeetingEnrollment.userId
+      const [parts, enrolls] = await Promise.all([
+        db.participant.findMany({ where: { meetingId: targetMeetingId, userId: { not: null } }, select: { userId: true } }),
+        db.meetingEnrollment.findMany({ where: { meetingId: targetMeetingId }, select: { userId: true } }),
+      ]);
+      const ids = new Set([...parts.map(p => p.userId), ...enrolls.map(e => e.userId)]);
+      ids.delete(auth.user.id);
+      recipientIds = [...ids];
+    } else if (audience === "admins") {
+      const admins = await db.user.findMany({
+        where: { role: { in: ["admin", "superadmin"] } },
+        select: { id: true }
+      });
+      recipientIds = admins.map(u => u.id).filter(id => id !== auth.user.id);
+    }
+
+    if (recipientIds.length === 0) {
+      return json(res, 200, { ok: true, recipientCount: 0, message: "No recipients to notify." });
+    }
+
+    // Create AdminMessage audit log row
+    const adminMsg = await db.adminMessage.create({
+      data: {
+        senderId:       auth.user.id,
+        subject:        subject.trim(),
+        body:           msgBody.trim(),
+        audience,
+        targetUserId:   audience === "single" ? targetUserId : null,
+        meetingId:      audience === "meeting_participants" ? targetMeetingId : null,
+        recipientCount: recipientIds.length,
+        recipientsJson: JSON.stringify(recipientIds),
+      }
+    });
+
+    // Batch-create Notification rows for all recipients
+    const notifRows = recipientIds.map(uid => ({
+      userId:   uid,
+      type:     "Admin Message",
+      title:    subject.trim(),
+      body:     msgBody.trim(),
+      time:     "Just now",
+      source:   "admin",
+      senderId: auth.user.id,
+      read:     false,
+    }));
+    await db.notification.createMany({ data: notifRows, skipDuplicates: true });
+
+    // Push live WS to each connected recipient
+    // TODO(product-decision): confirm whether superadmin broadcasts should bypass
+    // the adminMessages preference opt-out (currently they do NOT bypass it —
+    // the createMany above writes rows regardless, but the pref is only checked
+    // in notifyUser() which is not used here for performance reasons).
+    try {
+      const { pushNotificationToUser, broadcast } = require("../../server");
+      if (pushNotificationToUser) {
+        for (const uid of recipientIds) {
+          pushNotificationToUser(uid, {
+            type:     "Admin Message",
+            title:    subject.trim(),
+            body:     msgBody.trim(),
+            time:     "Just now",
+            source:   "admin",
+            senderId: auth.user.id,
+            senderName: auth.user.name || "Admin",
+            read:     false,
+          });
+        }
+      }
+      // For meeting-participant messages: additionally broadcast a live
+      // in-meeting announcement to every socket active in that meeting room.
+      // This is separate from the per-user Notification WS push above so that
+      // participants who haven't set up a personal WS session (e.g. guests)
+      // also see the announcement banner immediately in the session UI.
+      if (audience === "meeting_participants" && targetMeetingId && broadcast) {
+        broadcast({
+          event: "meeting_announcement",
+          data: {
+            subject:   subject.trim(),
+            body:      msgBody.trim(),
+            senderName: auth.user.name || "Admin",
+            sentAt:    new Date().toISOString(),
+          },
+          meetingId: targetMeetingId,
+        });
+      }
+    } catch (wsErr) {
+      console.error("[admin/messages] WS push error:", wsErr.message);
+      /* WS push is best-effort — response still succeeds */
+    }
+
+    return json(res, 200, { ok: true, recipientCount: recipientIds.length, messageId: adminMsg.id });
+  }
+
+  // ── GET /api/admin/meetings/:id/messages ── Per-meeting message history ──
+  const mtgMsgMatch = url.pathname.match(/^\/api\/admin\/meetings\/([^/]+)\/messages$/);
+  if (req.method === "GET" && mtgMsgMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin access required." });
+    }
+    const meetingId = mtgMsgMatch[1];
+    const meeting = await db.meeting.findUnique({ where: { id: meetingId } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found." });
+    // Regular admins can only view message history for their own meetings
+    if (auth.user.role !== "superadmin" && meeting.ownerId !== auth.user.id) {
+      return json(res, 403, { error: "Forbidden." });
+    }
+    const messages = await db.adminMessage.findMany({
+      where: { audience: "meeting_participants", meetingId },
+      orderBy: { createdAt: "desc" },
+      include: { sender: { select: { id: true, name: true, role: true } } }
+    });
+    return json(res, 200, { messages });
+  }
+
+  // ── GET /api/admin/meetings/:id/notifications ── Notifications for meeting participants ──
+  const mtgNotifMatch = url.pathname.match(/^\/api\/admin\/meetings\/([^/]+)\/notifications$/);
+  if (req.method === "GET" && mtgNotifMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin access required." });
+    }
+    const meetingId = mtgNotifMatch[1];
+    const meeting = await db.meeting.findUnique({ where: { id: meetingId } });
+    if (!meeting) return json(res, 404, { error: "Meeting not found." });
+    // Get participant userIds for this meeting (only those with a linked user account)
+    const participants = await db.participant.findMany({
+      where: { meetingId, userId: { not: null } },
+      select: { userId: true, name: true },
+    });
+    const userIds = [...new Set(participants.map(p => p.userId).filter(Boolean))];
+    if (userIds.length === 0) return json(res, 200, { notifications: [] });
+    // Fetch the most recent notifications for those users
+    const notifications = await db.notification.findMany({
+      where: { userId: { in: userIds } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+    return json(res, 200, { notifications });
+  }
+
+  // ── GET /api/admin/messages ── List sent messages ──
+  if (req.method === "GET" && url.pathname === "/api/admin/messages") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin access required." });
+    }
+    // Superadmin sees all; regular admin sees only their own messages (server-side filter)
+    const where = auth.user.role === "superadmin" ? {} : { senderId: auth.user.id };
+    const messages = await db.adminMessage.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: { sender: { select: { id: true, name: true, role: true } } }
+    });
+    return json(res, 200, { messages });
+  }
+
+  // ── GET /api/admin/messages/:id/recipients ── Recipient detail ──
+  const msgRecipientsMatch = url.pathname.match(/^\/api\/admin\/messages\/([^/]+)\/recipients$/);
+  if (req.method === "GET" && msgRecipientsMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin access required." });
+    }
+    const msgId = msgRecipientsMatch[1];
+    const msg = await db.adminMessage.findUnique({ where: { id: msgId } });
+    if (!msg) return json(res, 404, { error: "Message not found." });
+    // Regular admins can only view their own message recipients
+    if (auth.user.role !== "superadmin" && msg.senderId !== auth.user.id) {
+      return json(res, 403, { error: "Forbidden." });
+    }
+    const recipientIds = safeJson(msg.recipientsJson, []);
+    const users = await db.user.findMany({
+      where: { id: { in: recipientIds } },
+      select: { id: true, name: true, email: true, role: true }
+    });
+    return json(res, 200, { recipients: users, recipientCount: msg.recipientCount });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // §6 — Admin Notification CRUD (real data for admin/pages/notifications.js)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── GET /api/admin/notifications ──
+  if (req.method === "GET" && url.pathname === "/api/admin/notifications") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin only." });
+    }
+    const notifications = await db.adminNotification.findMany({ orderBy: { createdAt: "desc" } });
+    return json(res, 200, { notifications });
+  }
+
+  // ── PATCH /api/admin/notifications/mark-read ──
+  if (req.method === "PATCH" && url.pathname === "/api/admin/notifications/mark-read") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin only." });
+    }
+    const body = await readBody(req).catch(() => ({}));
+    if (body.id) {
+      await db.adminNotification.update({ where: { id: body.id }, data: { read: true } }).catch(() => {});
+    } else {
+      await db.adminNotification.updateMany({ where: { read: false }, data: { read: true } }).catch(() => {});
+    }
+    return json(res, 200, { ok: true });
+  }
+
+  // ── DELETE /api/admin/notifications/:id ── Single delete ──
+  const adminNotifDeleteMatch = url.pathname.match(/^\/api\/admin\/notifications\/([^/]+)$/);
+  if (req.method === "DELETE" && adminNotifDeleteMatch) {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin only." });
+    }
+    await db.adminNotification.delete({ where: { id: adminNotifDeleteMatch[1] } }).catch(() => {});
+    return json(res, 200, { ok: true });
+  }
+
+  // ── DELETE /api/admin/notifications ── Clear all (writes audit log) ──
+  if (req.method === "DELETE" && url.pathname === "/api/admin/notifications") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    if (auth.user.role !== "admin" && auth.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin only." });
+    }
+    const count = await db.adminNotification.count();
+    await db.adminNotification.deleteMany({});
+    await writeAudit(auth, "notification.clear_all", "danger", "AdminNotification",
+      "All admin notifications", "", { deletedCount: count }, req);
+    return json(res, 200, { ok: true, deletedCount: count });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // §7 — Notification Preferences
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── GET /api/notifications/preferences ──
+  if (req.method === "GET" && url.pathname === "/api/notifications/preferences") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    // Return existing prefs or defaults (upsert read: return defaults if no row)
+    const prefs = await db.notificationPreference.findUnique({ where: { userId: auth.user.id } });
+    return json(res, 200, {
+      preferences: prefs ?? {
+        userId: auth.user.id, meetingUpdates: true, questionActivity: true,
+        systemAlerts: true, adminMessages: true, emailDigest: false
+      }
+    });
+  }
+
+  // ── PATCH /api/notifications/preferences ──
+  if (req.method === "PATCH" && url.pathname === "/api/notifications/preferences") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+    const body = await readBody(req).catch(() => ({}));
+    const allowed = ["meetingUpdates", "questionActivity", "systemAlerts", "adminMessages", "emailDigest"];
+    const data = {};
+    for (const key of allowed) {
+      if (typeof body[key] === "boolean") data[key] = body[key];
+    }
+    const prefs = await db.notificationPreference.upsert({
+      where:  { userId: auth.user.id },
+      update: data,
+      create: { userId: auth.user.id, ...data }
+    });
+    return json(res, 200, { preferences: prefs });
   }
 
   return json(res, 404, { error: "API route not found" });

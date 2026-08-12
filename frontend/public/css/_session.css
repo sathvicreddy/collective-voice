@@ -2997,3 +2997,173 @@
   height: 13px;
 }
 
+/* ============================================================
+   Typing Indicator (Section 2)
+   ============================================================ */
+.ptc-typing-indicator {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, .75);
+  font-style: italic;
+  animation: typingPulse 2s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ptc-typing-indicator::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.6);
+  animation: typingDot 1.2s ease-in-out infinite;
+}
+@keyframes typingDot {
+  0%, 80%, 100% { opacity: .3; transform: scale(.7); }
+  40%           { opacity: 1;  transform: scale(1.1); }
+}
+@keyframes typingPulse {
+  0%, 100% { opacity: .8; }
+  50%      { opacity: 1;  }
+}
+
+/* ============================================================
+   Reaction Bar (Section 3)
+   ============================================================ */
+.ptc-reaction-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.ptc-reaction-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: 1px solid var(--line, #e8e8f4);
+  border-radius: var(--radius-full, 9999px);
+  padding: 3px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--transition, .22s);
+  color: var(--ink, #111936);
+  line-height: 1;
+}
+.ptc-reaction-btn:hover {
+  background: var(--soft, #f6f4ff);
+  border-color: var(--primary-light, #7c5cff);
+  transform: scale(1.1);
+}
+.ptc-reaction-btn:active {
+  transform: scale(.95);
+}
+.ptc-reaction-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted, #68708d);
+  min-width: 12px;
+}
+
+[data-theme="dark"] .ptc-reaction-btn {
+  border-color: var(--line);
+  color: var(--ink);
+}
+[data-theme="dark"] .ptc-reaction-btn:hover {
+  background: var(--soft);
+}
+
+/* ============================================================
+   Answering Now Banner (Section 4)
+   ============================================================ */
+.cv-answering-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--primary, #5b34ff);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius, 12px);
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-primary, 0 10px 24px rgba(91,52,255,.22));
+  animation: answeringSlide .35s cubic-bezier(.34,1.56,.64,1);
+}
+.cv-answering-banner strong {
+  font-weight: 700;
+}
+@keyframes answeringSlide {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   Moderator "▶ Answering" Button (Section 4)
+   ============================================================ */
+.mod-btn-answering {
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm, 8px);
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition, .22s);
+  opacity: 1;
+}
+.mod-btn-answering:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.mod-btn-answering:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ============================================================
+   Admin Meeting Announcement Banner  (.cv-admin-announcement)
+   Live message from admin scoped to this meeting room.
+   Visually distinct from .cv-answering-banner (indigo/purple vs primary blue).
+   ============================================================ */
+.cv-admin-announcement {
+  position: sticky;
+  top: 0;
+  z-index: 51;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  color: #e0e7ff;
+  font-size: 13.5px;
+  border-radius: var(--radius, 12px);
+  margin-bottom: 14px;
+  border-left: 4px solid #818cf8;
+  box-shadow: 0 8px 24px rgba(49,46,129,.35);
+  animation: adminAnnounceSlide .4s cubic-bezier(.34,1.56,.64,1);
+}
+.cv-admin-announce-icon { font-size: 20px; flex-shrink: 0; line-height: 1; margin-top: 1px; }
+.cv-admin-announce-body { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.cv-admin-announce-subject { font-size: 14px; font-weight: 700; color: #fff; display: block; }
+.cv-admin-announce-text   { display: block; color: #c7d2fe; font-size: 13px; line-height: 1.45; margin-top: 2px; }
+.cv-admin-announce-from   { display: block; font-size: 11px; color: #a5b4fc; margin-top: 4px; font-style: italic; }
+.cv-admin-announce-dismiss {
+  background: rgba(255,255,255,.12); border: none; color: #c7d2fe;
+  width: 26px; height: 26px; border-radius: 50%; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background .15s; margin-top: 1px;
+}
+.cv-admin-announce-dismiss:hover { background: rgba(255,255,255,.22); color: #fff; }
+@keyframes adminAnnounceSlide {
+  from { opacity: 0; transform: translateY(-14px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}

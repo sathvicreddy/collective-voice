@@ -20,6 +20,7 @@
   background: #f5f4ff;
   font-family: 'Inter', sans-serif;
   animation: fadeIn .4s ease-out;
+  scroll-behavior: smooth;
 }
 
 /* ---- Top Navbar ---- */
@@ -98,6 +99,12 @@
 .landing-nav-link:hover {
   color: #5b34ff;
   background: #f0eeff;
+}
+
+.landing-nav-link.active {
+  color: #5b34ff;
+  background: #f0eeff;
+  font-weight: 600;
 }
 
 .landing-nav-actions {
@@ -581,6 +588,31 @@
   color: #8890b0;
   display: block;
   margin-top: 3px;
+}
+
+
+/* Stat counter animation */
+.landing-stat-value {
+  transition: color .3s;
+}
+
+.landing-stat-item {
+  transition: transform .2s;
+  cursor: default;
+}
+
+.landing-stat-item:hover {
+  transform: translateY(-2px);
+}
+
+/* Step card hover */
+.ls-step {
+  transition: box-shadow .3s, transform .3s;
+}
+
+.ls-step:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 48px rgba(91, 52, 255, 0.1);
 }
 
 
@@ -1813,7 +1845,10 @@
   color: white;
 }
 
-MOBILE — Auth Screen (Login/Signup)============================================================*/ .mobile-auth {
+/* ============================================================
+   MOBILE — Auth Screen (Login/Signup)
+   ============================================================ */
+.mobile-auth {
   min-height: 100vh;
   background: #f8f7ff;
   display: flex;

@@ -6,6 +6,11 @@
 "use strict";
 
 const db = require("./db/client");
+// lazy-require notify helper to avoid circular deps
+function _notifyUser(userId, opts) {
+  try { require("./utils/notify").notifyUser(userId, opts).catch(() => {}); } catch { /* ignore */ }
+}
+
 
 const GRACE_PERIOD_MS = parseInt(process.env.GRACE_PERIOD_MINUTES || "15") * 60 * 1000;
 const TICK_MS         = 60_000; // every 60 seconds
@@ -67,7 +72,7 @@ async function checkOverdueMeetings() {
 
     console.log(`[Scheduler] Grace period started for meeting "${m.title}" (${m.id}), ends at ${graceEndsAt.toISOString()}`);
 
-    // Notify only the host
+    // Notify only the host via WS broadcast
     if (_broadcast && m.ownerId) {
       _broadcast("grace_period_started", {
         meetingId:   m.id,
@@ -76,6 +81,13 @@ async function checkOverdueMeetings() {
         graceMs:     GRACE_PERIOD_MS
       }, m.id, { onlyUserId: m.ownerId });
     }
+
+    // §3: Persistent notification for host (survives page reloads)
+    _notifyUser(m.ownerId, {
+      type:  "Meeting Updates",
+      title: `Grace period started: ${m.title}`,
+      body:  `Your meeting didn't start on time. You have ${GRACE_PERIOD_MS / 60000} minutes to start it or it will expire.`
+    });
   }
 }
 

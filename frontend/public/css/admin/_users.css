@@ -112,3 +112,5 @@
 .udp-btn.danger { color: var(--danger); border-color: rgba(229,64,64,.25); }
 .udp-btn.danger:hover { background: var(--danger-light); border-color: var(--danger); }
 .udp-btn.role, .udp-btn.reset { color: var(--ink); }
+.udp-btn.message { color: #5b34ff; border-color: rgba(91,52,255,.25); }
+.udp-btn.message:hover { background: #f0ecff; border-color: #5b34ff; }

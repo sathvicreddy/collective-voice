@@ -17,6 +17,7 @@ const state = {
   activity: null,
   profile: null,
   notifications: [],
+  notifPrefs: null,  // Loaded from /api/notifications/preferences — null until fetched
   sessionAnalytics: null,
   // The meeting the user looked up via code (used by preview/waiting screens)
   joinTarget: null,

@@ -4,8 +4,9 @@
    client-side writes (submit_question, upvote, mark_* etc.)
    ============================================================ */
 "use strict";
-import { dispatch } from "../store/SessionStore.js";
-import { state }    from "../state.js";
+import { dispatch }                                        from "../store/SessionStore.js";
+import { state }                                           from "../state.js";
+import { flushOfflineQueue, queueOfflineQuestion }         from "../utils/pwa.js";
 
 const RECONNECT_DELAY_MS    = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -48,6 +49,9 @@ class SessionSocket {
       if (meetingId) {
         this.joinMeeting(meetingId);
       }
+
+      // Flush any questions queued while offline
+      flushOfflineQueue((event, data) => this._ws.send(JSON.stringify({ event, data })));
     };
 
     this._ws.onmessage = (ev) => {
@@ -203,8 +207,115 @@ class SessionSocket {
         break;
       }
 
+      // Live typing indicator — count broadcast from server
+      case "typing_update":
+        dispatch({ type: "TYPING_UPDATED", payload: data });
+        break;
+
+      // Per-question emoji reaction counts
+      case "reaction_updated":
+        dispatch({ type: "REACTION_UPDATED", payload: data });
+        break;
+
+      // Moderator marked a question "Answering" — show spotlight banner
+      case "now_answering":
+        dispatch({ type: "NOW_ANSWERING", payload: data || null });
+        document.dispatchEvent(new CustomEvent("cv:now_answering", { detail: data }));
+        break;
+
+      // Clear banner when question status changes away from Answering
+      case "question_status_changed":
+        dispatch({ type: "QUESTION_STATUS", payload: data });
+        // If we had a banner for this question and status changed, clear it
+        if (data.status !== "Answering") {
+          dispatch({ type: "NOW_ANSWERING", payload: null });
+        }
+        break;
+
+      // ── Live notifications (§5) ────────────────────────────────────────────
+      // The server pushes this event to a specific user's WS connections
+      // whenever a new Notification row is created for them.
+      case "notification": {
+        // Prepend to in-memory notification list
+        if (!state.notifications) state.notifications = [];
+        state.notifications.unshift(data);
+
+        const unreadCount = state.notifications.filter(n => n.read === false).length;
+
+        // ── Update desktop topbar badge ──
+        const desktopBadge = document.querySelector(".desktop-notif-badge");
+        if (desktopBadge) {
+          desktopBadge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+          desktopBadge.style.display = unreadCount > 0 ? "" : "none";
+        } else if (unreadCount > 0) {
+          // Badge doesn't exist yet — create it inside the desktop bell button
+          const bellBtn = document.querySelector(".desktop-notif-btn");
+          if (bellBtn) {
+            const newBadge = document.createElement("span");
+            newBadge.className = "desktop-notif-badge";
+            newBadge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+            bellBtn.appendChild(newBadge);
+          }
+        }
+
+        // ── Update mobile topbar badge ──
+        // The mobile topbar bell button uses an inline <span> for the badge.
+        // We update or create the badge element inside the bell icon-btn.
+        const mobileBellBtns = document.querySelectorAll(".topbar .icon-btn.ghost-icon");
+        mobileBellBtns.forEach(btn => {
+          if (!btn.getAttribute("onclick")?.includes("notifications")) return;
+          let mobileBadge = btn.querySelector("span[style*='position:absolute']");
+          if (unreadCount > 0) {
+            if (!mobileBadge) {
+              mobileBadge = document.createElement("span");
+              mobileBadge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#e54040;color:#fff;font-size:10px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1";
+              btn.appendChild(mobileBadge);
+            }
+            mobileBadge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+          } else if (mobileBadge) {
+            mobileBadge.remove();
+          }
+        });
+
+        // ── Show a brief toast for the incoming notification ──
+        try {
+          const toastEl = document.createElement("div");
+          const iconMap = { "Meeting Updates": "📅", "Meetings": "📅", "Questions": "💬", "System": "⚙️", "Admin Message": "📨" };
+          const icon = iconMap[data.type] || "🔔";
+          toastEl.style.cssText = [
+            "position:fixed", "bottom:88px", "left:50%", "transform:translateX(-50%)",
+            "background:#1e2038", "color:#fff", "padding:10px 16px", "border-radius:10px",
+            "font-size:13px", "font-weight:500", "z-index:9999",
+            "box-shadow:0 4px 24px rgba(0,0,0,0.3)", "pointer-events:none",
+            "display:flex", "align-items:center", "gap:8px",
+            "border-left:3px solid #5b34ff", "max-width:320px",
+            "animation:toastIn .25s ease"
+          ].join(";");
+          toastEl.innerHTML = `<span>${icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${data.title || "New notification"}</span>`;
+          document.body.appendChild(toastEl);
+          setTimeout(() => {
+            toastEl.style.opacity = "0";
+            toastEl.style.transition = "opacity .3s ease";
+            setTimeout(() => toastEl.remove(), 320);
+          }, 3500);
+        } catch { /* non-fatal */ }
+
+        // Re-render the notifications list if the user is currently viewing it.
+        document.dispatchEvent(new CustomEvent("cv:new_notification", { detail: data }));
+        break;
+      }
+
+      // ── Admin live announcement scoped to a meeting room (§meeting_announcement) ─
+      // Sent by the backend when an admin messages "meeting_participants".
+      // Distinct from the per-user "notification" event — this reaches every
+      // socket in the room, including non-authenticated guests.
+      case "meeting_announcement":
+        document.dispatchEvent(new CustomEvent("cv:meeting_announcement", { detail: data }));
+        break;
+
       default:
         break;
+
     }
 
     // Bubble ALL server events to the global document as a CustomEvent.
@@ -238,7 +349,12 @@ class SessionSocket {
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
       this._ws.send(JSON.stringify({ event, data }));
     } else {
-      console.warn("[WS] Not connected, event queued:", event);
+      // Queue question submissions for retry when reconnected; drop other events
+      if (event === "submit_question") {
+        queueOfflineQuestion(data);
+      } else {
+        console.warn("[WS] Not connected, event dropped:", event);
+      }
     }
   }
 

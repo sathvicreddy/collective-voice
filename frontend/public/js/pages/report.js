@@ -539,30 +539,37 @@ function _attachHandlers() {
     const hash      = location.hash.replace("#", "");
     const hashMatch = hash.match(/\/report\/([^/?]+)/);
     const meetingId = hashMatch?.[1] || state.report?.meetingId || state.session?.sessionId;
-    if (meetingId) {
-      // Download from backend
+
+    if (format === "csv" && meetingId) {
+      // Route to the new admin CSV export endpoint (no auth required for moderators' own meeting)
       const a = document.createElement("a");
-      a.href = `/api/analytics/meeting/${meetingId}/export?format=${format}`;
+      a.href = `/api/admin/meetings/${meetingId}/export.csv`;
+      a.download = `cv-report-${meetingId.slice(-8)}.csv`;
+      document.body.appendChild(a);
       a.click();
-    } else {
-      // Fallback: export session state
-      const ss   = getSessionState();
-      const data = {
-        format, generatedAt: new Date().toISOString(),
-        title: state.joinTarget?.title || "Session Report",
-        questions: selectRankedQuestions(ss).map((q,i) => ({ rank:i+1, text:q.text, votes:q.votes||0, status:q.status }))
-      };
-      const blob = new Blob([format === "csv"
-        ? "Rank,Question,Votes,Status\n" + data.questions.map(q => `${q.rank},"${q.text.replace(/"/g,'""')}",${q.votes},${q.status}`).join("\n")
-        : JSON.stringify(data, null, 2)
-      ], { type: format === "csv" ? "text/csv" : "application/json" });
-      const a = Object.assign(document.createElement("a"), {
-        href: URL.createObjectURL(blob),
-        download: `session-report-${Date.now()}.${format}`,
-      });
-      a.click();
-      URL.revokeObjectURL(a.href);
+      document.body.removeChild(a);
+      _rptToast("CSV download started!");
+      return;
     }
+
+    // JSON / PDF — client-side fallback (PDF deferred, produces JSON)
+    const ss   = getSessionState();
+    const data = {
+      format, generatedAt: new Date().toISOString(),
+      title: state.joinTarget?.title || "Session Report",
+      questions: selectRankedQuestions(ss).map((q,i) => ({ rank:i+1, text:q.text, votes:q.votes||0, status:q.status }))
+    };
+    const blob = new Blob([format === "csv"
+      ? "Rank,Question,Votes,Status\n" + data.questions.map(q => `${q.rank},"${q.text.replace(/"/g,'""')}",${q.votes},${q.status}`).join("\n")
+      : JSON.stringify(data, null, 2)
+    ], { type: format === "csv" ? "text/csv" : "application/json" });
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: `session-report-${Date.now()}.${format === "pdf" ? "json" : format}`,
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+    if (format === "pdf") _rptToast("PDF export coming soon — JSON downloaded instead.");
   };
 }
 

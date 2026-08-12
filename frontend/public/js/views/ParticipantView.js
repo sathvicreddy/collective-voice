@@ -11,6 +11,10 @@ import {
 import { getSocket } from "../hooks/socket.js";
 import { state } from "../state.js";
 
+// ── Typing throttle state ───────────────────────────────────────
+let _lastTypingSent  = 0;           // timestamp of last typing_start emit
+const TYPING_THROTTLE_MS = 1500;    // max once per 1.5s
+
 // ── AskQuestionForm ───────────────────────────────────────────
 function renderAskForm(isPaused) {
   return `
@@ -25,7 +29,8 @@ function renderAskForm(isPaused) {
         <textarea id="participantQuestionInput" class="ptc-ask-textarea"
           placeholder="What's on your mind? Ask anything…"
           maxlength="500"
-          oninput="participantUpdateCharCount(this)"
+          oninput="participantUpdateCharCount(this);participantTypingStart()"
+          onblur="participantTypingStop()"
           ${isPaused ? "disabled" : ""}></textarea>
         <div class="ptc-ask-footer">
           <span class="ptc-char-count" id="participantCharCount">0 / 500</span>
@@ -89,14 +94,36 @@ function renderPollWidget(poll, votedOptionId) {
   `;
 }
 
-// ── QuestionFeed ──────────────────────────────────────────────
+// ── QuestionFeed ───────────────────────────────────────
 const STATUS_COLORS = {
   "Pending":      { bg: "#f0f4ff", border: "#c7d2fe", text: "#4f46e5" },
   "Under Review": { bg: "#fffbeb", border: "#fde68a", text: "#d97706" },
   "under_review": { bg: "#fffbeb", border: "#fde68a", text: "#d97706" },
   "Answered":     { bg: "#f0fdf4", border: "#bbf7d0", text: "#15803d" },
+  "Answering":    { bg: "#eff4ff", border: "#93c5fd", text: "#1d4ed8" },
   "Deferred":     { bg: "#f9fafb", border: "#e5e7eb", text: "#6b7280" },
 };
+
+// Render reaction buttons for a question card
+function renderReactionBar(q) {
+  const rc = q.reactionCounts || {};
+  const emojis = [
+    { key: "thumbsup", glyph: "👍" },
+    { key: "thinking",  glyph: "🤔" },
+    { key: "fire",      glyph: "🔥" }
+  ];
+  return `
+    <div class="ptc-reaction-bar">
+      ${emojis.map(e => `
+        <button class="ptc-reaction-btn" onclick="participantReact('${q.id}', '${e.key}')"
+          title="${e.key}" aria-label="React with ${e.key}">
+          ${e.glyph}
+          ${rc[e.key] ? `<span class="ptc-reaction-count">${rc[e.key]}</span>` : ""}
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
 
 /**
  * Determine whether the current user has voted for a given question.
@@ -155,6 +182,7 @@ function renderQuestionFeed(questions, optimisticUpvotes = {}) {
                   ${icons.arrowUp}
                   <span id="votes_${q.id}">${votes}</span>
                 </button>
+                ${renderReactionBar(q)}
               </div>
             </div>
           `;
@@ -164,8 +192,13 @@ function renderQuestionFeed(questions, optimisticUpvotes = {}) {
   `;
 }
 
-// ── LiveStatusBar ─────────────────────────────────────────────
-function renderStatusBar(stats, timer) {
+// ── LiveStatusBar ───────────────────────────────────────
+function renderStatusBar(stats, timer, typingCount) {
+  const typingText = typingCount === 1
+    ? `<span class="ptc-typing-indicator">1 person is typing a question…</span>`
+    : typingCount > 1
+      ? `<span class="ptc-typing-indicator">${typingCount} people are typing a question…</span>`
+      : "";
   return `
     <div class="ptc-status-bar">
       <span>${icons.messageCircle} ${stats.questionsCount || 0} questions</span>
@@ -174,11 +207,43 @@ function renderStatusBar(stats, timer) {
       <span class="ptc-status-divider">·</span>
       <span>${icons.clock} session running ${formatTimer(timer)}</span>
       <span class="ptc-status-live">${icons.radio} Live</span>
+      ${typingText}
     </div>
   `;
 }
 
-// ── Main Render ───────────────────────────────────────────────
+// ── Announcement Banner ────────────────────────────────────────
+// Module-level state: last admin announcement received via WS
+let _adminAnnouncement = null;
+let _announcementListenerAttached = false;
+
+function renderAdminAnnouncementBanner() {
+  if (!_adminAnnouncement) return "";
+  const { subject, body, senderName } = _adminAnnouncement;
+  return `
+    <div class="cv-admin-announcement" role="alert" aria-live="assertive" id="cvAdminAnnouncement">
+      <span class="cv-admin-announce-icon">📢</span>
+      <div class="cv-admin-announce-body">
+        <strong class="cv-admin-announce-subject">${subject || "Announcement"}</strong>
+        ${body ? `<span class="cv-admin-announce-text">${body}</span>` : ""}
+        ${senderName ? `<span class="cv-admin-announce-from">— ${senderName}</span>` : ""}
+      </div>
+      <button class="cv-admin-announce-dismiss" onclick="(function(){window._cvDismissAnnouncement&&window._cvDismissAnnouncement()})()" title="Dismiss">✕</button>
+    </div>
+  `;
+}
+
+// ── Answering Now Banner ────────────────────────────────
+function renderAnsweringBanner(nowAnswering) {
+  if (!nowAnswering?.text) return "";
+  return `
+    <div class="cv-answering-banner" role="status" aria-live="polite">
+      🎤 <strong>Now answering:</strong> ${nowAnswering.text}
+    </div>
+  `;
+}
+
+// ── Main Render ─────────────────────────────────────────
 let _unsubscribe = null;
 let _optimisticUpvotes = {};
 let _votedPollOptions  = {};
@@ -200,6 +265,29 @@ export function renderParticipantView(container) {
         .then(r => r.json())
         .then(data => dispatch({ type: "SESSION_LOADED", payload: data }));
     }
+  }
+
+  // Register live admin announcement listener once per view mount.
+  // When an admin messages meeting participants, this banner slides in immediately.
+  if (!_announcementListenerAttached) {
+    _announcementListenerAttached = true;
+    document.addEventListener("cv:meeting_announcement", (e) => {
+      _adminAnnouncement = e.detail;
+      // Inject or replace the banner without re-rendering the whole view
+      const existing = document.getElementById("cvAdminAnnouncement");
+      const bannerHtml = renderAdminAnnouncementBanner();
+      if (existing) {
+        existing.outerHTML = bannerHtml;
+      } else {
+        // Prepend before the first child inside the session container
+        const sessionRoot = document.querySelector("#sessionViewContent");
+        if (sessionRoot) sessionRoot.insertAdjacentHTML("afterbegin", bannerHtml);
+      }
+      window._cvDismissAnnouncement = () => {
+        _adminAnnouncement = null;
+        document.getElementById("cvAdminAnnouncement")?.remove();
+      };
+    });
   }
 
   if (_unsubscribe) _unsubscribe();
@@ -225,7 +313,8 @@ function paintParticipantView(container, state) {
   // Only do a full re-render if pause state changed or first render
   if (!existing || wasPaused !== state.isQuestionsPaused) {
     container.innerHTML = `
-      ${renderStatusBar(state.stats, state.sessionTimer)}
+      ${renderAnsweringBanner(state.nowAnswering)}
+      ${renderStatusBar(state.stats, state.sessionTimer, state.typingCount)}
       <div class="ptc-main-grid">
         <!-- Left: ask + poll -->
         <div class="ptc-left-col">
@@ -245,8 +334,18 @@ function paintParticipantView(container, state) {
   }
 
   // Partial update: only refresh status bar, feed and poll slot
+  const bannerSlot = container.querySelector(".cv-answering-banner");
+  const newBanner  = renderAnsweringBanner(state.nowAnswering);
+  if (newBanner && !bannerSlot) {
+    container.insertAdjacentHTML("afterbegin", newBanner);
+  } else if (!newBanner && bannerSlot) {
+    bannerSlot.remove();
+  } else if (newBanner && bannerSlot) {
+    bannerSlot.outerHTML = newBanner;
+  }
+
   const statusBar = container.querySelector(".ptc-status-bar");
-  if (statusBar) statusBar.outerHTML = renderStatusBar(state.stats, state.sessionTimer);
+  if (statusBar) statusBar.outerHTML = renderStatusBar(state.stats, state.sessionTimer, state.typingCount);
 
   const feedSlot = container.querySelector("#ptcFeedSlot");
   if (feedSlot) feedSlot.innerHTML = renderQuestionFeed(ranked, _optimisticUpvotes);
@@ -257,6 +356,9 @@ function paintParticipantView(container, state) {
 
 export function teardownParticipantView() {
   if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+  // Reset announcement state so it doesn't persist across view switches
+  _adminAnnouncement = null;
+  _announcementListenerAttached = false;
   _optimisticUpvotes = {};
 }
 
@@ -291,6 +393,9 @@ export function participantSubmitQuestion() {
   const input = document.querySelector("#participantQuestionInput");
   const text  = input?.value.trim();
   if (!text) return;
+
+  // Stop typing indicator on submit
+  participantTypingStop();
 
   // Optimistic: add to store immediately
   const tempId = `q_opt_${Date.now()}`;
@@ -357,3 +462,33 @@ export async function participantVotePoll(pollId, optionId) {
     if (container) paintParticipantView(container, ss);
   }
 }
+
+// ── Typing indicator emitters ──────────────────────────────────
+/** Called on textarea input — throttled to 1 emit per 1.5s */
+export function participantTypingStart() {
+  const now = Date.now();
+  if (now - _lastTypingSent < TYPING_THROTTLE_MS) return;
+  _lastTypingSent = now;
+  const meetingId = state.session?.sessionId;
+  if (!meetingId) return;
+  const voterId = state.guestToken || state.currentUserId || "";
+  getSocket().emit("typing_start", { meetingId, voterId });
+}
+
+/** Called on textarea blur, submit, or clear */
+export function participantTypingStop() {
+  _lastTypingSent = 0; // reset throttle so next input sends immediately
+  const meetingId = state.session?.sessionId;
+  if (!meetingId) return;
+  const voterId = state.guestToken || state.currentUserId || "";
+  getSocket().emit("typing_stop", { meetingId, voterId });
+}
+
+// ── Reaction handler ──────────────────────────────────────────
+/** Participant reacts to a question with an emoji */
+export function participantReact(questionId, emoji) {
+  const meetingId = state.session?.sessionId;
+  if (!meetingId || !questionId) return;
+  getSocket().emit("react", { meetingId, questionId, emoji });
+}
+

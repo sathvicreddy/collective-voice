@@ -97,13 +97,30 @@
   border: 0; background: transparent; outline: none;
   font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer;
 }
-.danger-btn {
-  display: flex; align-items: center; gap: 5px;
-  padding: 7px 12px; border-radius: var(--radius-sm);
-  font-size: 12.5px; font-weight: 600; color: var(--danger);
-  border: 1.5px solid rgba(229,64,64,.25); background: var(--white);
-  transition: background var(--transition), border-color var(--transition);
-  margin-left: auto;
-}
+.danger-btn { display: flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; color: var(--danger); border: 1.5px solid rgba(229,64,64,.25); background: var(--white); transition: background var(--transition), border-color var(--transition); }
 .danger-btn svg { width: 13px; height: 13px; }
 .danger-btn:hover { background: var(--danger-light); border-color: var(--danger); }
+
+.dp-action-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; color: #5b34ff; border: 1.5px solid rgba(91,52,255,.25); background: var(--white); cursor: pointer; transition: background var(--transition), border-color var(--transition); white-space: nowrap; }
+.dp-action-btn svg { width: 13px; height: 13px; }
+.dp-action-btn:hover { background: #f0ecff; border-color: #5b34ff; }
+
+.admin-export-csv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--primary, #5b34ff);
+  border: 1.5px solid rgba(91,52,255,.25);
+  background: var(--white, #fff);
+  text-decoration: none;
+  transition: background var(--transition), border-color var(--transition);
+  cursor: pointer;
+}
+.admin-export-csv-btn:hover {
+  background: #f0ebff;
+  border-color: var(--primary, #5b34ff);
+}

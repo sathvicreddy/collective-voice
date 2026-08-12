@@ -1,4 +1,3 @@
-import { render } from "../app.js";
 import { state } from "../state.js";
 
 /**

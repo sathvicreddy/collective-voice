@@ -1,14 +1,15 @@
 /* ============================================================
-   NLP Scoring Engine — v2 (embedding-aware)
+   NLP Scoring Engine — v3 (embedding-aware + reactions)
 
    Composite score formula:
-     score = α·V + β·T + γ·S + δ·N
+     score = α·V + β·T + γ·S + δ·N + ε·E
 
    Where:
      V = vote normalisation   — how popular vs. the meeting's top question
      T = temporal freshness   — exp(-λ·ageInHours), λ = 0.5
      S = content novelty      — 1 - max similarity to answered clusters
      N = topical diversity    — 1 - avg similarity to OTHER active clusters
+     E = reaction score       — reactionCount / maxReactionCount across meeting
 
    Similarity for S and N:
      If both clusters have precomputed _embedding vectors (set by engine.js),
@@ -16,10 +17,14 @@
      This avoids any async work here — embeddings are already cached.
 
    Weights (tunable via env):
-     α = 0.40  (votes matter most)
-     β = 0.25  (freshness)
-     γ = 0.20  (differs from already-answered content)
-     δ = 0.15  (diverse vs. other queued questions)
+     Original: α=0.40, β=0.25, γ=0.20, δ=0.15, sum=1.00
+     With ε=0.10: scale all by 0.90 so the sum remains 1.00
+       α' = 0.40 × 0.90 = 0.360
+       β' = 0.25 × 0.90 = 0.225
+       γ' = 0.20 × 0.90 = 0.180
+       δ' = 0.15 × 0.90 = 0.135
+       ε  =                0.100
+       Sum = 0.360 + 0.225 + 0.180 + 0.135 + 0.100 = 1.000 ✓
 
    Called after every submit, upvote, or moderator action.
    ============================================================ */
@@ -66,11 +71,13 @@ function clusterSim(a, b) {
   return diceCoefficient(a.canonical_text || a.text, b.canonical_text || b.text);
 }
 
-const α = parseFloat(process.env.SCORE_ALPHA  || "0.40");
-const β = parseFloat(process.env.SCORE_BETA   || "0.25");
-const γ = parseFloat(process.env.SCORE_GAMMA  || "0.20");
-const δ = parseFloat(process.env.SCORE_DELTA  || "0.15");
-const λ = parseFloat(process.env.SCORE_LAMBDA || "0.50"); // decay rate per hour
+// Weight constants — scaled to maintain sum = 1.00 with ε added
+const α = parseFloat(process.env.SCORE_ALPHA   || "0.360");
+const β = parseFloat(process.env.SCORE_BETA    || "0.225");
+const γ = parseFloat(process.env.SCORE_GAMMA   || "0.180");
+const δ = parseFloat(process.env.SCORE_DELTA   || "0.135");
+const ε = parseFloat(process.env.SCORE_EPSILON || "0.100"); // reaction signal
+const λ = parseFloat(process.env.SCORE_LAMBDA  || "0.50");  // decay rate per hour
 
 /**
  * Recompute scores for all active clusters in `meetingId`.
@@ -87,8 +94,9 @@ function recomputeScores(meetingId, questionsArray = null) {
   const answered = allQ.filter(q => q.status === "Answered");
   const now      = Date.now();
 
-  // Max votes across active clusters (for normalisation)
-  const maxVotes = Math.max(1, ...active.map(q => q.votes || 0));
+  // Max votes and reactions across active clusters (for normalisation)
+  const maxVotes     = Math.max(1, ...active.map(q => q.votes || 0));
+  const maxReactions = Math.max(1, ...active.map(q => q.reactionCount || 0));
 
   for (const q of active) {
     // V — vote normalisation [0,1]
@@ -114,7 +122,10 @@ function recomputeScores(meetingId, questionsArray = null) {
       N = 1 - avgSim;
     }
 
-    q.score = parseFloat((α * V + β * T + γ * S + δ * N).toFixed(4));
+    // E — reaction signal (normalised emoji reaction count)
+    const E = (q.reactionCount || 0) / maxReactions;
+
+    q.score = parseFloat((α * V + β * T + γ * S + δ * N + ε * E).toFixed(4));
   }
 
   // Answered/deferred questions keep their last computed score

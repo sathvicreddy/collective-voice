@@ -3,14 +3,16 @@ import { IC } from './icons.js';
 import { state } from './state.js';
 
 const BASE_NAV = [
-  { id:'overview',   label:'Overview',          icon:IC.home     },
-  { id:'live-now',   label:'Live Now',           icon:IC.radio    },
-  { id:'users',      label:'Users',              icon:IC.users    },
-  { id:'meetings',   label:'Meetings',           icon:IC.calendar },
-  { id:'moderation', label:'Content Moderation', icon:IC.shield   },
-  { id:'nlp',        label:'NLP Engine',         icon:IC.cpu      },
-  { id:'health',     label:'System Health',      icon:IC.monitor  },
-  { id:'audit',      label:'Audit Log',          icon:IC.fileText },
+  { id:'overview',       label:'Overview',          icon:IC.home      },
+  { id:'live-now',       label:'Live Now',           icon:IC.radio     },
+  { id:'users',          label:'Users',              icon:IC.users     },
+  { id:'meetings',       label:'Meetings',           icon:IC.calendar  },
+  { id:'moderation',     label:'Content Moderation', icon:IC.shield    },
+  { id:'nlp',            label:'NLP Engine',         icon:IC.cpu       },
+  { id:'health',         label:'System Health',      icon:IC.monitor   },
+  { id:'audit',          label:'Audit Log',          icon:IC.fileText  },
+  { id:'notifications',  label:'Notifications',      icon:IC.bell      },
+  { id:'messages',       label:'Messages',           icon:IC.mail || IC.bell },
 ];
 
 export function getNavItems() {
@@ -78,7 +80,12 @@ export function renderTopbar() {
         <span class="search-kbd">⌘ K</span>
       </div>
       <div class="topbar-actions">
-        <button class="topbar-notif-btn" title="Notifications">${IC.bell}<span class="notif-badge">5</span></button>
+        <div style="position:relative">
+          <button class="topbar-notif-btn" id="admin-notif-bell" title="Notifications"
+            onclick="toggleAdminNotifDropdown(this)">
+            ${IC.bell}<span class="notif-badge" id="admin-notif-badge">4</span>
+          </button>
+        </div>
         <div class="topbar-user">
           <div class="topbar-avatar">${initials}</div>
           <div class="topbar-user-info"><div class="topbar-user-name">${_userName()}</div><div class="topbar-user-role">${_userRole()}</div></div>
@@ -87,3 +94,83 @@ export function renderTopbar() {
       </div>
     </header>`;
 }
+
+/* ── Notification dropdown — fetches real data from /api/admin/notifications ── */
+
+const TYPE_ICON_MAP = { security:IC.shield, user:IC.users, content:IC.flag, meeting:IC.calendar, system:IC.monitor };
+const TYPE_BG_MAP   = { security:"#fff7ed", user:"#ffeaea",  content:"#f5f3ff", meeting:"#edf9f3", system:"#f0ecff" };
+const TYPE_COLOR_MAP= { security:"#d97706", user:"#e54040",  content:"#7c3aed", meeting:"#059669", system:"#5b34ff" };
+
+function _relTimeSh(iso) {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60000)    return "Just now";
+  if (diff < 3600000)  return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month:"short", day:"numeric" });
+}
+
+async function _fetchAdminNotifPreview() {
+  try {
+    const token = state.currentUser ? (localStorage.getItem("cv_token") || "") : "";
+    const res = await fetch("/api/admin/notifications", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const data = await res.json();
+    return Array.isArray(data.notifications) ? data.notifications.slice(0, 5) : [];
+  } catch { return []; }
+}
+
+window.toggleAdminNotifDropdown = async function(btn) {
+  const existing = document.getElementById("admin-notif-dropdown");
+  if (existing) { existing.remove(); document.getElementById("admin-dd-overlay")?.remove(); return; }
+
+  const overlay = document.createElement("div");
+  overlay.id = "admin-dd-overlay";
+  overlay.className = "an-dropdown-overlay";
+  overlay.onclick = () => { dropdown.remove(); overlay.remove(); };
+  document.body.appendChild(overlay);
+
+  const dropdown = document.createElement("div");
+  dropdown.id = "admin-notif-dropdown";
+  dropdown.className = "an-dropdown";
+  dropdown.style.cssText = "position:fixed;top:60px;right:20px;";
+  dropdown.innerHTML = `
+    <div class="an-dd-header">
+      <span class="an-dd-title">Notifications</span>
+      <div class="an-dd-actions">
+        <button class="an-dd-link" onclick="window.adminNavigate('notifications');document.getElementById('admin-notif-dropdown')?.remove();document.getElementById('admin-dd-overlay')?.remove()">View all</button>
+      </div>
+    </div>
+    <div class="an-dd-list" id="an-dd-list-inner"><div style="padding:16px;text-align:center;color:#8890b0;font-size:13px">Loading…</div></div>
+    <div class="an-dd-footer">
+      <button class="an-dd-footer-btn" onclick="window.adminNavigate('notifications');document.getElementById('admin-notif-dropdown')?.remove();document.getElementById('admin-dd-overlay')?.remove()">View all notifications →</button>
+    </div>
+  `;
+  document.body.appendChild(dropdown);
+
+  // Fetch in background after dropdown is visible
+  const notifs = await _fetchAdminNotifPreview();
+  const inner  = document.getElementById("an-dd-list-inner");
+  if (!inner) return;
+
+  if (notifs.length === 0) {
+    inner.innerHTML = `<div style="padding:16px;text-align:center;color:#8890b0;font-size:13px">No notifications yet.</div>`;
+  } else {
+    inner.innerHTML = notifs.map(n => `
+      <div class="an-dd-item ${!n.read?'an-dd-unread':''}">
+        <div class="an-dd-icon" style="background:${TYPE_BG_MAP[n.type]||"#f0ecff"};color:${TYPE_COLOR_MAP[n.type]||"#5b34ff"}">${TYPE_ICON_MAP[n.type]||IC.bell}</div>
+        <div class="an-dd-body">
+          <div class="an-dd-item-title">${n.title}</div>
+          <div class="an-dd-item-desc">${n.body}</div>
+          <div class="an-dd-item-time">${_relTimeSh(n.createdAt)}</div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // Update badge with live unread count
+  const unread = notifs.filter(n => !n.read).length;
+  const badge  = document.getElementById("admin-notif-badge");
+  if (badge) badge.textContent = unread > 0 ? String(unread) : "";
+};

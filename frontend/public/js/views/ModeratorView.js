@@ -21,6 +21,7 @@ function statusBadge(status) {
     "Pending":      "mod-badge-pending",
     "Under Review": "mod-badge-review",
     "under_review": "mod-badge-review",
+    "Answering":    "mod-badge-review",
     "Answered":     "mod-badge-answered",
     "Deferred":     "mod-badge-deferred",
     "Flagged":      "mod-badge-flagged",
@@ -138,6 +139,12 @@ function renderQuestionQueue(questions, search = "", sortBy = "score") {
                     title="Mark this question as answered"
                     ${q.status === "Answered" ? "disabled" : ""}>
                     ${icons.check} Answer
+                  </button>
+                  <button class="mod-action-btn mod-btn-answering"
+                    onclick="moderatorMarkAnswering('${q.id}')"
+                    title="Mark as currently answering"
+                    ${q.status === "Answered" || q.status === "Answering" ? "disabled" : ""}>
+                    ▶ Answering
                   </button>
                   <button class="mod-action-btn mod-btn-defer"
                     onclick="moderatorDeferQuestion('${q.id}')"
@@ -491,6 +498,24 @@ let _searchTerm  = "";
 let _sortBy      = "score";
 let _currentSpeakerId   = null;
 let _currentSpeakerName = null;
+let _modAdminAnnouncement = null;
+let _modAnnouncementListenerAttached = false;
+
+function _modRenderAdminBanner() {
+  if (!_modAdminAnnouncement) return "";
+  const { subject, body, senderName } = _modAdminAnnouncement;
+  return `
+    <div class="cv-admin-announcement" role="alert" aria-live="assertive" id="cvAdminAnnouncement" style="margin-bottom:12px">
+      <span class="cv-admin-announce-icon">📢</span>
+      <div class="cv-admin-announce-body">
+        <strong class="cv-admin-announce-subject">${subject || "Announcement"}</strong>
+        ${body ? `<span class="cv-admin-announce-text">${body}</span>` : ""}
+        ${senderName ? `<span class="cv-admin-announce-from">— ${senderName}</span>` : ""}
+      </div>
+      <button class="cv-admin-announce-dismiss" onclick="(function(){window._cvDismissAnnouncement&&window._cvDismissAnnouncement()})()" title="Dismiss">✕</button>
+    </div>
+  `;
+}
 
 export function renderModeratorView(container) {
   const ss = getSessionState();
@@ -499,6 +524,26 @@ export function renderModeratorView(container) {
     fetch(`/api/session/live${mid ? `?meetingId=${mid}` : ""}`)
       .then(r => r.json())
       .then(data => dispatch({ type: "SESSION_LOADED", payload: data }));
+  }
+
+  // Register live admin announcement listener once per view mount
+  if (!_modAnnouncementListenerAttached) {
+    _modAnnouncementListenerAttached = true;
+    document.addEventListener("cv:meeting_announcement", (e) => {
+      _modAdminAnnouncement = e.detail;
+      const existing = document.getElementById("cvAdminAnnouncement");
+      const bannerHtml = _modRenderAdminBanner();
+      if (existing) {
+        existing.outerHTML = bannerHtml;
+      } else {
+        const sessionRoot = document.querySelector("#sessionViewContent");
+        if (sessionRoot) sessionRoot.insertAdjacentHTML("afterbegin", bannerHtml);
+      }
+      window._cvDismissAnnouncement = () => {
+        _modAdminAnnouncement = null;
+        document.getElementById("cvAdminAnnouncement")?.remove();
+      };
+    });
   }
 
   if (_unsubscribe) _unsubscribe();
@@ -554,6 +599,8 @@ function paintModeratorView(container, state) {
 
 export function teardownModeratorView() {
   if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+  _modAdminAnnouncement = null;
+  _modAnnouncementListenerAttached = false;
 }
 
 // ── Global Handlers ───────────────────────────────────────────
@@ -983,3 +1030,16 @@ export async function moderatorGoLive(meetingId) {
     });
   } catch { /* non-fatal */ }
 }
+
+/**
+ * Moderator marks a question as "Answering" — triggers the spotlight banner
+ * on the participant and speaker views via the now_answering WS broadcast.
+ */
+export function moderatorMarkAnswering(questionId) {
+  if (!questionId) return;
+  const meetingId = state.session?.sessionId;
+  if (!meetingId) return;
+  getSocket().emit("mark_answering", { meetingId, questionId });
+  dispatch({ type: "QUESTION_STATUS", payload: { id: questionId, status: "Answering" } });
+}
+

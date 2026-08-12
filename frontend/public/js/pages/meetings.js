@@ -1189,6 +1189,16 @@ export function renderCreate(step = "type") {
           <p class="subtle">Pick a date and time and invite participants in advance.</p>
         </button>
       </div>
+      <!-- ── Templates ── -->
+      <div id="mtgTemplateSection" style="margin-top:20px">
+        <button class="mtg-template-toggle" onclick="mtgToggleTemplates(this)">
+          ${icons.copy || '📋'} Start from a template
+          <span class="mtg-template-chevron">▸</span>
+        </button>
+        <div id="mtgTemplateList" style="display:none;margin-top:10px">
+          <div class="mtg-template-loading">Loading templates…</div>
+        </div>
+      </div>
     `,
     details: (() => {
       const isInstant = draft.type === 'instant';
@@ -1578,27 +1588,25 @@ export function renderCreate(step = "type") {
             <div class="info-row">${icons.users} <span>Open invitation — share the link</span></div>
           </div>
           ${state.joinTarget?.id ? `
-            <div class="info-row" style="margin-top:4px">
-              ${icons.link}
-              <input readonly style="font-size:12px;flex:1;background:var(--soft);border:none;padding:4px 8px;border-radius:6px"
-                     value="${location.origin}/#/join/${state.joinTarget.code || ""}"
-                     onclick="this.select()">
-            </div>
-            <div style="text-align:center;margin-top:10px">
-              <img src="/api/sessions/${state.joinTarget.id}/qrcode"
-                   alt="Join QR" width="100" height="100"
-                   style="border-radius:6px;background:#fff;padding:4px">
-              <br>
-              <button id="copy-link-btn-${state.joinTarget.id}"
-                style="margin-top:6px;font-size:12px;background:none;border:none;color:var(--primary);cursor:pointer"
-                onclick="copyMeetingLink('${state.joinTarget.id}')">
-                ${icons.link} Copy Join Link
-              </button>
-            </div>
+            <section class="panel" style="margin-top:16px">
+              ${state.joinTarget?.code ? `
+                <p class="subtle" style="font-size:12px;margin-bottom:4px">Meeting Code</p>
+                <code style="border-radius:6px;background:#fff;padding:4px">
+                  ${state.joinTarget.code}
+                </code>
+                <br>
+                <button id="copy-link-btn-${state.joinTarget.id}"
+                  style="margin-top:6px;font-size:12px;background:none;border:none;color:var(--primary);cursor:pointer"
+                  onclick="copyMeetingLink('${state.joinTarget.id}')">
+                  ${icons.link} Copy Join Link
+                </button>
+              ` : ""}
+            </section>
           ` : ""}
         </section>
         <div class="stack" style="gap:10px">
           <button class="btn" style="width:100%" onclick="go('/moderator')">${icons.zap} Start Meeting Now</button>
+          <button class="btn secondary" style="width:100%" onclick="mtgSaveAsTemplate()">💾 Save as Template</button>
           <button class="btn secondary" style="width:100%" onclick="go('/meetings')">${icons.calendar} View Meetings</button>
           <button class="link-btn" style="text-align:center" onclick="go('/meetings')">Go to Meetings</button>
         </div>
@@ -1612,6 +1620,74 @@ export function renderCreate(step = "type") {
   } else {
     shell(phone(screens[step], 'meetings', true));
   }
+
+  // ── Template global handlers ─────────────────────────────────────────────
+  /** Toggle template list open / closed; lazy-load on first open */
+  window.mtgToggleTemplates = async function(btn) {
+    const list = document.getElementById('mtgTemplateList');
+    if (!list) return;
+    const isOpen = list.style.display !== 'none';
+    list.style.display = isOpen ? 'none' : 'block';
+    btn.querySelector('.mtg-template-chevron').textContent = isOpen ? '▸' : '▾';
+    if (isOpen || list.dataset.loaded) return;
+    list.dataset.loaded = '1';
+    try {
+      const tok = window.state?.token;
+      const res  = await fetch('/api/templates', tok ? { headers: { Authorization: `Bearer ${tok}` } } : {});
+      if (!res.ok) { list.innerHTML = '<p class="subtle" style="font-size:12px;padding:8px">Log in to use templates.</p>'; return; }
+      const { templates } = await res.json();
+      if (!templates?.length) {
+        list.innerHTML = '<p class="subtle" style="font-size:12px;padding:8px">No templates saved yet. Save one from the done screen after creating a meeting.</p>';
+        return;
+      }
+      list.innerHTML = templates.map(t => `
+        <button class="mtg-template-item" onclick="mtgLoadTemplate('${t.id}')">
+          <strong>${t.title || 'Untitled Template'}</strong>
+          <span class="subtle" style="font-size:11px">${t.category ? '· ' + t.category : ''} ${t.duration ? '· ' + t.duration + ' min' : ''}</span>
+        </button>
+      `).join('');
+    } catch { list.innerHTML = '<p class="subtle" style="font-size:12px;padding:8px">Could not load templates.</p>'; }
+  };
+
+  /** Load a template and navigate to the details step pre-filled */
+  window.mtgLoadTemplate = async function(templateId) {
+    const tok = window.state?.token;
+    const res  = await fetch(`/api/templates/${templateId}`, tok ? { headers: { Authorization: `Bearer ${tok}` } } : {}).catch(() => null);
+    if (!res?.ok) return;
+    const { template } = await res.json();
+    const s = template.settingsJson ? JSON.parse(template.settingsJson) : {};
+    Object.assign(window.state.createDraft, {
+      title:    template.title    || window.state.createDraft.title,
+      category: template.category || window.state.createDraft.category,
+      duration: template.duration || window.state.createDraft.duration,
+      settings: { ...window.state.createDraft.settings, ...s },
+      type:     s.type || 'scheduled'
+    });
+    window.go?.('/meetings/create/details');
+  };
+
+  /** Save current meeting as a template from the done screen */
+  window.mtgSaveAsTemplate = async function() {
+    const d   = window.state?.createDraft || {};
+    const tok = window.state?.token;
+    if (!tok) { alert('Please log in to save templates.'); return; }
+    const res = await fetch('/api/templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      body: JSON.stringify({
+        title:        d.title    || '',
+        category:     d.category || '',
+        duration:     String(d.duration || ''),
+        settingsJson: { type: d.type, ...d.settings }
+      })
+    }).catch(() => null);
+    if (res?.ok) {
+      const btn = document.querySelector('[onclick="mtgSaveAsTemplate()"]');
+      if (btn) { btn.innerHTML = '✓ Template Saved!'; btn.disabled = true; }
+    } else {
+      alert('Could not save template.');
+    }
+  };
 }
 
 /* --- Conducted Meetings ------------------------------------ */

@@ -27,13 +27,16 @@ model User {
   createdAt    DateTime @default(now())
 
   // Relations
-  meetings      Meeting[]
-  questions     Question[]        @relation("QuestionAskedBy")
-  participants  Participant[]
-  notifications Notification[]
-  resetTokens   ResetToken[]
-  refreshTokens RefreshToken[]
-  enrollments   MeetingEnrollment[]
+  meetings         Meeting[]
+  questions        Question[]        @relation("QuestionAskedBy")
+  participants     Participant[]
+  notifications    Notification[]
+  resetTokens      ResetToken[]
+  refreshTokens    RefreshToken[]
+  enrollments      MeetingEnrollment[]
+  meetingTemplates MeetingTemplate[]
+  messagesSent     AdminMessage[]    @relation("MessagesSent")
+  preferences      NotificationPreference?
 }
 
 // ── Meetings ──────────────────────────────────────────────────────────────────
@@ -90,6 +93,7 @@ model Question {
   askedBy    User?   @relation("QuestionAskedBy", fields: [askedById], references: [id])
 
   votes_rel  Vote[]
+  reactions  Reaction[]
 }
 
 // ── Polls ─────────────────────────────────────────────────────────────────────
@@ -153,14 +157,33 @@ model Vote {
   @@unique([questionId, voterId])
 }
 
+// ── Reactions ─────────────────────────────────────────────────────────────────
+// Records emoji reactions per (question, voter, emoji) triplet.
+// voterId mirrors Vote.voterId: userId OR guestToken.
+// The unique constraint prevents duplicate reactions of the same emoji.
+
+model Reaction {
+  id         String   @id @default(cuid())
+  emoji      String   // "thumbsup" | "thinking" | "fire"
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  voterId    String
+  createdAt  DateTime @default(now())
+
+  @@unique([questionId, voterId, emoji])
+}
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 model Notification {
   id        String   @id @default(cuid())
-  type      String   // Meeting Updates | Questions | System
+  type      String   // "Meeting Updates" | "Questions" | "System" | "Admin Message"
   title     String
   body      String
   time      String   @default("")
+  read      Boolean  @default(false)
+  source    String   @default("system") // "system" | "admin"
+  senderId  String?  // set when source === "admin" — the admin/superadmin who sent it
   createdAt DateTime @default(now())
 
   userId String
@@ -237,4 +260,68 @@ model GracePeriod {
 
   meetingId     String    @unique
   meeting       Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+// ── Meeting Templates ─────────────────────────────────────────────────────────
+// Per-user saved meeting presets. Provides the "Start from template" dropdown
+// in the Create Meeting flow. settingsJson stores arbitrary extra meeting settings.
+
+model MeetingTemplate {
+  id           String   @id @default(cuid())
+  title        String   @default("")
+  category     String   @default("")
+  duration     String   @default("")
+  settingsJson String   @default("{}")  // JSON blob
+  createdAt    DateTime @default(now())
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+// ── Admin Notifications ───────────────────────────────────────────────────────
+// Admin-facing system alerts visible to all admins. No userId — not user-targeted.
+
+model AdminNotification {
+  id        String   @id @default(cuid())
+  type      String   // "system" | "user" | "meeting" | "security" | "content"
+  priority  String   @default("medium") // "critical" | "high" | "medium" | "low"
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  relatedId String   @default("")
+  createdAt DateTime @default(now())
+}
+
+// ── Admin Messages ────────────────────────────────────────────────────────────
+// Audit log of every message an admin sends to users. Kept separate from
+// Notification so there is a clean record of what admins actually sent,
+// independent of the per-user notification rows generated from it.
+// recipientsJson stores a JSON array of userId strings (simpler than
+// reconstructing the recipient list from notification join queries).
+
+model AdminMessage {
+  id             String   @id @default(cuid())
+  senderId       String
+  sender         User     @relation("MessagesSent", fields: [senderId], references: [id])
+  subject        String
+  body           String
+  audience       String   // "single" | "all_users" | "meeting_participants" | "admins"
+  targetUserId   String?  // set when audience === "single"
+  meetingId      String?  // set when audience === "meeting_participants"
+  recipientCount Int      @default(0)
+  recipientsJson String   @default("[]") // JSON array of userId strings for audit trail
+  createdAt      DateTime @default(now())
+}
+
+// ── Notification Preferences ──────────────────────────────────────────────────
+// Per-user opt-in settings. Created on first PATCH; defaults are all-enabled.
+
+model NotificationPreference {
+  userId           String  @id
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meetingUpdates   Boolean @default(true)
+  questionActivity Boolean @default(true)
+  systemAlerts     Boolean @default(true)
+  adminMessages    Boolean @default(true)
+  emailDigest      Boolean @default(false)
 }

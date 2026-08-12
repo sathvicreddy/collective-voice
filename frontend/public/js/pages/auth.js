@@ -22,9 +22,12 @@ function _showAuthError(msg) {
   if (!el) {
     el = document.createElement("div");
     el.id = "authError";
-    el.style.cssText = "color:#e54040;font-size:13px;padding:8px 12px;background:#fff0f0;border-radius:8px;margin-bottom:8px";
-    const form = document.querySelector(".mobile-auth-form, .auth-form-box");
+    el.setAttribute("role", "alert");
+    el.style.cssText = "color:#e54040;font-size:13px;padding:8px 12px;background:#fff0f0;border-radius:8px;margin-bottom:8px;border:1px solid #ffd0d0";
+    // Support both mobile (.mobile-auth-form), desktop (.auth-form), and admin (.auth-form-box)
+    const form = document.querySelector(".mobile-auth-form, .auth-form, .auth-form-box, #reset-form");
     if (form) form.prepend(el);
+    else document.body.prepend(el); // last-resort fallback
   }
   el.textContent = msg;
 }
@@ -41,21 +44,26 @@ function _storeToken(accessToken, refreshToken = null) {
 /** Handle login / signup submit */
 export async function authSubmit() {
   const isSignup = state.route === "/signup";
-  const nameEl   = document.querySelector("#authName, input[placeholder*='name'], input[placeholder*='Name']");
-  const emailEl  = document.querySelector("#authEmail, input[type='email']");
-  const passEl   = document.querySelector("#authPassword, input[type='password']");
+  // Use strict ID selectors — no fragile placeholder matching
+  const nameEl   = document.querySelector("#authName");
+  const emailEl  = document.querySelector("#authEmail");
+  const passEl   = document.querySelector("#authPassword");
   const confEl   = document.querySelector("#authConfirm");
 
-  const email    = emailEl?.value.trim();
-  const password = passEl?.value;
-  const name     = nameEl?.value.trim();
-  const confirm  = confEl?.value;
+  const email    = emailEl?.value.trim() || "";
+  const password = passEl?.value || "";
+  const name     = nameEl?.value.trim() || "";
+  const confirm  = confEl?.value || "";
 
-  if (!email || !password) { _showAuthError("Email and password are required."); return; }
-  if (isSignup && !name)   { _showAuthError("Full name is required."); return; }
-  if (isSignup && password !== confirm) { _showAuthError("Passwords do not match."); return; }
+  // Input validation
+  if (!email)    { _showAuthError("Email address is required."); emailEl?.focus(); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _showAuthError("Please enter a valid email address."); emailEl?.focus(); return; }
+  if (!password) { _showAuthError("Password is required."); passEl?.focus(); return; }
+  if (isSignup && !name) { _showAuthError("Full name is required."); nameEl?.focus(); return; }
+  if (isSignup && password.length < 8) { _showAuthError("Password must be at least 8 characters."); passEl?.focus(); return; }
+  if (isSignup && password !== confirm) { _showAuthError("Passwords do not match."); confEl?.focus(); return; }
 
-  const submitBtn = document.querySelector("#authSubmit, .auth-submit-btn");
+  const submitBtn = document.querySelector("#authSubmit");
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isSignup ? "Creating…" : "Signing in…"; }
 
   try {
@@ -110,14 +118,20 @@ export async function authForgot() {
 
 /** Handle reset-password submit */
 export async function authReset() {
-  const passEls = document.querySelectorAll("input[type='password']");
-  const password = passEls[0]?.value;
-  const confirm  = passEls[1]?.value;
-  if (!password || password.length < 6) { _showAuthError("Password must be at least 6 characters."); return; }
-  if (password !== confirm)              { _showAuthError("Passwords do not match."); return; }
-  // Token would come from URL hash in a real app — prototype uses a hardcoded prompt
-  const token = prompt("Enter the reset token from the email:");
-  if (!token) return;
+  const passEl   = document.querySelector("#resetPassword");
+  const confEl   = document.querySelector("#resetConfirm");
+  const password = passEl?.value || "";
+  const confirm  = confEl?.value || "";
+  if (!password || password.length < 8) { _showAuthError("Password must be at least 8 characters."); passEl?.focus(); return; }
+  if (password !== confirm)              { _showAuthError("Passwords do not match."); confEl?.focus(); return; }
+  // Read reset token from URL search params — e.g. ?token=abc123
+  // This is safe: the token is server-generated and single-use.
+  const params = new URLSearchParams(location.search);
+  const token  = params.get("token") || params.get("resetToken");
+  if (!token) {
+    _showAuthError("Invalid or missing reset link. Please request a new password reset.");
+    return;
+  }
   try {
     const res  = await fetch("/api/auth/reset-password", {
       method: "POST",
@@ -126,8 +140,16 @@ export async function authReset() {
     });
     const data = await res.json();
     if (!res.ok) { _showAuthError(data.error || "Reset failed."); return; }
-    alert("Password updated! Please log in.");
-    go("/login");
+    // Show a success message in the form instead of alert()
+    const form = document.querySelector(".mobile-auth-form");
+    if (form) {
+      form.innerHTML = `<div style="text-align:center;padding:24px 0">
+        <div style="font-size:40px;margin-bottom:12px">✅</div>
+        <h3 style="font-size:18px;font-weight:800;color:#111936;margin-bottom:8px">Password Updated!</h3>
+        <p style="color:#8890b0;font-size:14px;margin-bottom:24px">Your password has been changed successfully.</p>
+        <button class="auth-submit-btn" onclick="go('/login')">Log In Now</button>
+      </div>`;
+    }
   } catch { _showAuthError("Network error."); }
 }
 
@@ -163,10 +185,10 @@ function landingIllustration() {
 export function renderWelcome() {
   app.innerHTML = `
     <!-- ===== DESKTOP LANDING (hidden on mobile) ===== -->
-    <div class="landing-desktop">
+    <div class="landing-desktop" id="landing-top">
       <!-- Top Navbar -->
-      <nav class="landing-nav">
-        <div class="landing-nav-brand">
+      <nav class="landing-nav" id="landing-nav">
+        <div class="landing-nav-brand" role="button" tabindex="0" onclick="scrollToLandingTop()" style="cursor:pointer" aria-label="Back to top">
           <div class="landing-brand-mark">
             ${icons.mic}
           </div>
@@ -175,15 +197,15 @@ export function renderWelcome() {
             <span class="landing-brand-tagline">Every voice matters</span>
           </div>
         </div>
-        <div class="landing-nav-links">
-          <a href="#how-it-works" class="landing-nav-link">How It Works</a>
-          <a href="#features" class="landing-nav-link">Features</a>
-          <a href="#for-events" class="landing-nav-link">For Events</a>
-          <a href="#about" class="landing-nav-link">About Us</a>
+        <div class="landing-nav-links" id="landing-nav-links">
+          <button class="landing-nav-link" id="nav-link-how" onclick="scrollToSection('how-it-works')">How It Works</button>
+          <button class="landing-nav-link" id="nav-link-features" onclick="scrollToSection('features')">Features</button>
+          <button class="landing-nav-link" id="nav-link-events" onclick="scrollToSection('for-events')">For Events</button>
+          <button class="landing-nav-link" id="nav-link-about" onclick="scrollToSection('about')">About Us</button>
         </div>
         <div class="landing-nav-actions">
-          <button class="landing-nav-login" onclick="go('/login')">Log in</button>
-          <button class="landing-nav-cta" onclick="go('/signup')">Get Started <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+          <button class="landing-nav-login" id="landing-login-btn" onclick="go('/login')">Log in</button>
+          <button class="landing-nav-cta" id="landing-cta-btn" onclick="go('/signup')">Get Started <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
         </div>
       </nav>
 
@@ -203,11 +225,11 @@ export function renderWelcome() {
             CollectiveVoice helps audiences ask better questions, speakers focus on what matters, and events become more engaging for everyone.
           </p>
           <div class="landing-hero-btns">
-            <button class="landing-btn-primary" onclick="go('/meetings/create')">
+            <button class="landing-btn-primary" id="hero-create-btn" onclick="landingCreateMeeting()">
               Create a Meeting
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
-            <button class="landing-btn-outline" onclick="go('/join')">
+            <button class="landing-btn-outline" id="hero-join-btn" onclick="go('/join')">
               Join a Meeting
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4" rx="1"/></svg>
             </button>
@@ -413,15 +435,15 @@ export function renderWelcome() {
         <h2 class="ls-footer-cta-title">Ready to Make Every Voice Count?</h2>
         <p class="ls-footer-cta-sub">Join thousands of educators and event hosts already using CollectiveVoice.</p>
         <div class="ls-footer-cta-btns">
-          <button class="landing-btn-primary" onclick="go('/signup')">Create Free Account <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
-          <button class="ls-footer-ghost-btn" onclick="go('/join')">Join as Guest</button>
+          <button class="landing-btn-primary" id="footer-create-btn" onclick="landingCreateMeeting()">Create Free Account <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+          <button class="ls-footer-ghost-btn" id="footer-join-btn" onclick="go('/join')">Join as Guest</button>
         </div>
         <div class="ls-footer-links">
           <span class="ls-footer-link">© 2026 CollectiveVoice</span>
-          <a href="#how-it-works" class="ls-footer-link">How It Works</a>
-          <a href="#features" class="ls-footer-link">Features</a>
-          <a href="#for-events" class="ls-footer-link">For Events</a>
-          <a href="#about" class="ls-footer-link">About Us</a>
+          <button class="ls-footer-link" onclick="scrollToSection('how-it-works')" style="background:none;border:none;cursor:pointer;font:inherit">How It Works</button>
+          <button class="ls-footer-link" onclick="scrollToSection('features')" style="background:none;border:none;cursor:pointer;font:inherit">Features</button>
+          <button class="ls-footer-link" onclick="scrollToSection('for-events')" style="background:none;border:none;cursor:pointer;font:inherit">For Events</button>
+          <button class="ls-footer-link" onclick="scrollToSection('about')" style="background:none;border:none;cursor:pointer;font:inherit">About Us</button>
         </div>
       </div>
     </div>
@@ -461,13 +483,17 @@ export function renderWelcome() {
         </div>
 
         <div class="mobile-welcome-actions">
-          <button class="mobile-welcome-btn-primary" onclick="go('/login')">Log In</button>
-          <button class="mobile-welcome-btn-secondary" onclick="go('/signup')">Sign Up</button>
-          <button class="mobile-welcome-btn-ghost" onclick="go('/home')">Continue as Guest</button>
+          <button class="mobile-welcome-btn-primary" id="mobile-login-btn" onclick="go('/login')">Log In</button>
+          <button class="mobile-welcome-btn-secondary" id="mobile-signup-btn" onclick="go('/signup')">Sign Up</button>
+          <!-- Guest → /join lets them enter a meeting code without requiring data to be loaded -->
+          <button class="mobile-welcome-btn-ghost" id="mobile-guest-btn" onclick="go('/join')">Continue as Guest</button>
         </div>
       </div>
     </div>
   `;
+
+  // ── Post-render: Scroll Spy + Animated Counters ──────────────────────
+  _initLandingInteractivity();
 }
 
 /* ============================================================
@@ -624,7 +650,7 @@ export function renderLogin(kind = "login") {
               <label class="auth-label">Full Name</label>
               <div class="auth-input-wrap">
                 <span class="auth-input-icon">${icons.user}</span>
-                <input class="auth-input" placeholder="Enter your full name" type="text">
+                <input id="authName" class="auth-input" placeholder="Enter your full name" type="text" autocomplete="name">
               </div>
             </div>
           ` : ""}
@@ -632,14 +658,14 @@ export function renderLogin(kind = "login") {
             <label class="auth-label">Email address</label>
             <div class="auth-input-wrap">
               <span class="auth-input-icon">${icons.mail}</span>
-              <input class="auth-input" placeholder="Enter your email" type="email">
+              <input id="authEmail" class="auth-input" placeholder="Enter your email" type="email" autocomplete="email">
             </div>
           </div>
           <div class="auth-field">
             <label class="auth-label">Password</label>
             <div class="auth-input-wrap">
               <span class="auth-input-icon">${icons.shield}</span>
-              <input class="auth-input" placeholder="Enter your password" type="password">
+              <input id="authPassword" class="auth-input" placeholder="Enter your password" type="password" autocomplete="current-password">
               <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
             </div>
           </div>
@@ -648,7 +674,8 @@ export function renderLogin(kind = "login") {
               <label class="auth-label">Confirm Password</label>
               <div class="auth-input-wrap">
                 <span class="auth-input-icon">${icons.shield}</span>
-                <input class="auth-input" placeholder="Confirm your password" type="password">
+                <input id="authConfirm" class="auth-input" placeholder="Confirm your password" type="password" autocomplete="new-password">
+                <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
               </div>
             </div>
           ` : `
@@ -668,15 +695,15 @@ export function renderLogin(kind = "login") {
           </div>
 
           <div class="auth-social-row">
-            <button class="auth-social-btn" onclick="window.location.href='/api/auth/google'">
+            <button class="auth-social-btn" id="mobile-google-btn" onclick="window.location.href='/api/auth/google'">
               <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
               Google
             </button>
-            <button class="auth-social-btn" onclick="go('/home')">
+            <button class="auth-social-btn" id="mobile-microsoft-btn" onclick="window.location.href='/api/auth/microsoft'" disabled title="Coming soon">
               <svg viewBox="0 0 24 24" width="18" height="18"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
               Microsoft
             </button>
-            <button class="auth-social-btn" onclick="go('/home')">
+            <button class="auth-social-btn" id="mobile-github-btn" onclick="window.location.href='/api/auth/github'" disabled title="Coming soon">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
               GitHub
             </button>
@@ -776,6 +803,11 @@ export function renderForgot() {
    RESET PASSWORD
    ============================================================ */
 export function renderReset() {
+  // Read reset token from URL search params — e.g. /?token=abc123#/reset
+  const params     = new URLSearchParams(location.search);
+  const resetToken = params.get("token") || params.get("resetToken");
+  const hasToken   = Boolean(resetToken);
+
   app.innerHTML = `
     <div class="mobile-auth">
       <div class="mobile-auth-header">
@@ -788,20 +820,26 @@ export function renderReset() {
       </div>
       <div class="mobile-auth-body">
         <h1 class="mobile-auth-title">Reset Password ✅</h1>
-        <p class="mobile-auth-sub">Enter your new password below.</p>
-        <div class="mobile-auth-form">
+        ${hasToken
+          ? `<p class="mobile-auth-sub">Enter your new password below.</p>`
+          : `<p class="mobile-auth-sub" style="color:#e54040">⚠️ Invalid or expired reset link. Please request a new one.</p>`
+        }
+        <div class="mobile-auth-form" id="reset-form">
+          ${hasToken ? `
           <div class="auth-field">
             <label class="auth-label">New Password</label>
             <div class="auth-input-wrap">
               <span class="auth-input-icon">${icons.shield}</span>
-              <input class="auth-input" placeholder="Enter new password" type="password">
+              <input id="resetPassword" class="auth-input" placeholder="Enter new password (min 8 chars)" type="password" autocomplete="new-password">
+              <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
             </div>
           </div>
           <div class="auth-field">
             <label class="auth-label">Confirm Password</label>
             <div class="auth-input-wrap">
               <span class="auth-input-icon">${icons.shield}</span>
-              <input class="auth-input" placeholder="Confirm new password" type="password">
+              <input id="resetConfirm" class="auth-input" placeholder="Confirm new password" type="password" autocomplete="new-password">
+              <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
             </div>
           </div>
           <div class="auth-password-rules">
@@ -809,9 +847,140 @@ export function renderReset() {
             <span>${icons.checkCircle} Include a number</span>
             <span>${icons.checkCircle} Include an uppercase letter</span>
           </div>
-          <button class="auth-submit-btn" onclick="authReset()">Reset Password</button>
+          <button class="auth-submit-btn" id="resetSubmitBtn" onclick="authReset()">Reset Password</button>
+          ` : `
+          <button class="auth-submit-btn" onclick="go('/forgot')">Request New Reset Link</button>
+          `}
         </div>
       </div>
     </div>
   `;
+}
+
+/* ============================================================
+   LANDING PAGE INTERACTIVITY
+   Scroll spy + animated counters — runs after renderWelcome()
+   ============================================================ */
+function _initLandingInteractivity() {
+  // Use requestAnimationFrame so the DOM is fully painted before we query it
+  requestAnimationFrame(() => {
+    _initScrollSpy();
+    _initStatCounters();
+  });
+}
+
+/**
+ * Scroll Spy — highlights the active nav link based on which section
+ * is currently in view. Uses IntersectionObserver for performance.
+ * Does NOT modify location.hash, so the SPA router is never triggered.
+ */
+function _initScrollSpy() {
+  const sectionMap = {
+    "how-it-works": "nav-link-how",
+    "features":     "nav-link-features",
+    "for-events":   "nav-link-events",
+    "about":        "nav-link-about"
+  };
+
+  const sections = Object.keys(sectionMap)
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+
+  if (!sections.length) return;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        const linkId = sectionMap[entry.target.id];
+        const link   = document.getElementById(linkId);
+        if (!link) return;
+        if (entry.isIntersecting) {
+          // Remove active from all, add to this one
+          document.querySelectorAll(".landing-nav-link").forEach(l => l.classList.remove("active"));
+          link.classList.add("active");
+        }
+      });
+    },
+    { rootMargin: "-30% 0px -60% 0px", threshold: 0 }
+  );
+
+  sections.forEach(s => observer.observe(s));
+
+  // Clean up when the user navigates away (SPA route change)
+  const cleanup = () => { observer.disconnect(); window.removeEventListener("hashchange", cleanup); };
+  window.addEventListener("hashchange", cleanup, { once: true });
+}
+
+/**
+ * Animated Counters — each .landing-stat-value with data-target
+ * counts up from 0 to its target value when scrolled into view.
+ */
+function _initStatCounters() {
+  const targets = [
+    { selector: ".landing-stat-value", values: ["500+", "50K+", "63%", "40ms"] }
+  ];
+
+  // Find all stat value elements
+  const statEls = document.querySelectorAll(".landing-stat-value");
+  if (!statEls.length) return;
+
+  // Tag each element with its original target text
+  statEls.forEach(el => {
+    el.dataset.target = el.textContent.trim();
+    el.dataset.animated = "false";
+  });
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && entry.target.dataset.animated === "false") {
+          entry.target.dataset.animated = "true";
+          _animateCounter(entry.target);
+        }
+      });
+    },
+    { threshold: 0.5 }
+  );
+
+  statEls.forEach(el => observer.observe(el));
+}
+
+/**
+ * Counts up a single stat element from 0 to its numeric target.
+ * Preserves suffix ('+', 'K+', '%', 'ms').
+ */
+function _animateCounter(el) {
+  const raw    = el.dataset.target || "";
+  // Extract numeric part and suffix
+  const match  = raw.match(/^([0-9.]+)(.*)$/);
+  if (!match) return; // can't parse — leave as-is
+
+  const target = parseFloat(match[1]);
+  const suffix = match[2] || "";
+  const isK    = suffix.startsWith("K");
+  const displayTarget = isK ? target * 1000 : target;
+
+  const duration = 1200; // ms
+  const start    = performance.now();
+
+  function step(now) {
+    const elapsed  = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease out cubic
+    const eased    = 1 - Math.pow(1 - progress, 3);
+    const current  = Math.round(displayTarget * eased);
+
+    if (isK) {
+      el.textContent = current >= 1000
+        ? (current / 1000).toFixed(current % 1000 === 0 ? 0 : 0) + "K" + suffix.slice(1)
+        : current + suffix.slice(1);
+    } else {
+      el.textContent = current + suffix;
+    }
+
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = raw; // snap to exact final value
+  }
+
+  requestAnimationFrame(step);
 }

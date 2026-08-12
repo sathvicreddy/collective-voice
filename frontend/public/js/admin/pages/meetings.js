@@ -1,8 +1,9 @@
 /* Meetings Page — connected to real backend */
 import { IC } from '../icons.js';
-import { adminGet, adminDelete, adminPatch } from '../api.js';
+import { adminGet, adminDelete, adminPatch, adminPost } from '../api.js';
 import { state } from '../state.js';
 import { statusBadge, qStatusBadge, colorForInit, textColorForInit } from '../utils.js';
+import { openQuickMessageModal, closeQuickMessageModal } from '../components/quickMessageModal.js';
 
 let _meetings = null;
 let _searchQ  = '';
@@ -36,6 +37,34 @@ async function loadMeetingDetail(id) {
   } catch (err) {
     console.error('[Meetings] detail error:', err.message);
     _detail = { questions: [], polls: [], participants: [] };
+  }
+}
+
+async function loadMeetingMessages(id) {
+  try {
+    const data = await adminGet(`/api/admin/meetings/${id}/messages`);
+    if (_detail) _detail.meetingMessages = Array.isArray(data.messages) ? data.messages : [];
+    else _detail = { questions: [], polls: [], participants: [], meetingMessages: data.messages || [] };
+  } catch {
+    if (_detail) _detail.meetingMessages = [];
+  }
+  const el = document.getElementById('admin-content-area');
+  if (el && state.currentPage === 'meetings' && state.meetingDetailTab === 'messages') {
+    el.innerHTML = renderMeetings();
+  }
+}
+
+async function loadMeetingNotifications(id) {
+  try {
+    const data = await adminGet(`/api/admin/meetings/${id}/notifications`);
+    if (_detail) _detail.meetingNotifications = Array.isArray(data.notifications) ? data.notifications : [];
+    else _detail = { questions: [], polls: [], participants: [], meetingNotifications: data.notifications || [] };
+  } catch {
+    if (_detail) _detail.meetingNotifications = [];
+  }
+  const el = document.getElementById('admin-content-area');
+  if (el && state.currentPage === 'meetings' && state.meetingDetailTab === 'notifications') {
+    el.innerHTML = renderMeetings();
   }
 }
 
@@ -197,6 +226,40 @@ function renderMeetingDetailPanel(meeting) {
       </table>
     </div>`;
 
+  // Messages tab — loaded asynchronously; shows loader until _meetingMessages is populated
+  const msgRows = _detail?.meetingMessages;
+  const messagesHtml = !msgRows
+    ? '<div class="dp-empty">Loading messages…</div>'
+    : msgRows.length === 0
+      ? `<div class="dp-empty">
+          <div style="font-size:32px;margin-bottom:8px">📨</div>
+          <p>No messages sent to this meeting yet.</p>
+          <button class="dp-action-btn" style="margin-top:8px"
+            onclick="openMessageParticipants('${meeting.id}','${meeting.title.replace(/'/g,"\\'")}')"
+          >${IC.mail} Send first message</button>
+        </div>`
+      : `<div class="dp-section"><div style="display:flex;flex-direction:column;gap:6px">
+          ${msgRows.map(m => {
+            const t = new Date(m.createdAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+            const preview = (m.body||'').length > 120 ? m.body.slice(0,120)+'…' : m.body;
+            return `
+              <div style="padding:12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+                  <span style="font-size:13px;font-weight:600;color:var(--text-primary)">${m.subject}</span>
+                  <span style="font-size:11px;color:var(--muted);white-space:nowrap">${t}</span>
+                </div>
+                <p style="margin:0 0 6px;font-size:12.5px;color:var(--text-secondary);line-height:1.45">${preview}</p>
+                <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:var(--muted)">
+                  <span>By ${m.sender?.name || 'Admin'}</span>
+                  <span>·</span>
+                  <span>${m.recipientCount} recipients</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div></div>`;
+
+
   return `
     <div class="dp-header">
       <div class="dp-title-row">
@@ -233,11 +296,66 @@ function renderMeetingDetailPanel(meeting) {
       <button class="dp-tab ${tab==='questions'?'active':''}" onclick="setMeetingTab('questions')">Questions (${meeting.questionsCount})</button>
       <button class="dp-tab ${tab==='polls'?'active':''}" onclick="setMeetingTab('polls')">Polls</button>
       <button class="dp-tab ${tab==='participants'?'active':''}" onclick="setMeetingTab('participants')">Participants (${meeting.participantsCount})</button>
+      <button class="dp-tab ${tab==='messages'?'active':''}" onclick="setMeetingTab('messages')">${IC.mail} Messages</button>
+      <button class="dp-tab ${tab==='notifications'?'active':''}" onclick="setMeetingTab('notifications')">🔔 Notifications</button>
     </div>
 
     ${tab==='questions'    ? questionsHtml    : ''}
     ${tab==='polls'        ? pollsHtml        : ''}
     ${tab==='participants' ? participantsHtml : ''}
+    ${tab==='messages'     ? `<div style="padding:0 0 8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 6px">
+        <span style="font-size:12px;color:var(--muted)">Messages sent to participants of this meeting</span>
+        <button class="dp-action-btn" style="font-size:11px;padding:5px 10px"
+          onclick="openMessageParticipants('${meeting.id}','${meeting.title.replace(/'/g,"\\'")}')"
+        >${IC.send} New message</button>
+      </div>
+      ${messagesHtml}
+    </div>` : ''}
+    ${tab==='notifications' ? (() => {
+      const NOTIF_COLORS = {
+        "Admin Message":  { color:"#2563eb", bg:"#eff6ff", icon:"✉️" },
+        "Meeting Updates":{ color:"#5b34ff", bg:"#f0ecff", icon:"📅" },
+        "Meetings":       { color:"#5b34ff", bg:"#f0ecff", icon:"📅" },
+        "Questions":      { color:"#059669", bg:"#edf9f3", icon:"💬" },
+        "Question":       { color:"#059669", bg:"#edf9f3", icon:"💬" },
+        "System":         { color:"#d97706", bg:"#fff7ed", icon:"⚙️" },
+      };
+      const defaultNC = { color:"#8890b0", bg:"#f4f5fa", icon:"🔔" };
+      function fmtDT(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' · ' +
+               d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+      }
+      const nrows = _detail?.meetingNotifications;
+      if (!nrows) return '<div class="dp-empty">Loading notifications…</div>';
+      if (!nrows.length) return `<div class="dp-empty" style="padding:24px 0">
+        <div style="font-size:28px;margin-bottom:8px">🔔</div>
+        <p>No notifications for this meeting’s participants yet.</p>
+      </div>`;
+      return `<div class="dp-section"><div style="display:flex;flex-direction:column;gap:4px">
+        ${nrows.map((n, i) => {
+          const nc    = NOTIF_COLORS[n.type] || defaultNC;
+          const dt    = fmtDT(n.createdAt);
+          const body  = (n.body||'').length > 90 ? n.body.slice(0,90)+'…' : n.body;
+          const uname = n.user?.name || 'Participant';
+          return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-color);animation:slideInLeft .2s ${.02+i*.03}s both">
+            <div style="width:30px;height:30px;border-radius:8px;background:${nc.bg};color:${nc.color};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${nc.icon}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap">
+                <span style="font-size:11px;font-weight:700;color:${nc.color};background:${nc.bg};padding:1px 7px;border-radius:10px">${n.type||'System'}</span>
+                <span style="font-size:11px;font-weight:600;color:var(--text-secondary)">${uname}</span>
+                ${!n.read ? '<span style="width:7px;height:7px;border-radius:50%;background:#5b34ff;display:inline-block"></span>' : ''}
+              </div>
+              <div style="font-size:12.5px;font-weight:600;color:var(--text-primary);margin-bottom:2px">${n.title||'Notification'}</div>
+              ${body ? `<div style="font-size:11.5px;color:var(--text-secondary);line-height:1.4;margin-bottom:3px">${body}</div>` : ''}
+              <div style="font-size:10.5px;color:var(--muted)">${dt}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div></div>`;
+    })() : ''}
 
     <div class="dp-footer">
       <div class="dp-status-wrap">
@@ -249,7 +367,14 @@ function renderMeetingDetailPanel(meeting) {
           <option value="past"      ${meeting.status==='past'?'selected':''}>Past</option>
         </select>
       </div>
-      <button class="danger-btn" onclick="openDeleteModal('${meeting.id}')">${IC.trash} Delete</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <a class="admin-export-csv-btn" href="/api/admin/meetings/${meeting.id}/export.csv" download
+           title="Download Q&amp;A as CSV">
+          ${IC.download || '⬇'} Export CSV
+        </a>
+        <button class="dp-action-btn" onclick="openMessageParticipants('${meeting.id}','${meeting.title.replace(/'/g, "\\'")}')">${IC.mail} Message participants</button>
+        <button class="danger-btn" onclick="openDeleteModal('${meeting.id}')">${IC.trash} Delete</button>
+      </div>
     </div>`;
 }
 
@@ -293,6 +418,14 @@ window.closeMeetingPanel = function() {
 };
 window.setMeetingTab = function(tab) {
   state.meetingDetailTab = tab;
+  // Lazily load message history the first time the Messages tab is opened
+  if (tab === 'messages' && state.selectedMeetingId && !_detail?.meetingMessages) {
+    loadMeetingMessages(state.selectedMeetingId);
+  }
+  // Lazily load participant notifications the first time the Notifications tab is opened
+  if (tab === 'notifications' && state.selectedMeetingId && !_detail?.meetingNotifications) {
+    loadMeetingNotifications(state.selectedMeetingId);
+  }
   const el = document.getElementById('admin-content-area');
   if (el) el.innerHTML = renderMeetings();
 };
@@ -374,3 +507,22 @@ document.addEventListener('click', () => {
     if (el && state.currentPage === 'meetings') el.innerHTML = renderMeetings();
   }
 });
+
+/* ── Quick Message Participants ── */
+window.openMessageParticipants = function(meetingId, meetingTitle) {
+  // Use the participant count from already-loaded detail data if available;
+  // fall back to the count on the meeting list row (participantsCount).
+  const count = _detail?.participants?.length
+    ?? _meetings?.find(m => m.id === meetingId)?.participantsCount
+    ?? null;
+
+  openQuickMessageModal({
+    audienceLabel:  `To: all participants of ${meetingTitle}`,
+    recipientCount: count,
+    onSend: async ({ subject, body }) => {
+      await adminPost('/api/admin/messages', { audience: 'meeting_participants', meetingId, subject, body });
+      closeQuickMessageModal();
+      if (window.adminToast) window.adminToast(`Message sent to ${meetingTitle} participants`);
+    }
+  });
+};

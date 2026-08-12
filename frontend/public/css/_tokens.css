@@ -37,3 +37,95 @@
   --transition-fast: .14s cubic-bezier(.4, 0, .2, 1);
   --transition-bounce: .35s cubic-bezier(.34, 1.56, .64, 1);
 }
+
+/* ── Dark Mode ─────────────────────────────────────────────────
+   Applied by settings.js setTheme() via: document.documentElement.setAttribute("data-theme","dark")
+   ──────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --ink:         #f0f0ff;
+  --ink-secondary: #b8bdd8;
+  --muted:       #8890b0;
+  --line:        #2a2d4a;
+  --line-light:  #1e2038;
+  --soft:        #1a1d35;
+  --bg:          #12142a;
+  --white:       #1e2038;
+  --primary:     #7c5cff;
+  --primary-dark:#9d7fff;
+  --shadow-sm:   0 2px 8px rgba(0,0,0,.3);
+  --shadow:      0 8px 32px rgba(0,0,0,.4);
+  --shadow-lg:   0 24px 70px rgba(0,0,0,.5);
+}
+
+/* Dark mode body background */
+[data-theme="dark"] body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Dark mode panels & cards */
+[data-theme="dark"] .panel,
+[data-theme="dark"] .list-card,
+[data-theme="dark"] .settings-account-card,
+[data-theme="dark"] .settings-sidebar,
+[data-theme="dark"] .settings-content,
+[data-theme="dark"] .notif-desktop-card {
+  background: var(--white);
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .desktop-shell {
+  background: var(--bg);
+}
+
+[data-theme="dark"] .sidebar {
+  background: var(--white);
+  border-color: var(--line);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+/* ── Toast animation ─────────────────────────────────────────── */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(16px) scale(.95); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+
+/* ── Unread notification indicator ──────────────────────────── */
+.notif-unread {
+  background: #f8f7ff !important;
+  border-left: 3px solid var(--primary) !important;
+}
+
+[data-theme="dark"] .notif-unread {
+  background: #1e1a3a !important;
+}
+
+/* ── Notification filter tabs ─────────────────────────────────── */
+.notif-mtab {
+  background: none;
+  border: none;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.notif-mtab.active,
+.notif-mtab:hover {
+  background: var(--soft);
+  color: var(--primary);
+}
+
+/* ── Compact mode ─────────────────────────────────────────────── */
+body.compact-mode .panel,
+body.compact-mode .list-card { padding: 10px 14px; }
+body.compact-mode .stack     { gap: 8px; }

@@ -194,6 +194,21 @@ const server = http.createServer(async (req, res) => {
 const wss     = new WebSocketServer({ server });
 const clients = new Map(); // ws → { meetingId, userId, guestToken, voterId, role, isAlive }
 
+// ── Typing-indicator state ─────────────────────────────────────
+// meetingId → Map<voterId, timeoutId>  (server-side 4s debounce)
+// Never persisted — ephemeral, cleared on ws.close.
+const typingTimers = new Map();
+
+/**
+ * Count active typers in a meeting and broadcast the tally.
+ * Called after every typing_start and typing_stop event.
+ */
+function broadcastTypingUpdate(meetingId) {
+  const meetingTypers = typingTimers.get(meetingId);
+  const count = meetingTypers ? meetingTypers.size : 0;
+  broadcastToMeeting("typing_update", { meetingId, count }, meetingId);
+}
+
 /**
  * Check if the connected client is the meeting owner.
  * Used to gate moderator WS events — mirrors the requireModerator()
@@ -234,7 +249,9 @@ wss.on("connection", (ws, req) => {
   const payload   = token ? (() => { try { return verifyToken({ headers: { authorization: `Bearer ${token}` } }); } catch { return null; } })() : null;
   const wsUserId  = payload?.sub || null;
 
-  clients.set(ws, { meetingId: null, userId: wsUserId, role: null, isAlive: true });
+  // authRole is taken from the JWT payload so pushNotificationToAdmins can
+  // filter connected clients to only admin/superadmin sessions.
+  clients.set(ws, { meetingId: null, userId: wsUserId, authRole: payload?.role || null, role: null, isAlive: true });
   // Expose WS stats for /api/admin/health endpoint (read via process globals)
   process._cvWsClients = clients.size;
   process._cvWsActiveMeetings = new Set([...clients.values()].map(m => m.meetingId).filter(Boolean)).size;
@@ -476,6 +493,19 @@ wss.on("connection", (ws, req) => {
 
         // Tell moderator whether we reached the client
         ws.send(JSON.stringify({ event: "speaker_invite_sent", data: { participantId, reached: sent > 0 } }));
+
+        // §3: Persistent notification for authenticated invited users
+        if (targetPart.userId) {
+          try {
+            const { notifyUser } = require("./src/utils/notify");
+            await notifyUser(targetPart.userId, {
+              type:  "Meeting Updates",
+              title: "You've been invited to speak!",
+              body:  `A moderator invited you as a speaker for this session.`
+            });
+          } catch { /* non-fatal */ }
+        }
+
         break;
       }
 
@@ -528,6 +558,101 @@ wss.on("connection", (ws, req) => {
         break;
       }
 
+      // ── typing_start ────────────────────────────────────────
+      // Participant started typing a question. Not persisted — ephemeral.
+      case "typing_start": {
+        const { meetingId: tMid } = data;
+        if (!tMid) break;
+        const meta   = clients.get(ws);
+        const typerId = meta?.voterId || meta?.userId;
+        if (!typerId) break;
+
+        if (!typingTimers.has(tMid)) typingTimers.set(tMid, new Map());
+        const meetingMap = typingTimers.get(tMid);
+
+        // Clear previous 4s debounce for this typer
+        if (meetingMap.has(typerId)) clearTimeout(meetingMap.get(typerId));
+
+        // Auto-clear after 4s of silence
+        const tid = setTimeout(() => {
+          meetingMap.delete(typerId);
+          if (meetingMap.size === 0) typingTimers.delete(tMid);
+          broadcastTypingUpdate(tMid);
+        }, 4000);
+        meetingMap.set(typerId, tid);
+        broadcastTypingUpdate(tMid);
+        break;
+      }
+
+      // ── typing_stop ─────────────────────────────────────────
+      case "typing_stop": {
+        const { meetingId: tsMid } = data;
+        if (!tsMid) break;
+        const meta    = clients.get(ws);
+        const typerId = meta?.voterId || meta?.userId;
+        if (!typerId) break;
+        const meetingMap = typingTimers.get(tsMid);
+        if (meetingMap) {
+          clearTimeout(meetingMap.get(typerId));
+          meetingMap.delete(typerId);
+          if (meetingMap.size === 0) typingTimers.delete(tsMid);
+        }
+        broadcastTypingUpdate(tsMid);
+        break;
+      }
+
+      // ── react ───────────────────────────────────────────────
+      // Participant adds a reaction to a question (👍 🤔 🔥).
+      case "react": {
+        const { meetingId: rMid, questionId: rQid, emoji } = data;
+        if (!rMid || !rQid || !emoji) break;
+        const ALLOWED_EMOJIS = ["thumbsup", "thinking", "fire"];
+        if (!ALLOWED_EMOJIS.includes(emoji)) break;
+
+        const rMeta   = clients.get(ws);
+        const rVoter  = rMeta?.voterId;
+        if (!rVoter) break;
+
+        // Create reaction — catch unique-constraint (P2002) and treat as no-op
+        await db.reaction.create({
+          data: { questionId: rQid, voterId: rVoter, emoji }
+        }).catch(err => {
+          if (err.code !== "P2002") console.error("[WS] react error:", err.message);
+          // P2002 = unique violation → already reacted → silent no-op
+        });
+
+        // Aggregate counts for this question and broadcast
+        const reactions = await db.reaction.groupBy({
+          by: ["emoji"],
+          where: { questionId: rQid },
+          _count: { emoji: true }
+        }).catch(() => []);
+
+        const counts = { thumbsup: 0, thinking: 0, fire: 0 };
+        reactions.forEach(r => { counts[r.emoji] = r._count.emoji; });
+        broadcastToMeeting("reaction_updated", { questionId: rQid, counts }, rMid);
+        break;
+      }
+
+      // ── mark_answering ───────────────────────────────────────
+      // Moderator signals "I am answering this question now".
+      case "mark_answering": {
+        const { meetingId: aMid, questionId: aQid } = data;
+        if (!aMid || !aQid) break;
+        if (!await isOwner(ws, aMid)) {
+          ws.send(JSON.stringify({ event: "error", data: { code: 403, message: "Moderator action requires meeting ownership" } }));
+          break;
+        }
+        const ansQ = await db.question.update({
+          where: { id: aQid },
+          data:  { status: "Answering" }
+        }).catch(() => null);
+        if (!ansQ) break;
+        broadcastToMeeting("question_status_changed", { id: aQid, status: "Answering" }, aMid);
+        broadcastToMeeting("now_answering", { questionId: aQid, text: ansQ.text, meetingId: aMid }, aMid);
+        break;
+      }
+
       default:
         if (data.meetingId) {
           broadcastToMeeting(event, data, data.meetingId, ws);
@@ -537,7 +662,21 @@ wss.on("connection", (ws, req) => {
     })().catch(err => console.error("[WS] Handler error:", err.message));
   });
 
-  ws.on("close",  () => { clients.delete(ws); console.log(`[WS] Client disconnected (total: ${clients.size})`); });
+  ws.on("close", () => {
+    // Clean up any typing timers for this client
+    const meta = clients.get(ws);
+    if (meta?.meetingId && meta?.voterId) {
+      const meetingMap = typingTimers.get(meta.meetingId);
+      if (meetingMap) {
+        clearTimeout(meetingMap.get(meta.voterId));
+        meetingMap.delete(meta.voterId);
+        if (meetingMap.size === 0) typingTimers.delete(meta.meetingId);
+        broadcastTypingUpdate(meta.meetingId);
+      }
+    }
+    clients.delete(ws);
+    console.log(`[WS] Client disconnected (total: ${clients.size})`);
+  });
   ws.on("error",  () => clients.delete(ws));
 });
 
@@ -587,9 +726,40 @@ function broadcast(msg, skip = null, opts = {}) {
   broadcastToMeeting(event, data, meetingId || null, skip, opts);
 }
 
+/**
+ * Push a notification to all WS connections for a specific userId.
+ * Sends { event: "notification", data: notification }.
+ * A user may have multiple open tabs — this reaches all of them.
+ */
+function pushNotificationToUser(userId, notification) {
+  if (!userId) return;
+  const raw = JSON.stringify({ event: "notification", data: notification });
+  clients.forEach((meta, ws) => {
+    if (ws.readyState !== 1) return;
+    if (meta.userId !== userId) return;
+    try { ws.send(raw); } catch { /* stale connection */ }
+  });
+}
+
+/**
+ * Push an admin_notification to all WS connections whose JWT role is
+ * "admin" or "superadmin".
+ * Sends { event: "admin_notification", data: notification }.
+ */
+function pushNotificationToAdmins(notification) {
+  const raw = JSON.stringify({ event: "admin_notification", data: notification });
+  clients.forEach((meta, ws) => {
+    if (ws.readyState !== 1) return;
+    if (meta.authRole !== "admin" && meta.authRole !== "superadmin") return;
+    try { ws.send(raw); } catch { /* stale connection */ }
+  });
+}
+
 // Expose broadcast + raw server so api.js and tests can use them
 module.exports.broadcast  = broadcast;
 module.exports.server     = server; // Supertest injects this directly
+module.exports.pushNotificationToUser   = pushNotificationToUser;
+module.exports.pushNotificationToAdmins = pushNotificationToAdmins;
 
 /**
  * Returns live WebSocket stats for the admin health dashboard.

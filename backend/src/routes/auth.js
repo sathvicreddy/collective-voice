@@ -20,6 +20,10 @@ const https   = require("https");
 const db      = require("../db/client");
 const { json, readBody } = require("../utils/helpers");
 const { isRateLimited, retryAfterSeconds, getClientIp } = require("../middleware/rateLimiter");
+// lazy-require to avoid circular deps at startup
+function _notifyAdmins(opts) {
+  try { require("../utils/notify").notifyAdmins(opts).catch(() => {}); } catch { /* ignore */ }
+}
 
 // ── Environment config ─────────────────────────────────────────
 const JWT_SECRET  = process.env.JWT_SECRET  || "cv_dev_secret_change_in_prod";
@@ -192,6 +196,14 @@ async function handleAuthRequest(req, res) {
   // ── POST /api/auth/signup ──────────────────────────────────
   if (req.method === "POST" && url.pathname === "/api/auth/signup") {
     if (isRateLimited(ip)) {
+      // §3: Notify admins about rate-limit blocks (fire-and-forget)
+      _notifyAdmins({
+        type:     "security",
+        priority: "high",
+        title:    "Signup rate limit triggered",
+        body:     `IP ${ip} exceeded the signup rate limit.`,
+        relatedId: ip
+      });
       return json(res, 429, { error: `Too many signup attempts. Try again in ${retryAfterSeconds(ip)}s.` });
     }
 
@@ -219,12 +231,29 @@ async function handleAuthRequest(req, res) {
       }
     });
 
+    // §3: Notify admins about new signup
+    _notifyAdmins({
+      type:     "user",
+      priority: "low",
+      title:    "New user registered",
+      body:     `${user.name} (${user.email}) just signed up.`,
+      relatedId: user.id
+    });
+
     return json(res, 201, { token, refreshToken, user: safeUser(user) });
   }
 
   // ── POST /api/auth/login ───────────────────────────────────
   if (req.method === "POST" && url.pathname === "/api/auth/login") {
     if (isRateLimited(ip)) {
+      // §3: Notify admins about rate-limit blocks (fire-and-forget)
+      _notifyAdmins({
+        type:     "security",
+        priority: "high",
+        title:    "Login rate limit triggered",
+        body:     `IP ${ip} exceeded the login rate limit.`,
+        relatedId: ip
+      });
       return json(res, 429, { error: `Too many login attempts. Try again in ${retryAfterSeconds(ip)}s.` });
     }
 
@@ -350,6 +379,44 @@ async function handleAuthRequest(req, res) {
     await db.resetToken.delete({ where: { tokenHash } });
 
     return json(res, 200, { message: "Password updated successfully." });
+  }
+
+  // ── POST /api/auth/change-password ─────────────────────────
+  // Requires a valid access token (user must be logged in).
+  // Verifies currentPassword with bcrypt before updating.
+  if (req.method === "POST" && url.pathname === "/api/auth/change-password") {
+    const payload = verifyToken(req);
+    if (!payload) return json(res, 401, { error: "Unauthorized. Please log in." });
+
+    const { currentPassword, newPassword } = await readBody(req);
+    if (!currentPassword || !newPassword) {
+      return json(res, 400, { error: "Both currentPassword and newPassword are required." });
+    }
+    if (newPassword.length < 8) {
+      return json(res, 400, { error: "New password must be at least 8 characters." });
+    }
+    if (newPassword.length > 128) {
+      return json(res, 400, { error: "Password must be 128 characters or fewer." });
+    }
+
+    const user = await db.user.findUnique({ where: { id: payload.sub } });
+    if (!user) return json(res, 404, { error: "User not found." });
+
+    // Google-only accounts have no password hash — disallow
+    if (!user.passwordHash) {
+      return json(res, 400, { error: "This account uses Google Sign-In. Password cannot be changed here." });
+    }
+
+    const match = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!match) return json(res, 400, { error: "Current password is incorrect." });
+
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await db.user.update({ where: { id: user.id }, data: { passwordHash: newHash } });
+
+    // Invalidate all existing refresh tokens for security (force re-login on other devices)
+    await db.refreshToken.deleteMany({ where: { userId: user.id } }).catch(() => {});
+
+    return json(res, 200, { message: "Password changed successfully." });
   }
 
   // ── GET /api/auth/google ── Redirect to Google ────────────
