@@ -15,8 +15,10 @@ const MAX_RECONNECT_ATTEMPTS = 10;
 // This lets the server set meta.role = 'owner' for the meeting host at
 // connection time — without it the isOwner check always returns false.
 function _buildWsUrl() {
-  const token = state.token || localStorage.getItem("cv_token") || "";
-  const base  = `ws://${location.host}`;
+  const token    = state.token || localStorage.getItem("cv_token") || "";
+  // Use wss:// on HTTPS (production/Render), ws:// on HTTP (local dev)
+  const protocol = location.protocol === "https:" ? "wss" : "ws";
+  const base     = `${protocol}://${location.host}`;
   return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }
 
