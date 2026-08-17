@@ -63,9 +63,11 @@ const ALLOWED_ORIGINS = new Set(
     .filter(Boolean)
 );
 
-function isCorsAllowed(origin) {
-  if (!origin) return true;          // same-origin / server-to-server
+function isCorsAllowed(origin, host) {
+  if (!origin) return true;           // same-origin / server-to-server
   if (ALLOWED_ORIGINS.has(origin)) return true;
+  // Auto-allow same-host requests (browser sends Origin even for same-origin module scripts)
+  if (host && (origin === `https://${host}` || origin === `http://${host}`)) return true;
   // Allow any localhost port in development
   if (process.env.NODE_ENV !== "production" && /^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
   return false;
@@ -145,16 +147,12 @@ const server = http.createServer(async (req, res) => {
 
   // ── CORS headers ───────────────────────────────────────────────────────────────
   const origin = req.headers.origin;
-  if (origin && isCorsAllowed(origin)) {
+  const host   = req.headers.host;   // e.g. collective-voice.onrender.com
+  if (origin && isCorsAllowed(origin, host)) {
     res.setHeader("Access-Control-Allow-Origin",  origin);
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
     res.setHeader("Vary", "Origin");
-  } else if (origin && !isCorsAllowed(origin)) {
-    // Reject cross-origin pre-flight from disallowed origins early
-    res.writeHead(403, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "CORS: origin not allowed" }));
-    return;
   }
   if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
 
@@ -171,7 +169,16 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.url.startsWith("/api/auth/")) { handleAuthRequest(req, res); return; }
-  if (req.url.startsWith("/api/")) { await handleApiRequest(req, res); return; }
+  if (req.url.startsWith("/api/")) {
+    // Block cross-origin API requests from untrusted origins
+    if (origin && !isCorsAllowed(origin, host)) {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "CORS: origin not allowed" }));
+      return;
+    }
+    await handleApiRequest(req, res);
+    return;
+  }
 
   // NOTE: /auth-callback is no longer a separate server route.
   // The OAuth flow redirects to /?token=...#/auth-callback which serves index.html.
