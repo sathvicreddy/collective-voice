@@ -86,6 +86,7 @@ export function renderMeetings() {
     return `<div class="page active" id="page-meetings"><div class="page-loading">Loading meetings…</div></div>`;
   }
 
+  const isMobile = window.innerWidth <= 768;
   const list = filteredMeetings();
   const sel  = _meetings.find(m => m.id === state.selectedMeetingId) || null;
   const deleteModal = state.showDeleteModal ? renderDeleteModal() : '';
@@ -114,6 +115,27 @@ export function renderMeetings() {
     </tr>`;
   }).join('');
 
+  /* ── Mobile card list ── */
+  const meetingCardHtml = list.map(m => {
+    const ownerInit = initials(m.owner?.name || '?');
+    const dateFmt = new Date(m.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+    return `
+      <div class="mob-card ${m.id===state.selectedMeetingId?'mob-card-selected':''}" onclick="selectMeeting('${m.id}')">
+        <div class="mob-card-avatar" style="background:${colorForInit(ownerInit)};color:${textColorForInit(ownerInit)}">${ownerInit}</div>
+        <div class="mob-card-body">
+          <div class="mob-card-title">${m.title}</div>
+          <div class="mob-card-sub">${m.owner?.name || '—'} · <span class="mob-card-code">${m.code}</span></div>
+          <div class="mob-card-tags">${statusBadge(m.status)}<span class="mob-card-meta">${m.questionsCount} Q &middot; ${dateFmt}</span></div>
+        </div>
+        <button class="mob-card-more" onclick="toggleMeetingMenu(event,'${m.id}')">${IC.moreHoriz}</button>
+      </div>`;
+  }).join('');
+
+  const detailCloseBtn = `<button class="mob-panel-close" onclick="selectMeeting(null)" aria-label="Back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back
+  </button>`;
+
   return `
     <div class="page active" id="page-meetings">
       ${deleteModal}
@@ -136,20 +158,28 @@ export function renderMeetings() {
         </div>
         <button class="clear-filters-btn" onclick="meetingsClearFilters()">Clear filters</button>
       </div>
-      <div class="dt-layout">
-        <div class="dt-table-wrap">
-          <table class="dt-table">
-            <thead><tr>
-              <th class="dt-th">TITLE</th><th class="dt-th">OWNER</th><th class="dt-th">STATUS</th>
-              <th class="dt-th">CODE</th><th class="dt-th">QUESTIONS</th><th class="dt-th">PARTICIPANTS</th>
-              <th class="dt-th">CREATED</th><th class="dt-th"></th>
-            </tr></thead>
-            <tbody>${tableHtml || '<tr><td colspan="8" class="dt-td" style="text-align:center;color:var(--muted)">No meetings found</td></tr>'}</tbody>
-          </table>
-          <div class="dt-footer"><div class="dt-showing">Showing ${list.length} of ${_meetings.length} meetings</div></div>
+      ${isMobile ? `
+        <div class="mob-card-list">
+          ${meetingCardHtml || '<div class="mob-empty">No meetings found</div>'}
         </div>
-        ${sel ? `<div class="detail-panel" id="detail-panel">${renderMeetingDetailPanel(sel)}</div>` : ''}
-      </div>
+        <div class="mob-list-footer">${list.length} of ${_meetings.length} meetings</div>
+        ${sel ? `<div class="detail-panel" id="detail-panel">${detailCloseBtn}${renderMeetingDetailPanel(sel)}</div>` : ''}
+      ` : `
+        <div class="dt-layout">
+          <div class="dt-table-wrap">
+            <table class="dt-table">
+              <thead><tr>
+                <th class="dt-th">TITLE</th><th class="dt-th">OWNER</th><th class="dt-th">STATUS</th>
+                <th class="dt-th">CODE</th><th class="dt-th">QUESTIONS</th><th class="dt-th">PARTICIPANTS</th>
+                <th class="dt-th">CREATED</th><th class="dt-th"></th>
+              </tr></thead>
+              <tbody>${tableHtml || '<tr><td colspan="8" class="dt-td" style="text-align:center;color:var(--muted)">No meetings found</td></tr>'}</tbody>
+            </table>
+            <div class="dt-footer"><div class="dt-showing">Showing ${list.length} of ${_meetings.length} meetings</div></div>
+          </div>
+          ${sel ? `<div class="detail-panel" id="detail-panel">${renderMeetingDetailPanel(sel)}</div>` : ''}
+        </div>
+      `}
     </div>`;
 }
 
@@ -397,17 +427,19 @@ function renderDeleteModal() {
 
 /* ── Meeting Actions ── */
 window.selectMeeting = function(id) {
-  state.selectedMeetingId = id;
+  state.selectedMeetingId = id || null;
   state.meetingContextMenu = null;
   state.meetingDetailTab = 'questions';
   _detail = null;
   const el = document.getElementById('admin-content-area');
   if (el) el.innerHTML = renderMeetings();
-  // Load detail in background
-  loadMeetingDetail(id).then(() => {
-    const el2 = document.getElementById('admin-content-area');
-    if (el2 && state.selectedMeetingId === id) el2.innerHTML = renderMeetings();
-  });
+  // Load detail in background only for a real id
+  if (id) {
+    loadMeetingDetail(id).then(() => {
+      const el2 = document.getElementById('admin-content-area');
+      if (el2 && state.selectedMeetingId === id) el2.innerHTML = renderMeetings();
+    });
+  }
 };
 window.closeMeetingPanel = function() {
   state.selectedMeetingId = null;
@@ -469,7 +501,7 @@ window.confirmDeleteMeeting = async function(id) {
     const el = document.getElementById('admin-content-area');
     if (el) el.innerHTML = renderMeetings();
   } catch (err) {
-    alert('Error: ' + err.message);
+    window.adminToast?.(err.message, 'error');
     window.closeDeleteModal();
   }
 };
@@ -482,7 +514,7 @@ window.forceStatus = async function(id, status) {
     const el = document.getElementById('admin-content-area');
     if (el) el.innerHTML = renderMeetings();
   } catch (err) {
-    alert('Error: ' + err.message);
+    window.adminToast?.(err.message, 'error');
   }
 };
 window.meetingsSearch = function(q) {

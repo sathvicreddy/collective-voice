@@ -30,3 +30,7 @@ Thumbs.db
 # Backup / scratch files — never commit these
 *.bak
 *.orig
+
+# Deployment artifacts
+.vercel/
+.render/

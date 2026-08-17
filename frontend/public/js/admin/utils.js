@@ -49,9 +49,10 @@ export function roleBadge(role) {
   const map = {
     superadmin: '<span class="role-badge superadmin">Superadmin</span>',
     admin:      '<span class="role-badge admin">Admin</span>',
+    customer:   '<span class="role-badge user">User</span>',
     user:       '<span class="role-badge user">User</span>',
   };
-  return map[role] || role;
+  return map[role] || `<span class="role-badge user">${role}</span>`;
 }
 
 export function authMethod(auth) {

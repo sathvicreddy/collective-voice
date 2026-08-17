@@ -38,13 +38,13 @@ export function renderLiveNow() {
 
   const cardsHtml = sorted.map((m, i) => `
     <div class="livenow-card" style="animation-delay:${i*.06}s">
-      <div class="livenow-card-header"><div class="live-badge"><span class="live-badge-dot"></span> LIVE</div><button class="moderate-btn">View as Moderator</button></div>
+      <div class="livenow-card-header"><div class="live-badge"><span class="live-badge-dot"></span> LIVE</div><button class="moderate-btn" onclick="liveNowViewMeeting('${m.id}')">View Details</button></div>
       <div class="livenow-card-title">${m.title}</div>
       <div class="livenow-card-host"><div class="host-avatar">${initials(m.owner?.name || '?')}</div>${m.owner?.name || 'Unknown'}</div>
       <div class="livenow-stats-row">
         <div><div class="livenow-stat-label">Participants</div><div class="livenow-stat-value" style="margin-top:4px">${m.participantsCount}</div></div>
         <div><div class="livenow-stat-label">Questions</div><div class="livenow-stat-value" style="margin-top:4px">${m.questionsCount}</div></div>
-        <div><div class="livenow-stat-label">Code</div><div class="livenow-stat-small" style="margin-top:4px">${m.code}</div></div>
+        <div><div class="livenow-stat-label">Code</div><div class="livenow-stat-small" style="margin-top:4px;cursor:pointer" onclick="navigator.clipboard.writeText('${m.code}');window.adminToast?.('Code copied!')" title="Click to copy">${m.code} ⧉</div></div>
       </div>
     </div>`).join('');
 
@@ -108,4 +108,15 @@ window.refreshLiveNow = function() {
   _liveMeetings = null;
   const el = document.getElementById('admin-content-area');
   if (el) el.innerHTML = renderLiveNow();
+};
+
+/* Navigate to Meetings page and open the detail panel for a specific meeting */
+window.liveNowViewMeeting = function(meetingId) {
+  window.adminNavigate('meetings');
+  // Give the meetings page a tick to render before selecting
+  setTimeout(() => {
+    if (typeof window.selectMeeting === 'function') {
+      window.selectMeeting(meetingId);
+    }
+  }, 120);
 };

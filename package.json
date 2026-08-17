@@ -7,6 +7,7 @@
     "start": "node -r dotenv/config backend/server.js",
     "backend": "node -r dotenv/config backend/server.js",
     "dev": "node -r dotenv/config backend/server.js",
+    "build": "npx prisma generate",
     "test": "jest --testPathPattern=backend/tests --forceExit",
     "test:api": "jest --testPathPattern=backend/tests/api --forceExit",
     "test:auth": "jest --testPathPattern=backend/tests/auth --forceExit",
@@ -17,6 +18,9 @@
     "db:seed": "node prisma/seed.js",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [
     "collectivevoice",

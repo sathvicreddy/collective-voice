@@ -203,9 +203,10 @@ window.resetNlpThreshold = function() {
 window.saveNlpThreshold = async function() {
   try {
     await adminPost('/api/admin/nlp/config', { threshold: nlpThreshold });
-    const btn = document.querySelector('.nlp-threshold-display');
-    if (btn) { const old = btn.textContent; btn.textContent = '✓ Saved'; setTimeout(() => { btn.textContent = nlpThreshold.toFixed(2); }, 1500); }
-  } catch (err) { alert('Error: ' + err.message); }
+    window.adminToast?.('Clustering threshold saved!');
+    const disp = document.querySelector('.nlp-threshold-display');
+    if (disp) { disp.textContent = '✓ Saved'; setTimeout(() => { disp.textContent = nlpThreshold.toFixed(2); }, 1500); }
+  } catch (err) { window.adminToast?.(err.message, 'error'); }
 };
 
 window.updateNlpWeight = function(key, val) {
@@ -225,10 +226,15 @@ window.updateNlpWeight = function(key, val) {
 };
 
 window.saveNlpWeights = async function() {
+  const total = nlpWeights.vote + nlpWeights.fresh + nlpWeights.novel + nlpWeights.diverse;
+  if (Math.abs(total - 1.00) >= 0.001) {
+    window.adminToast?.('Weights must sum to 1.00 (currently ' + total.toFixed(2) + ')', 'error');
+    return;
+  }
   try {
     await adminPost('/api/admin/nlp/config', { weights: nlpWeights });
-    alert('Scoring weights saved!');
-  } catch (err) { alert('Error: ' + err.message); }
+    window.adminToast?.('Scoring weights saved!');
+  } catch (err) { window.adminToast?.(err.message, 'error'); }
 };
 
 window.saveNlpRate = async function() {
@@ -237,8 +243,8 @@ window.saveNlpRate = async function() {
   try {
     await adminPost('/api/admin/nlp/config', { rateLimiting: { maxRequests: maxReq, windowMs } });
     nlpRate = { maxReq, windowMs };
-    alert('Rate limiting config saved!');
-  } catch (err) { alert('Error: ' + err.message); }
+    window.adminToast?.('Rate limiting config saved!');
+  } catch (err) { window.adminToast?.(err.message, 'error'); }
 };
 
 window.swapNlpQuestions = function() {
@@ -253,7 +259,7 @@ window.swapNlpQuestions = function() {
 window.runNlpCompare = async function() {
   const qa = document.getElementById('nlp-qa')?.value?.trim();
   const qb = document.getElementById('nlp-qb')?.value?.trim();
-  if (!qa || !qb) { alert('Please enter both questions.'); return; }
+  if (!qa || !qb) { window.adminToast?.('Please enter both questions.', 'error'); return; }
   nlpTest.a = qa;
   nlpTest.b = qb;
   nlpTest.loading = true;

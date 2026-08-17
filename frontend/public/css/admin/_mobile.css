@@ -1,0 +1,701 @@
+/* ============================================================
+   ADMIN PANEL — MOBILE RESPONSIVE STYLES
+   Breakpoints:
+     768px  — tablet / large phone landscape
+     480px  — phone portrait
+   ============================================================ */
+
+/* ═══════════════════════════════════════════════════════════
+   HAMBURGER BUTTON — shown only on mobile
+   ═══════════════════════════════════════════════════════════ */
+.admin-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+  margin-right: 4px;
+}
+.admin-hamburger:hover { background: var(--soft); color: var(--primary); }
+.admin-hamburger svg  { width: 18px; height: 18px; }
+
+/* Search icon button — shown only on ≤480px */
+.admin-search-toggle {
+  display: none;
+}
+
+/* Sidebar overlay backdrop */
+.sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(17, 25, 54, .45);
+  z-index: 199;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fadeIn .18s ease;
+}
+.sidebar-backdrop.active { display: block; }
+
+/* ═══════════════════════════════════════════════════════════
+   ≤ 768px  TABLET & PHONE
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Shell Layout ── */
+  body { overflow: hidden; }
+
+  #admin-app {
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  /* Sidebar slides in from left as a drawer */
+  .admin-sidebar {
+    position: fixed !important;
+    left: 0; top: 0; bottom: 0;
+    width: 264px !important;
+    min-width: 264px !important;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow: none;
+    height: 100dvh !important;
+  }
+  .admin-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 8px 0 40px rgba(17,25,54,.22);
+  }
+
+  /* Main takes full width */
+  .admin-main {
+    width: 100%;
+    height: 100dvh;
+    flex: 1;
+  }
+
+  /* ── Topbar ── */
+  .admin-topbar {
+    padding: 0 12px;
+    gap: 8px;
+    height: 56px;
+  }
+
+  /* Show hamburger */
+  .admin-hamburger { display: flex; }
+
+  /* Shrink search bar */
+  .topbar-search {
+    max-width: none;
+    flex: 1;
+    height: 36px;
+    padding: 0 10px;
+  }
+  .search-kbd { display: none; }
+
+  /* Hide topbar user info text — keep avatar only */
+  .topbar-user-info { display: none; }
+
+  /* Shrink exit button */
+  .topbar-exit-btn {
+    padding: 6px 10px;
+    font-size: 0;
+    gap: 0;
+    min-width: 36px;
+    height: 36px;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+  }
+  .topbar-exit-btn svg { width: 16px; height: 16px; font-size: 16px; }
+
+  /* ── Content area ── */
+  .page.active {
+    padding: 14px 14px 32px;
+  }
+  #page-meetings.active,
+  #page-users.active {
+    padding: 12px 12px 0;
+  }
+
+  /* ── Page Headers ── */
+  .page-title { font-size: 18px; }
+  .page-header-row {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .page-header-row > button,
+  .page-header-row > .refresh-btn { align-self: flex-start; }
+
+  /* ── Metric Cards ── */
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .metric-card { padding: 14px; gap: 10px; }
+  .metric-icon { width: 40px; height: 40px; }
+  .metric-icon svg { width: 20px; height: 20px; }
+  .metric-value { font-size: 22px !important; }
+
+  /* ── Overview live cards ── */
+  .live-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  /* ── Bottom grid (health + chart) ── */
+  .bottom-grid { grid-template-columns: 1fr !important; gap: 12px; }
+
+  /* ── Live Now page ── */
+  .livenow-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+  .livenow-toolbar { gap: 8px; flex-wrap: wrap; }
+  .livenow-toolbar .spacer { display: none; }
+
+  /* ── Data tables — horizontal scroll ── */
+  .dt-layout {
+    flex-direction: column !important;
+    overflow: visible !important;
+    gap: 0 !important;
+  }
+  .dt-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--line);
+  }
+  .dt-table { min-width: 540px; }
+
+  /* Detail panels become full-screen on mobile */
+  .detail-panel,
+  .user-detail-panel,
+  .meeting-detail-panel,
+  .ma-detail-panel {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-top: none !important;
+    z-index: 150 !important;
+    overflow-y: auto !important;
+    animation: slideUpPanel .25s ease !important;
+  }
+
+  /* Always show close button on mobile detail panels */
+  .dp-close-btn { display: flex !important; }
+
+  /* ── Filters bar ── */
+  .dt-filters {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .dt-search-wrap { min-width: 100%; width: 100%; flex: none; }
+  .filter-group { flex: 1; min-width: 130px; }
+  .clear-filters-btn { width: 100%; justify-content: center; text-align: center; }
+
+  /* ── Moderation page ── */
+  .mod-layout {
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+  .mod-sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--line) !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    padding: 10px 12px !important;
+    gap: 6px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mod-tab { white-space: nowrap; flex-shrink: 0; }
+  .mod-content { padding: 12px !important; }
+
+  /* ── NLP Engine page ── */
+  .nlp-section-body { padding: 14px !important; }
+  .nlp-threshold-row { flex-direction: column !important; gap: 12px !important; }
+  .nlp-threshold-left { max-width: 100% !important; }
+  .nlp-threshold-display { align-self: flex-start; font-size: 30px !important; }
+  .nlp-test-row { flex-direction: column !important; gap: 10px !important; }
+  .nlp-swap-btn { transform: rotate(90deg); align-self: center; }
+  .nlp-rate-row { flex-direction: column !important; gap: 12px !important; }
+  .nlp-rate-field { max-width: 100% !important; }
+
+  /* ── System Health page ── */
+  .health-three-col {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .sys-ws-chart-wrap { height: 100px !important; }
+
+  /* ── Manage Admins ── */
+  .ma-layout {
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+  .ma-filters-sidebar,
+  .ma-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--line) !important;
+  }
+
+  /* ── Notifications page ── */
+  .an-layout {
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+  .an-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--line) !important;
+    padding: 10px 12px !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+  }
+  .an-tab-item { white-space: nowrap; flex-shrink: 0; }
+
+  /* ── Messages page ── */
+  .msg-layout {
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+  .msg-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--line) !important;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .msg-main { padding: 14px !important; }
+
+  /* ── Audit Log page ── */
+  .audit-filters {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+  .audit-filter-group { width: 100% !important; }
+  .audit-filter-group .filter-group { width: 100% !important; }
+
+  /* ── Pagination ── */
+  .dt-footer {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+  }
+  .pagination-row {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100%;
+    align-items: center;
+  }
+  .per-page-wrap select { font-size: 12px; padding: 4px 8px; }
+
+  /* ── Modals — slide up from bottom ── */
+  .modal-overlay {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+  .modal {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+  }
+
+  /* ── Notification dropdown ── */
+  #admin-notif-dropdown {
+    position: fixed !important;
+    top: auto !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 16px !important;
+    max-height: 70vh !important;
+    overflow-y: auto;
+  }
+
+  /* ── Context menus ── */
+  .context-menu {
+    min-width: 160px !important;
+    right: 0 !important;
+    left: auto !important;
+  }
+  .ma-dropdown {
+    right: 0 !important;
+    left: auto !important;
+  }
+
+  /* ── Quick message modal (QMM) ── */
+  #qmm-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  #qmm-overlay .modal,
+  #qmm-overlay .qmm-card {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  }
+
+  /* ── Toast position ── */
+  .admin-toast {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: max(16px, env(safe-area-inset-bottom)) !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ≤ 480px  SMALL PHONE
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+
+  /* Single-column metrics */
+  .metrics-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .metric-card { flex-direction: row; align-items: center; padding: 12px; }
+  .metric-value { font-size: 20px !important; }
+
+  /* Smaller page title */
+  .page-title { font-size: 15px; }
+  .page-subtitle { font-size: 12px; }
+  .page-count { font-size: 12px !important; }
+
+  /* Tighter page padding */
+  .page.active { padding: 10px 10px 24px; }
+  #page-meetings.active,
+  #page-users.active { padding: 10px 10px 0; }
+
+  /* Hide topbar search bar, show search icon button */
+  .topbar-search { display: none; }
+  .admin-search-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--ink-secondary);
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .admin-search-toggle:hover { background: var(--soft); color: var(--primary); }
+  .admin-search-toggle svg { width: 16px; height: 16px; }
+
+  /* Smaller table text */
+  .dt-table { font-size: 12px; min-width: 480px; }
+  .dt-th, .dt-td { padding: 8px 10px !important; }
+
+  /* Role badges */
+  .role-badge { font-size: 10px; padding: 2px 6px; }
+
+  /* Health 3-col → 2-col */
+  .health-stats { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Live-now stats row */
+  .livenow-stats-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SLIDE-UP PANEL ANIMATION (mobile detail panels)
+   ═══════════════════════════════════════════════════════════ */
+@keyframes slideUpPanel {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOB-CARD — shared card list component
+   Used on Users, Meetings, Manage Admins pages on mobile
+   ═══════════════════════════════════════════════════════════ */
+
+/* Card list container */
+.mob-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1.5px solid var(--line);
+}
+
+/* Individual card */
+.mob-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  background: var(--white);
+  cursor: pointer;
+  transition: background var(--transition);
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-card:active { background: var(--soft); }
+.mob-card-selected { background: var(--soft) !important; }
+.mob-card-selected::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--primary);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Avatar */
+.mob-card-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* Body */
+.mob-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mob-card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mob-card-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mob-card-code {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--ink-secondary);
+  background: var(--bg);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+.mob-card-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.mob-card-meta {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ⋮ More button */
+.mob-card-more {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-card-more:active { background: var(--soft); color: var(--ink); }
+.mob-card-more svg { width: 18px; height: 18px; }
+
+/* Footer count */
+.mob-list-footer {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 8px 4px 2px;
+}
+
+/* Empty state */
+.mob-empty {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--white);
+}
+
+/* ── Back / close button on mobile detail panels ── */
+.mob-panel-close {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 16px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  border-bottom: 1px solid var(--line-light);
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--transition);
+}
+.mob-panel-close:active { background: var(--soft); }
+.mob-panel-close svg { width: 18px; height: 18px; }
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE PAGE LAYOUT FIXES — Users / Meetings / Manage Admins
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* Users and Meetings pages: allow normal block scroll when card list is shown */
+  #page-users.active,
+  #page-meetings.active {
+    display: block !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 12px 12px 32px !important;
+  }
+
+  /* Manage Admins — collapse to single column on mobile */
+  .ma-wrap {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .ma-wrap-mobile {
+    display: block !important;
+  }
+  .ma-right {
+    display: none; /* hidden on mobile — detail shown in overlay */
+  }
+  /* Show detail as full-screen overlay when selected */
+  .ma-detail-panel-mobile {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 160 !important;
+    background: var(--white);
+    overflow-y: auto;
+    animation: slideUpPanel .22s ease;
+  }
+  /* Inside the overlay, hide the "Select an administrator" empty state */
+  .ma-detail-panel-mobile .ma-no-selection { display: none !important; }
+  .ma-detail-panel-mobile .ma-right { display: block !important; }
+  .ma-detail-panel-mobile .ma-detail-card {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Stats grid: 2 cols on mobile */
+  .ma-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  .ma-stat-card { padding: 12px !important; }
+  .ma-stat-icon { width: 36px; height: 36px; }
+  .ma-stat-icon svg { width: 16px; height: 16px; }
+  .ma-stat-value { font-size: 20px !important; }
+
+  /* Manage Admins header */
+  .ma-header {
+    flex-direction: column !important;
+    gap: 10px !important;
+    align-items: flex-start !important;
+  }
+  .ma-add-btn { width: 100%; justify-content: center; }
+
+  /* Manage Admins filters: wrap */
+  .ma-filters {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .ma-search-wrap { width: 100% !important; min-width: 100% !important; }
+  .ma-select { flex: 1; min-width: 120px; }
+  .ma-filter-btn { width: 100%; }
+
+  /* MA banner: stack on mobile */
+  .ma-banner {
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 16px !important;
+  }
+  .ma-banner-left { flex-direction: column !important; gap: 8px !important; }
+  .ma-invite-btn { width: 100%; justify-content: center; }
+
+  /* User detail panel sections: full-width */
+  .udp-footer {
+    flex-wrap: wrap !important;
+  }
+  .udp-btn { flex: 1; justify-content: center; min-width: calc(50% - 4px); }
+
+  /* Meeting detail panel footer: stack */
+  .dp-footer {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .dp-status-wrap { width: 100%; }
+  .dp-status-select { width: 100%; }
+  .danger-btn, .dp-action-btn { flex: 1; justify-content: center; }
+
+  /* dp-settings-grid: single column on mobile */
+  .dp-settings-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .dp-settings-grid .dp-setting-item:nth-child(odd) {
+    padding-right: 0 !important;
+    border-right: none !important;
+  }
+  .dp-settings-grid .dp-setting-item:nth-last-child(-n+2) {
+    border-bottom: 1px solid var(--line-light) !important;
+  }
+  .dp-settings-grid .dp-setting-item:last-child {
+    border-bottom: 0 !important;
+  }
+
+  /* Detail panel section scroll: full height */
+  .dp-section-scroll { overflow-y: visible !important; }
+  .udp-section { padding: 10px 14px !important; }
+  .dp-section { padding: 10px 14px !important; }
+
+  /* Manage Admins page: ensure it scrolls like a normal block page */
+  #page-manage-admins.active {
+    display: block !important;
+    overflow-y: auto !important;
+    padding: 14px 12px 32px !important;
+  }
+
+  /* Remove fixed height from ma-left and ma-right on mobile */
+  .ma-left, .ma-right {
+    overflow: visible !important;
+    height: auto !important;
+  }
+}

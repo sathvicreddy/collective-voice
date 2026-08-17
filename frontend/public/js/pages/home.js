@@ -216,7 +216,7 @@ export function renderHome() {
 /** Called by "Join Now" on the home live banner.
  *  Sets state.joinTarget so the join preview screen has meeting info. */
 export function homejoinLive(meetingId) {
-  const m = state.meetings?.find(x => x.id === meetingId)
+  const m = state.myMeetings.all?.find(x => x.id === meetingId)
     || (state.home?.live?.id === meetingId ? state.home.live : null);
   if (m) { state.joinTarget = m; state.isHost = false; }
   go('/join/preview');

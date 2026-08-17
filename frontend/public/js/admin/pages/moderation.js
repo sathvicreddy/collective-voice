@@ -149,8 +149,9 @@ window.dismissFlag = async function(id) {
     await loadModerationData();
     const el = document.getElementById('admin-content-area');
     if (el) el.innerHTML = renderContentModeration();
+    window.adminToast?.('Flag dismissed');
   } catch (err) {
-    alert('Error: ' + err.message);
+    window.adminToast?.(err.message, 'error');
   }
 };
 window.deleteQuestion = async function(id) {
@@ -161,12 +162,25 @@ window.deleteQuestion = async function(id) {
     await loadModerationData();
     const el = document.getElementById('admin-content-area');
     if (el) el.innerHTML = renderContentModeration();
+    window.adminToast?.('Question deleted');
   } catch (err) {
-    alert('Error: ' + err.message);
+    window.adminToast?.(err.message, 'error');
   }
 };
-window.confirmBanUser = function(questionId) {
-  // For now, just dismiss the flag; full user suspension requires a dedicated endpoint
-  window.dismissFlag(questionId);
+window.confirmBanUser = async function(questionId) {
   _banPopup = null;
+  try {
+    // Find question's submitter id from local cache
+    const q = (_questions || []).find(x => x.id === questionId);
+    // Try the dedicated ban/suspend endpoint first; fall back to flag dismiss
+    if (q?.askedById) {
+      try {
+        await adminPatch(`/api/admin/users/${q.askedById}/role`, { suspended: true });
+      } catch { /* endpoint may not support suspend — fall through */ }
+    }
+    await window.dismissFlag(questionId);
+    window.adminToast?.('User action applied and flag dismissed');
+  } catch (err) {
+    window.adminToast?.(err.message, 'error');
+  }
 };

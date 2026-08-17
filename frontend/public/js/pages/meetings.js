@@ -33,8 +33,9 @@ async function copyMeetingLink(meetingId) {
       setTimeout(() => { btn.innerHTML = orig; btn.style.color = ""; }, 2000);
     }
   } catch {
-    // Fallback: build link from known code (if meeting is in state)
-    const m = window.state?.meetings?.find(m => m.id === meetingId);
+    // Fallback: build link from the user's own meeting list (never global list)
+    const m = (state.joinTarget?.id === meetingId ? state.joinTarget : null)
+      || window.state?.myMeetings?.all?.find(m => m.id === meetingId);
     const link = m ? `${location.origin}/#/join/${m.code}` : location.origin;
     navigator.clipboard.writeText(link).catch(() => prompt("Copy this link:", link));
   }
@@ -69,10 +70,12 @@ export function renderMeetings() {
   // Use user-specific lists (enrolled + owned) so each user only sees
   // meetings they have joined or created.
   const myMtgs   = state.myMeetings;
-  const ongoing  = myMtgs.live.length ? myMtgs.live : state.meetings.filter(m => m.status === "live");
-  const upcoming = (myMtgs.upcoming.length ? myMtgs.upcoming : state.meetings.filter(m => m.status === "upcoming" || m.status === "scheduled"))
+  // Security: use ONLY user-scoped lists — never fall back to the global
+  // state.meetings list which contains every meeting on the server.
+  const ongoing  = myMtgs.live || [];
+  const upcoming = (myMtgs.upcoming || [])
     .sort((a, b) => new Date(a.scheduledAt || a.date || 0) - new Date(b.scheduledAt || b.date || 0));
-  const conducted = myMtgs.past.length ? myMtgs.past : state.meetings.filter(m => m.status === "conducted" || m.status === "past");
+  const conducted = myMtgs.past || [];
   const expired   = myMtgs.expired || [];
 
   // Only set liveMeeting if there is genuinely a live meeting
@@ -514,8 +517,9 @@ export function renderMeetings() {
 /* --- Join Flow --------------------------------------------- */
 
 export function renderJoin(step = "start") {
-  // Use the meeting looked-up via code, fall back to first meeting for demo
-  const meeting = state.joinTarget || state.meetings[0] || {};
+  // Security: only use the meeting explicitly set by a QR/code lookup.
+  // Never fall back to a global list — that would reveal other users' meetings.
+  const meeting = state.joinTarget || {};
   const screens = {
     start: `
       <h1 class="screen-title">Join Meeting</h1>
@@ -838,8 +842,11 @@ export function renderJoining() {
  * "Start Meeting Now" / "Continue Meeting" CTA.
  */
 export function renderMeetingStart() {
-  // state.joinTarget is always set by openMeetingDetail() before navigating here
-  const meeting = state.joinTarget || state.meetings[0] || {};
+  // Security: state.joinTarget must always be set by openMeetingDetail() before
+  // navigating here.  If it is missing (e.g. direct URL navigation), bounce the
+  // user to the join flow rather than showing another user's meeting.
+  if (!state.joinTarget) { go('/join'); return; }
+  const meeting = state.joinTarget;
 
   /* ---- Derived display values ---- */
   const title       = meeting.title       || "Your Meeting";
@@ -1577,7 +1584,7 @@ export function renderCreate(step = "type") {
           </div>
         </div>
         <section class="panel stack" style="text-align:left;padding:16px;gap:10px">
-          <h3 style="font-size:15px;font-weight:700">${state.joinTarget?.title || state.meetings[0]?.title || draft.title}</h3>
+          <h3 style="font-size:15px;font-weight:700">${state.joinTarget?.title || draft.title}</h3>
           <div class="create-review-rows">
             <div class="info-row">${icons.calendar}
               <span>${fmtDate(state.joinTarget?.date || displayDate)}</span>
@@ -1775,7 +1782,9 @@ async function mountScanScreen() {
 
 /* --- Share QR Code via Web Share API (A2) ------------------- */
 async function shareMeetingQR(meetingId) {
-  const meeting = state.meetings.find(m => m.id === meetingId);
+  // Search the user's own meeting list — never the global list.
+  const meeting = state.myMeetings.all.find(m => m.id === meetingId)
+    || (state.joinTarget?.id === meetingId ? state.joinTarget : null);
   const link    = meeting
     ? `${location.origin}/#/join/${meeting.code}`
     : location.origin;

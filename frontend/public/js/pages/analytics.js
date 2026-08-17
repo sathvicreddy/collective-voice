@@ -74,7 +74,8 @@ export async function renderAnalytics() {
   const aiSum    = data.analytics?.aiSummary || "Run a session to see your AI summary.";
 
   // Get list of completed meetings for the selector
-  const meetings = (state.meetings || []).filter(m => m.status === "conducted" || m.status === "past");
+  // Security: use only the user's own past/conducted meetings.
+  const meetings = state.myMeetings.past || [];
 
   shell(phone(`
     <h1 class="screen-title">Analytics</h1>

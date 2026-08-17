@@ -56,6 +56,7 @@ function relTime(iso) {
 }
 
 function toast(msg, type = 'success') {
+  if (window.adminToast) { window.adminToast(msg, type); return; }
   const el = document.createElement('div');
   el.className = `ma-toast ${type}`;
   el.innerHTML = `${type === 'success' ? IC.check : IC.alertCircle} ${msg}`;
@@ -413,10 +414,10 @@ function renderRow(u) {
             <div class="ma-dropdown" onclick="event.stopPropagation()">
               <div class="ma-dropdown-item" onclick="maSelectUser('${u.id}')">${IC.externalLink} View Profile</div>
               ${!isSelf && u.role !== 'superadmin' ? `
-                ${u.role === 'admin' ? `<div class="ma-dropdown-item" onclick="maChangeRole('${u.id}','customer');adminState=window._maState">${IC.userMinus} Demote to Customer</div>` : `<div class="ma-dropdown-item" onclick="maChangeRole('${u.id}','admin')">${IC.userCheck} Promote to Admin</div>`}
+                ${u.role === 'admin' ? `<div class="ma-dropdown-item" onclick="maChangeRole('${u.id}','customer')">${IC.userMinus} Demote to Customer</div>` : `<div class="ma-dropdown-item" onclick="maChangeRole('${u.id}','admin')">${IC.userCheck} Promote to Admin</div>`}
               ` : ''}
               <div class="ma-dropdown-divider"></div>
-              <div class="ma-dropdown-item danger">${IC.trash} Remove Admin</div>
+              ${!isSelf && u.role !== 'superadmin' ? `<div class="ma-dropdown-item danger" onclick="maChangeRole('${u.id}','customer')">${IC.trash} Remove Admin</div>` : ''}
             </div>` : ''}
         </div>
       </td>
@@ -596,12 +597,12 @@ function renderDetail() {
       </div>
       
       <div class="ma-detail-actions">
-        <button class="ma-detail-btn outline" onclick="alert('Edit Role coming soon')">${IC.arrowSwap} Edit Role</button>
-        <button class="ma-detail-btn outline" onclick="alert('Manage Permissions coming soon')">${IC.shieldCheck} Manage Permissions</button>
-        <button class="ma-detail-btn outline" onclick="alert('Reset Password coming soon')">${IC.lock} Reset Password</button>
+        ${u.role !== 'superadmin' ? `
+          <button class="ma-detail-btn outline" onclick="maChangeRole('${u.id}','${u.role === 'admin' ? 'customer' : 'admin}')">${IC.arrowSwap} ${u.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button>
+        ` : ''}
+        <button class="ma-detail-btn outline" onclick="window.adminToast('Permissions are managed via role assignment.','info')">${IC.shieldCheck} Permissions</button>
         ${!isSelf ? `
-          <button class="ma-detail-btn warning" onclick="alert('Suspend feature coming soon')">${IC.alertCircle} Suspend Admin</button>
-          <button class="ma-detail-btn danger"  onclick="alert('Delete feature coming soon')">${IC.trash} Delete Admin</button>
+          <button class="ma-detail-btn danger" onclick="if(confirm('Remove admin rights from ${u.name}?')){maChangeRole('${u.id}','customer')}">${IC.trash} Remove Admin</button>
         ` : ''}
       </div>
 
@@ -642,10 +643,37 @@ export function renderManageAdmins() {
       </div>`;
   }
 
-  const rows = pageItems();
+  const isMobile = window.innerWidth <= 768;
+
+  /* Mobile card list */
+  const maCardHtml = rows.map(u => {
+    const color = avatarColor(u.name);
+    const inits = initials(u.name);
+    const roleClass = u.role === 'superadmin' ? 'superadmin' : u.role === 'admin' ? 'admin' : 'customer';
+    const statusClass = u.status === 'suspended' ? 'suspended' : u.status === 'inactive' ? 'inactive' : 'active';
+    const isSelected = adminState.selected?.id === u.id;
+    return `
+      <div class="mob-card ${isSelected ? 'mob-card-selected' : ''}" onclick="maSelectUser('${u.id}')">
+        <div class="mob-card-avatar" style="background:${color}">${inits}</div>
+        <div class="mob-card-body">
+          <div class="mob-card-title">${u.name}</div>
+          <div class="mob-card-sub">${u.email}</div>
+          <div class="mob-card-tags">
+            <span class="ma-role-badge ${roleClass}">${u.role === 'superadmin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'Customer'}</span>
+            <span class="ma-status-badge ${statusClass}" style="font-size:10px;padding:2px 7px">${u.status || 'active'}</span>
+          </div>
+        </div>
+        <button class="mob-card-more" onclick="maToggleDropdown('${u.id}',event)">${IC.moreHoriz}</button>
+      </div>`;
+  }).join('');
+
+  const maDetailCloseBtn = `<button class="mob-panel-close" onclick="maCloseDetail()" aria-label="Back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back
+  </button>`;
 
   return `
-    <div class="ma-wrap">
+    <div class="ma-wrap${isMobile ? ' ma-wrap-mobile' : ''}">
       <!-- LEFT PANEL -->
       <div class="ma-left">
         <div class="ma-header">
@@ -689,31 +717,40 @@ export function renderManageAdmins() {
           <button class="ma-filter-btn">${IC.filterIcon} Filters</button>
         </div>
 
-        <!-- Table -->
-        <div class="ma-table-wrap">
-          ${rows.length === 0 ? `
-            <div class="ma-empty">
-              ${IC.users}
-              <div class="ma-empty-title">No administrators found</div>
-              <div class="ma-empty-sub">Try adjusting your filters or search query.</div>
-            </div>` : `
-            <table class="ma-table">
-              <thead>
-                <tr>
-                  <th>Administrator</th>
-                  <th>Role</th>
-                  <th>Department</th>
-                  <th>Last Active</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${rows.map(renderRow).join('')}
-              </tbody>
-            </table>
-            ${renderPagination()}`}
-        </div>
+        <!-- Table / Cards -->
+        ${isMobile ? `
+          <div class="mob-card-list">
+            ${rows.length === 0
+              ? '<div class="mob-empty">No administrators found</div>'
+              : maCardHtml}
+          </div>
+          <div class="mob-list-footer">${adminState.filtered.length} administrator${adminState.filtered.length !== 1 ? 's' : ''}</div>
+        ` : `
+          <div class="ma-table-wrap">
+            ${rows.length === 0 ? `
+              <div class="ma-empty">
+                ${IC.users}
+                <div class="ma-empty-title">No administrators found</div>
+                <div class="ma-empty-sub">Try adjusting your filters or search query.</div>
+              </div>` : `
+              <table class="ma-table">
+                <thead>
+                  <tr>
+                    <th>Administrator</th>
+                    <th>Role</th>
+                    <th>Department</th>
+                    <th>Last Active</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows.map(renderRow).join('')}
+                </tbody>
+              </table>
+              ${renderPagination()}`}
+          </div>
+        `}
 
         <!-- Banner -->
         <div class="ma-banner">
@@ -730,10 +767,11 @@ export function renderManageAdmins() {
 
       <!-- RIGHT PANEL -->
       <div class="ma-right">
-        ${renderDetail()}
+        ${isMobile && adminState.selected ? `<div class="ma-detail-panel-mobile">${maDetailCloseBtn}${renderDetail()}</div>` : renderDetail()}
       </div>
     </div>`;
 }
+
 
 // log search
 window._maLogSearch = function(v) {

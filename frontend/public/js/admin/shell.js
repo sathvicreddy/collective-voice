@@ -62,38 +62,129 @@ export function renderSidebar() {
         <div class="status-sub">All Systems Operational</div>
         <div class="status-link" onclick="adminNavigate('health')">View System Health ${IC.arrowRight}</div>
       </div>
-      <div class="sidebar-user">
+      <div class="sidebar-user" onclick="toggleSidebarUserMenu()" style="cursor:pointer;position:relative">
         <div class="user-avatar">${initials}</div>
         <div class="user-info"><div class="user-name">${_userName()}</div><div class="user-role">${_userRole()}</div></div>
-        <span class="user-chevron">▲</span>
+        <span class="user-chevron" id="sidebar-user-chevron">▲</span>
       </div>
     </aside>`;
 }
+
+/* ── Sidebar user dropdown ── */
+window.toggleSidebarUserMenu = function() {
+  const existing = document.getElementById('sidebar-user-dropdown');
+  if (existing) { existing.remove(); return; }
+  const sidebar = document.querySelector('.admin-sidebar');
+  const userEl  = document.querySelector('.sidebar-user');
+  if (!sidebar || !userEl) return;
+  const menu = document.createElement('div');
+  menu.id = 'sidebar-user-dropdown';
+  menu.style.cssText = [
+    'position:absolute', 'bottom:80px', 'left:16px', 'right:16px', 'z-index:500',
+    'background:var(--bg-primary,#fff)', 'border:1.5px solid var(--border-color,#e8eaf0)',
+    'border-radius:12px', 'box-shadow:0 8px 24px rgba(0,0,0,.14)', 'overflow:hidden',
+  ].join(';');
+  menu.innerHTML = `
+    <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border-color,#e8eaf0)">
+      <div style="font-weight:700;font-size:13px;color:var(--text-primary)">${_userName()}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${_userRole()}</div>
+    </div>
+    <div style="padding:6px">
+      <div onclick="adminNavigate('manage-admins');document.getElementById('sidebar-user-dropdown')?.remove()"
+           style="padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text-primary);display:flex;align-items:center;gap:9px;transition:background .12s"
+           onmouseover="this.style.background='var(--bg-secondary,#f5f7fe)'" onmouseout="this.style.background=''">👤 My Profile</div>
+      <div onclick="localStorage.removeItem('cv_token');window.location.href='/'"
+           style="padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:#e54040;display:flex;align-items:center;gap:9px;transition:background .12s"
+           onmouseover="this.style.background='#ffeaea'" onmouseout="this.style.background=''">🚪 Sign Out</div>
+    </div>
+  `;
+  sidebar.style.position = 'relative';
+  sidebar.appendChild(menu);
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function _close(e) {
+      if (!e.target.closest('#sidebar-user-dropdown') && !e.target.closest('.sidebar-user')) {
+        document.getElementById('sidebar-user-dropdown')?.remove();
+        document.removeEventListener('click', _close);
+      }
+    });
+  }, 10);
+};
 
 export function renderTopbar() {
   const initials = _userInitials();
   return `
     <header class="admin-topbar">
+      <!-- Hamburger — visible only on mobile -->
+      <button class="admin-hamburger" id="admin-hamburger" onclick="toggleAdminSidebar()" title="Menu" aria-label="Open navigation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6"  x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
       <div class="topbar-search">
         ${IC.search}
-        <input type="text" placeholder="Search users, meetings, questions…" id="admin-search">
+        <input type="text" placeholder="Search… (Ctrl+K)" id="admin-search">
         <span class="search-kbd">⌘ K</span>
       </div>
+      <!-- Search icon for ≤480px, replaces the full search bar -->
+      <button class="admin-search-toggle" title="Search" onclick="document.getElementById('admin-search')?.focus()" aria-label="Search">
+        ${IC.search}
+      </button>
       <div class="topbar-actions">
         <div style="position:relative">
           <button class="topbar-notif-btn" id="admin-notif-bell" title="Notifications"
             onclick="toggleAdminNotifDropdown(this)">
-            ${IC.bell}<span class="notif-badge" id="admin-notif-badge">4</span>
+            ${IC.bell}<span class="notif-badge" id="admin-notif-badge"></span>
           </button>
         </div>
         <div class="topbar-user">
           <div class="topbar-avatar">${initials}</div>
           <div class="topbar-user-info"><div class="topbar-user-name">${_userName()}</div><div class="topbar-user-role">${_userRole()}</div></div>
         </div>
-        <button class="topbar-exit-btn" onclick="window.location.href='/'">Exit to regular app ${IC.logOut}</button>
+        <button class="topbar-exit-btn" onclick="window.location.href='/'" title="Exit to app">Exit to regular app ${IC.logOut}</button>
       </div>
     </header>`;
 }
+
+/* ── Mobile sidebar open / close ── */
+window.toggleAdminSidebar = function() {
+  const sidebar  = document.querySelector('.admin-sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar) return;
+  const isOpen = sidebar.classList.contains('open');
+  if (isOpen) {
+    sidebar.classList.remove('open');
+    backdrop?.classList.remove('active');
+  } else {
+    sidebar.classList.add('open');
+    backdrop?.classList.add('active');
+  }
+};
+
+window.closeAdminSidebar = function() {
+  document.querySelector('.admin-sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-backdrop')?.classList.remove('active');
+};
+
+/* Inject the backdrop element once */
+(function injectBackdrop() {
+  if (document.getElementById('sidebar-backdrop')) return;
+  const bd = document.createElement('div');
+  bd.id = 'sidebar-backdrop';
+  bd.className = 'sidebar-backdrop';
+  bd.addEventListener('click', window.closeAdminSidebar);
+  document.body.appendChild(bd);
+})();
+
+/* Close sidebar when a nav-item is clicked on mobile */
+document.addEventListener('click', e => {
+  const navItem = e.target.closest('.nav-item');
+  if (navItem && window.innerWidth <= 768) {
+    setTimeout(window.closeAdminSidebar, 60); // brief delay so navigate fires first
+  }
+});
 
 /* ── Notification dropdown — fetches real data from /api/admin/notifications ── */
 

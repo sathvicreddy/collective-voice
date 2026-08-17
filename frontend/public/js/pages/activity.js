@@ -106,7 +106,7 @@ function trendLineChart(points) {
 
 export function renderActivity(tab = "questions") {
   const analytics = state.activity.analytics;
-  const meetings = state.activity.meetings || state.meetings;
+  const meetings = state.activity.meetings || state.myMeetings.all;
 
   /* ---- Mobile tabs content ---- */
   const mobileTabContent = {
@@ -311,7 +311,7 @@ export function renderActivity(tab = "questions") {
         </div>
         <div class="activity-meetings-list">
           ${(() => {
-            const upcoming = (state.meetings || [])
+            const upcoming = (state.myMeetings.all || [])
               .filter(m => m.status === "upcoming" || m.status === "live")
               .slice(0, 4);
             if (!upcoming.length) {

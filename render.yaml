@@ -1,0 +1,69 @@
+# render.yaml — Render Blueprint
+# Deploys CollectiveVoice as a single Web Service (Node.js + WebSockets).
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: collectivevoice
+    runtime: node
+    plan: free                          # Free tier — sleeps after 15 min inactivity
+    region: singapore                   # Closest to India; change to ohio/oregon for US
+    buildCommand: npm install && npx prisma generate
+    startCommand: node -r dotenv/config backend/server.js
+    healthCheckPath: /health            # Render uses this to know your service is up
+
+    envVars:
+      # ── Required — set these in the Render dashboard ──────────
+      - key: NODE_ENV
+        value: production
+
+      - key: DATABASE_URL
+        sync: false                     # Set manually in Render dashboard (your Neon URL)
+
+      - key: JWT_SECRET
+        generateValue: true             # Render auto-generates a secure random value
+
+      - key: ALLOWED_ORIGINS
+        sync: false                     # Set to your Render URL after first deploy
+                                        # e.g. https://collectivevoice.onrender.com
+
+      - key: SUPERADMIN_EMAIL
+        sync: false                     # Your admin email address
+
+      # ── Optional ──────────────────────────────────────────────
+      - key: JWT_EXPIRES
+        value: 1h
+
+      - key: REFRESH_TTL_DAYS
+        value: 30
+
+      - key: NLP_THRESHOLD
+        value: "0.60"
+
+      - key: SCORE_ALPHA
+        value: "0.40"
+
+      - key: SCORE_BETA
+        value: "0.25"
+
+      - key: SCORE_GAMMA
+        value: "0.20"
+
+      - key: SCORE_DELTA
+        value: "0.15"
+
+      - key: SCORE_LAMBDA
+        value: "0.50"
+
+      # ── Google OAuth (optional — app works without it) ────────
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: "5"
+
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"

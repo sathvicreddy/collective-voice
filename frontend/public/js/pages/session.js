@@ -99,11 +99,17 @@ function mountSession() {
                            : role === "speaker"   ? "speaker"
                            : "participant";
 
-  // Resolve meetingId: from joinTarget, created meeting, or fallback to live demo
-  const meetingId = state.session.sessionId
-    || state.joinTarget?.id
-    || state.meetings?.find(m => m.status === "live")?.id
-    || "m_ai_education";
+  // Security: resolve meetingId ONLY from a verified, user-initiated source.
+  // Never fall back to "whatever is live" or a hardcoded demo id — that would
+  // silently place the user into a meeting they never joined.
+  const meetingId = state.session.sessionId || state.joinTarget?.id;
+  if (!meetingId) {
+    // No verified meeting id present — bounce back to the join flow with a
+    // clear message so the user knows what to do.
+    console.warn("[session] No verified meetingId found — redirecting to /join");
+    go("/join");
+    return;
+  }
   state.session.sessionId = meetingId;
 
   app.innerHTML = sessionShell(role);

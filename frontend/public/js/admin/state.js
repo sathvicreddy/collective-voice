@@ -1,8 +1,8 @@
 /* Admin Panel Shared State */
 export const state = {
   currentPage: 'overview',
-  selectedMeetingId: 1,
-  selectedUserId: 1,
+  selectedMeetingId: null,
+  selectedUserId: null,
   meetingDetailTab: 'questions',
   meetingContextMenu: null,
   showDeleteModal: false,

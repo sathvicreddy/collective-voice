@@ -75,6 +75,7 @@ export function renderUsers() {
     return `<div class="page active" id="page-users"><div class="page-loading">Loading users…</div></div>`;
   }
 
+  const isMobile = window.innerWidth <= 768;
   const list = filteredUsers();
   const sel  = list.find(u => u.id === state.selectedUserId) || null;
 
@@ -107,11 +108,30 @@ export function renderUsers() {
       <td class="dt-td">${roleBadge(u.role)}</td>
       <td class="dt-td">${authMethod(authType)}</td>
       <td class="dt-td dt-muted">${new Date(u.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</td>
-      <td class="dt-td dt-actions"><div class="dt-actions-wrap"><button class="dt-more-btn" onclick="event.stopPropagation();openUserMenu('${u.id}')">${IC.moreHoriz}</button></div></td>
+      <td class="dt-td dt-actions"><div class="dt-actions-wrap"><button class="dt-more-btn" onclick="event.stopPropagation();openUserMenu('${u.id}',event)">${IC.moreHoriz}</button></div></td>
     </tr>`;
   }).join('');
 
+  /* ── Mobile card list ── */
+  const cardHtml = list.map(u => {
+    const init = initials(u.name);
+    return `
+      <div class="mob-card ${u.id===state.selectedUserId?'mob-card-selected':''}" onclick="selectUser('${u.id}')">
+        <div class="mob-card-avatar" style="background:${colorForInit(init)};color:${textColorForInit(init)}">${init}</div>
+        <div class="mob-card-body">
+          <div class="mob-card-title">${u.name}</div>
+          <div class="mob-card-sub">${u.email}</div>
+          <div class="mob-card-tags">${roleBadge(u.role)}</div>
+        </div>
+        <button class="mob-card-more" onclick="event.stopPropagation();openUserMenu('${u.id}',event)">${IC.moreHoriz}</button>
+      </div>`;
+  }).join('');
+
   const detailHtml = sel ? renderUserDetailPanel(sel) : '';
+  const detailCloseBtn = `<button class="mob-panel-close" onclick="selectUser(null)" aria-label="Back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back
+  </button>`;
 
   return `
     <div class="page active" id="page-users">
@@ -134,20 +154,28 @@ export function renderUsers() {
         </div>
         <button class="clear-filters-btn" onclick="usersClearFilters()">Clear filters</button>
       </div>
-      <div class="dt-layout">
-        <div class="dt-table-wrap">
-          <table class="dt-table">
-            <thead><tr>
-              <th class="dt-th">USER</th><th class="dt-th">ROLE</th><th class="dt-th">AUTH METHOD</th>
-              <th class="dt-th">JOINED DATE</th><th class="dt-th"></th>
-            </tr></thead>
-            <tbody>${tableHtml || '<tr><td colspan="5" class="dt-td" style="text-align:center;color:var(--muted)">No users found</td></tr>'}</tbody>
-          </table>
-          <div class="dt-footer"><div class="dt-showing">Showing ${list.length} of ${_users.length} users</div></div>
+      ${isMobile ? `
+        <div class="mob-card-list">
+          ${cardHtml || '<div class="mob-empty">No users found</div>'}
         </div>
-        ${sel ? `<div class="detail-panel user-detail-panel" id="user-detail-panel">${detailHtml}</div>` : ''}
-    </div>
-  </div>`;
+        <div class="mob-list-footer">${list.length} of ${_users.length} users</div>
+        ${sel ? `<div class="detail-panel user-detail-panel" id="user-detail-panel">${detailCloseBtn}${detailHtml}</div>` : ''}
+      ` : `
+        <div class="dt-layout">
+          <div class="dt-table-wrap">
+            <table class="dt-table">
+              <thead><tr>
+                <th class="dt-th">USER</th><th class="dt-th">ROLE</th><th class="dt-th">AUTH METHOD</th>
+                <th class="dt-th">JOINED DATE</th><th class="dt-th"></th>
+              </tr></thead>
+              <tbody>${tableHtml || '<tr><td colspan="5" class="dt-td" style="text-align:center;color:var(--muted)">No users found</td></tr>'}</tbody>
+            </table>
+            <div class="dt-footer"><div class="dt-showing">Showing ${list.length} of ${_users.length} users</div></div>
+          </div>
+          ${sel ? `<div class="detail-panel user-detail-panel" id="user-detail-panel">${detailHtml}</div>` : ''}
+        </div>
+      `}
+    </div>`;
 }
 
 function renderUserDetailPanel(user) {
@@ -272,9 +300,9 @@ function renderUserDetailPanel(user) {
 
 /* ── Actions ── */
 window.selectUser = function(id) {
-  state.selectedUserId = id;
-  // Lazily load notifications the first time this user is selected
-  if (!_userNotifs[id]) {
+  state.selectedUserId = id || null;
+  // Lazily load notifications the first time a real user is selected
+  if (id && !_userNotifs[id]) {
     _userNotifs[id] = null; // mark as loading
     loadUserNotifications(id);
   }
@@ -304,20 +332,24 @@ window.usersClearFilters = function() {
 
 window.openChangeRole = function(id, currentRole) {
   const newRole = currentRole === 'admin' ? 'customer' : 'admin';
-  const label   = currentRole === 'admin' ? 'Remove admin rights (→ customer)' : 'Promote to admin';
+  const label   = currentRole === 'admin' ? 'Remove admin rights' : 'Promote to admin';
   if (!confirm(`${label}?`)) return;
   adminPatch(`/api/admin/users/${id}/role`, { role: newRole })
     .then(() => { _users = null; return loadUsersData(); })
-    .then(() => { const el = document.getElementById('admin-content-area'); if (el) el.innerHTML = renderUsers(); })
-    .catch(err => alert('Error: ' + err.message));
+    .then(() => {
+      const el = document.getElementById('admin-content-area');
+      if (el) el.innerHTML = renderUsers();
+      window.adminToast?.(`User role updated to ${newRole}`);
+    })
+    .catch(err => window.adminToast?.(err.message, 'error'));
 };
 
 window.sendResetEmail = async function(email) {
   try {
     await adminPost('/api/auth/forgot-password', { email });
-    alert('Password reset email sent!');
+    window.adminToast?.('Password reset email sent!');
   } catch (err) {
-    alert('Error: ' + err.message);
+    window.adminToast?.(err.message, 'error');
   }
 };
 
@@ -340,13 +372,50 @@ window.confirmUserDelete = async function(id) {
     await loadUsersData();
     const el = document.getElementById('admin-content-area');
     if (el) el.innerHTML = renderUsers();
+    window.adminToast?.('User account deleted');
   } catch (err) {
-    alert('Error: ' + err.message);
+    window.adminToast?.(err.message, 'error');
     _confirmDeleteId = null;
   }
 };
 
-/* ── Quick Message ── */
+/* ── Three-dot context menu ── */
+let _openMenuId = null;
+
+window.openUserMenu = function(id, evt) {
+  // Close any existing menu first
+  document.querySelectorAll('.user-ctx-menu').forEach(m => m.remove());
+  if (_openMenuId === id) { _openMenuId = null; return; }
+  _openMenuId = id;
+
+  const u = _users?.find(x => x.id === id);
+  if (!u) return;
+  const authType = u.googleId ? 'google' : 'password';
+  const roleLabel = u.role === 'admin' ? 'Remove admin rights' : 'Promote to admin';
+
+  const menu = document.createElement('div');
+  menu.className = 'user-ctx-menu context-menu';
+  menu.style.cssText = 'position:absolute;right:0;top:100%;z-index:400;min-width:180px';
+  menu.innerHTML = `
+    <div class="ctx-item" onclick="window.selectUser('${id}')">View Details</div>
+    <div class="ctx-item" onclick="window.openMessageUser('${id}','${u.name.replace(/'/g, "\\'")}')">✉ Message</div>
+    ${u.role !== 'superadmin' ? `<div class="ctx-item" onclick="window.openChangeRole('${id}','${u.role}')">${roleLabel}</div>` : ''}
+    ${authType === 'password' ? `<div class="ctx-item" onclick="window.sendResetEmail('${u.email}')">Reset Password</div>` : ''}
+    <div class="ctx-sep"></div>
+    ${u.role !== 'superadmin' ? `<div class="ctx-item danger" onclick="window.promptUserDelete('${id}')">Delete Account</div>` : ''}
+  `;
+  // Attach menu to the .dt-actions-wrap containing the clicked button
+  const btn  = evt?.currentTarget || document.querySelector(`[onclick*="openUserMenu('${id}'"]`);
+  const wrap = btn?.closest('.dt-actions-wrap');
+  if (wrap) { wrap.appendChild(menu); }
+};
+
+// Close menu when clicking anywhere else
+document.addEventListener('click', () => {
+  document.querySelectorAll('.user-ctx-menu').forEach(m => m.remove());
+  _openMenuId = null;
+});
+
 window.openMessageUser = function(userId, userName) {
   openQuickMessageModal({
     audienceLabel: `To: ${userName}`,

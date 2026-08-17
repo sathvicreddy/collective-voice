@@ -70,31 +70,33 @@ const AUDIENCE_CFG = {
   admins:               { label: "Admins",               color: "#d97706", bg: "#fff7ed" },
 };
 
-/* ── Message row ── */
+/* ── SVG icons for audience pills ── */
+const PILL_ICONS = {
+  single: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  meeting_participants: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  all_users: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+  admins: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+};
+
+/* ── Message row — matches image: envelope icon left, subject+body center, badge+date right, recipient count below ── */
 function msgRow(m, idx) {
   const acfg = AUDIENCE_CFG[m.audience] || AUDIENCE_CFG.single;
   const t    = relTime(m.createdAt);
-  const name = m.sender?.name || "Unknown";
-  const isMine = m.senderId === state.currentUser?.id;
-  const bodyPreview = (m.body || "").length > 120 ? m.body.slice(0, 120) + "…" : m.body;
+  const bodyPreview = (m.body || "").length > 80 ? m.body.slice(0, 80) + "…" : m.body;
+  const cnt  = m.recipientCount ?? 0;
   return `
-    <div class="an-row" style="animation:slideInLeft .28s ${.03+idx*.04}s both">
-      <div class="an-icon" style="background:#f0ecff;color:#5b34ff">${IC.mail}</div>
-      <div class="an-body">
-        <div class="an-top-row">
-          <span class="an-title">${m.subject}</span>
-          <div class="an-meta">
-            <span class="an-priority" style="background:${acfg.bg};color:${acfg.color}">${acfg.label}</span>
-            <span class="an-time">${t}</span>
+    <div class="msg-hist-row" style="animation:slideInLeft .28s ${.03+idx*.04}s both">
+      <div class="msg-hist-icon">${IC.mail}</div>
+      <div class="msg-hist-body">
+        <div class="msg-hist-top">
+          <span class="msg-hist-subject">${m.subject}</span>
+          <div class="msg-hist-right">
+            <span class="msg-hist-badge" style="background:${acfg.bg};color:${acfg.color}">${acfg.label.toUpperCase()}</span>
+            <span class="msg-hist-date">${t}</span>
           </div>
         </div>
-        <p class="an-desc">${bodyPreview}</p>
-        <div class="an-tags">
-          <span class="an-type-tag" style="color:#5b34ff;background:#f0ecff">
-            ${IC.users || ""} ${m.recipientCount} recipient${m.recipientCount !== 1 ? "s" : ""}
-          </span>
-          ${!isMine ? `<span class="an-read-tag">By ${name}</span>` : ""}
-        </div>
+        <p class="msg-hist-preview">${bodyPreview}</p>
+        <span class="msg-hist-rcpt">${IC.users} ${cnt} recipient${cnt !== 1 ? "s" : ""}</span>
       </div>
     </div>
   `;
@@ -111,10 +113,10 @@ function _renderHistory() {
 
 /* ── Audience pills ── */
 const AUDIENCE_PILLS = [
-  { value: "single",               icon: "👤", label: "Direct Message",       desc: "Send to one specific person",                    superOnly: false },
-  { value: "meeting_participants", icon: "🎤", label: "Meeting Participants",  desc: "Everyone in a live or scheduled meeting",         superOnly: false },
-  { value: "all_users",            icon: "🌐", label: "All Users",             desc: "Broadcast to every user on the platform",         superOnly: true  },
-  { value: "admins",               icon: "🛡️", label: "All Admins",           desc: "Send to all admin and superadmin accounts",       superOnly: true  },
+  { value: "single",               label: "Direct Message",       desc: "Send to one specific person",               superOnly: false },
+  { value: "meeting_participants", label: "Meeting Participants",  desc: "Everyone in a live or scheduled meeting",    superOnly: false },
+  { value: "all_users",            label: "All Users",             desc: "Broadcast to every user on the platform",   superOnly: true  },
+  { value: "admins",               label: "All Admins",            desc: "Send to all admin and superadmin accounts", superOnly: true  },
 ];
 
 function audiencePills(isSuperadmin, selected) {
@@ -126,13 +128,14 @@ function audiencePills(isSuperadmin, selected) {
         ${!disabled ? `onclick="adminMsgSetAudience('${p.value}')"` : ""}
         role="radio" aria-checked="${active}" tabindex="${disabled ? -1 : 0}"
       >
-        <span class="msg-pill-icon">${p.icon}</span>
+        <span class="msg-pill-icon-wrap ${active ? "active" : ""}"
+          style="background:${active ? "#eeeaff" : "#f5f3ff"};color:#5b34ff">${PILL_ICONS[p.value]}</span>
         <div class="msg-pill-text">
           <span class="msg-pill-label">${p.label}</span>
           <span class="msg-pill-desc">${p.desc}</span>
         </div>
         ${disabled ? `<span class="msg-super-chip">Superadmin</span>` : ""}
-        ${active ? `<span class="msg-pill-check">✓</span>` : ""}
+        ${active ? `<span class="msg-pill-check-circle"><svg viewBox="0 0 24 24" fill="#5b34ff" width="18" height="18"><circle cx="12" cy="12" r="10" fill="#5b34ff"/><polyline points="8 12 11 15 16 9" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : ""}
       </div>
     `;
   }).join("");
@@ -141,23 +144,24 @@ function audiencePills(isSuperadmin, selected) {
 /* ── Recipient count ── */
 function recipientCountHtml() {
   const aud = _form.audience;
+  const icon = `<span style="display:inline-flex;align-items:center;opacity:.7">${IC.users}</span>`;
   if (aud === "single") {
     return _form.targetUserId
-      ? `<span class="msg-rcpt-badge">👤 1 recipient</span>`
-      : `<span class="msg-rcpt-badge empty">Select a recipient</span>`;
+      ? `<span class="msg-rcpt-badge">${icon} 1 recipient</span>`
+      : `<span class="msg-rcpt-badge empty">${icon} Select a recipient</span>`;
   }
   if (aud === "meeting_participants") {
-    if (!_form.meetingId) return `<span class="msg-rcpt-badge empty">Select a meeting</span>`;
+    if (!_form.meetingId) return `<span class="msg-rcpt-badge empty">${icon} Select a meeting</span>`;
     const mtg = (_meetings || []).find(m => m.id === _form.meetingId);
     const cnt = mtg ? mtg.participantsCount : "?";
-    return `<span class="msg-rcpt-badge">🎤 ~${cnt} participant${cnt !== 1 ? "s" : ""}</span>`;
+    return `<span class="msg-rcpt-badge">${icon} ~${cnt} participant${cnt !== 1 ? "s" : ""}</span>`;
   }
   if (aud === "all_users") {
     const cnt = _allUsers ? _allUsers.length : "…";
-    return `<span class="msg-rcpt-badge warn">🌐 ${cnt} users <em>(broadcast)</em></span>`;
+    return `<span class="msg-rcpt-badge warn">${icon} ${cnt} users <em>(broadcast)</em></span>`;
   }
   if (aud === "admins") {
-    return `<span class="msg-rcpt-badge warn">🛡️ All admins <em>(broadcast)</em></span>`;
+    return `<span class="msg-rcpt-badge warn">${icon} All admins <em>(broadcast)</em></span>`;
   }
   return "";
 }
@@ -359,72 +363,74 @@ function _composePanelHtml() {
   const isSuperadmin = state.isSuperadmin;
   const isBroadcast  = aud === "all_users" || aud === "admins";
   return `
-    <div class="an-main-panel msg-compose-panel" id="msg-compose-panel" style="padding:24px">
-      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0 0 20px;display:flex;align-items:center;gap:8px">
-        ${IC.mail} Compose Message
-      </h2>
-      <div style="display:flex;flex-direction:column;gap:18px">
+    <div class="an-main-panel msg-compose-panel" id="msg-compose-panel">
+      <!-- Panel header -->
+      <div class="msg-panel-header">
+        <div class="msg-panel-header-icon">${IC.mail}</div>
+        <h2 class="msg-panel-title">Compose Message</h2>
+      </div>
+      <div class="msg-panel-body">
 
-        <!-- Audience pills -->
-        <div>
-          <label class="an-form-label">Audience</label>
+        <!-- AUDIENCE -->
+        <div class="msg-field-group">
+          <label class="msg-field-label">AUDIENCE</label>
           <div class="msg-pills-grid" role="radiogroup">${audiencePills(isSuperadmin, aud)}</div>
         </div>
 
-        <!-- User autocomplete -->
+        <!-- RECIPIENT (user search) -->
         ${aud === "single" ? `
-        <div>
-          <label class="an-form-label">Recipient</label>
+        <div class="msg-field-group">
+          <label class="msg-field-label">RECIPIENT</label>
           <div id="msg-user-wrap" style="position:relative">
             <div id="msg-user-chip" class="msg-chip hidden"></div>
             <div style="position:relative">
               <span class="msg-srch-ico">${IC.search}</span>
               <input type="text" id="msg-user-input" class="an-form-input msg-pad-left"
-                placeholder="Search by name or email…" autocomplete="off">
+                placeholder="Search by name or email..." autocomplete="off">
             </div>
             <div id="msg-user-dd" class="msg-ac-dd" style="display:none"></div>
           </div>
         </div>` : ""}
 
-        <!-- Meeting search -->
+        <!-- MEETING (meeting search) -->
         ${aud === "meeting_participants" ? `
-        <div>
-          <label class="an-form-label">Meeting</label>
+        <div class="msg-field-group">
+          <label class="msg-field-label">MEETING</label>
           <div id="msg-mtg-wrap" style="position:relative">
             <div id="msg-meeting-chip" class="msg-chip hidden"></div>
             <div style="position:relative">
               <span class="msg-srch-ico">${IC.search}</span>
               <input type="text" id="msg-mtg-input" class="an-form-input msg-pad-left"
-                placeholder="Search by title or code…" autocomplete="off">
+                placeholder="Search by title or code..." autocomplete="off">
             </div>
             <div id="msg-mtg-dd" class="msg-ac-dd" style="display:none"></div>
           </div>
         </div>` : ""}
 
-        <!-- Subject -->
-        <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-            <label class="an-form-label" style="margin:0">Subject</label>
+        <!-- SUBJECT -->
+        <div class="msg-field-group">
+          <div class="msg-field-label-row">
+            <label class="msg-field-label">SUBJECT</label>
             <span class="msg-char-count" id="msg-sub-cnt">0/80</span>
           </div>
           <input type="text" id="msg-subject" class="an-form-input"
             placeholder="e.g. Important update" maxlength="80">
         </div>
 
-        <!-- Body -->
-        <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-            <label class="an-form-label" style="margin:0">Message</label>
+        <!-- MESSAGE -->
+        <div class="msg-field-group">
+          <div class="msg-field-label-row">
+            <label class="msg-field-label">MESSAGE</label>
             <span class="msg-char-count" id="msg-body-cnt">0/2000</span>
           </div>
           <textarea id="msg-body" class="an-form-textarea" rows="5"
-            placeholder="Write your message here…" maxlength="2000"></textarea>
+            placeholder="Write your message here..." maxlength="2000"></textarea>
         </div>
 
-        <!-- Footer: recipient count + send button -->
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <!-- Footer -->
+        <div class="msg-compose-footer">
           <div id="msg-rcpt">${recipientCountHtml()}</div>
-          <button id="msg-send-btn" class="an-header-btn msg-send-btn" onclick="adminSendMessage()">
+          <button id="msg-send-btn" class="msg-send-btn" onclick="adminSendMessage()">
             ${IC.send} Send Message
           </button>
         </div>
@@ -449,28 +455,30 @@ export function renderAdminMessages() {
 
   const html = `
     <div class="an-page">
+      <!-- Page header -->
       <div class="an-page-header">
         <div>
           <h1 class="an-page-title">Admin Messaging</h1>
           <p class="an-page-sub">Send direct or broadcast messages to users and groups</p>
-          <p style="font-size:12px;color:var(--muted,#8890b0);margin:4px 0 0">
+          <p class="msg-tip">
             💡 You can also message users or meeting participants from the
-            <strong style="color:var(--text-secondary)">Users</strong> and
-            <strong style="color:var(--text-secondary)">Meetings</strong> tabs.
+            <a class="msg-tip-link" href="#" onclick="return false">Users</a> and
+            <a class="msg-tip-link" href="#" onclick="return false">Meetings</a> tabs.
           </p>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+      <!-- Two-column grid -->
+      <div class="msg-two-col">
         ${_composePanelHtml()}
 
-        <div class="an-main-panel" style="padding:0">
-          <div style="padding:20px 24px 12px;border-bottom:1px solid var(--border-color)">
-            <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0">
-              ${IC.fileText || IC.bell} Sent History
-            </h2>
+        <!-- Sent History panel -->
+        <div class="an-main-panel msg-history-panel">
+          <div class="msg-panel-header">
+            <div class="msg-panel-header-icon">${IC.fileText}</div>
+            <h2 class="msg-panel-title">Sent History</h2>
           </div>
-          <div id="msg-history-list" class="an-list" style="max-height:580px;overflow-y:auto">
+          <div id="msg-history-list" class="msg-hist-list">
             ${history.length
               ? history.map((m,i) => msgRow(m,i)).join("")
               : `<div class="an-empty"><div class="an-empty-icon">📨</div><p>No messages sent yet.</p></div>`}
@@ -479,68 +487,168 @@ export function renderAdminMessages() {
       </div>
 
       <style>
-        .msg-pills-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px }
-        .msg-audience-pill {
-          display:flex;align-items:flex-start;gap:10px;padding:10px 12px;
-          border:1.5px solid var(--border-color,#e8eaf0);border-radius:10px;cursor:pointer;
-          transition:border-color .18s,background .18s;background:var(--bg-primary,#fff);
-          position:relative;user-select:none;
-        }
-        .msg-audience-pill:hover:not(.disabled) { border-color:#5b34ff;background:#f8f6ff }
-        .msg-audience-pill.active { border-color:#5b34ff;background:#f0ecff }
-        .msg-audience-pill.disabled { opacity:.48;cursor:not-allowed;pointer-events:none }
-        .msg-pill-icon   { font-size:18px;flex-shrink:0;margin-top:1px }
-        .msg-pill-text   { display:flex;flex-direction:column;gap:1px;flex:1;min-width:0 }
-        .msg-pill-label  { font-size:12.5px;font-weight:700;color:var(--text-primary) }
-        .msg-pill-desc   { font-size:11px;color:var(--muted,#8890b0);line-height:1.3 }
-        .msg-super-chip  { position:absolute;top:6px;right:6px;font-size:9px;font-weight:700;background:#fff3e0;color:#d97706;border-radius:4px;padding:1px 5px }
-        .msg-pill-check  { position:absolute;bottom:6px;right:8px;color:#5b34ff;font-size:12px;font-weight:700 }
+        /* ── Layout ── */
+        .msg-two-col { display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start }
 
+        /* ── Panel header (shared by compose + history) ── */
+        .msg-panel-header {
+          display:flex;align-items:center;gap:10px;
+          padding:18px 22px 14px;
+          border-bottom:1px solid var(--border-color,#e8eaf0);
+        }
+        .msg-panel-header-icon {
+          width:34px;height:34px;border-radius:9px;
+          background:#eeeaff;color:#5b34ff;
+          display:flex;align-items:center;justify-content:center;flex-shrink:0;
+        }
+        .msg-panel-header-icon svg { width:16px;height:16px }
+        .msg-panel-title { font-size:15px;font-weight:700;color:var(--text-primary);margin:0 }
+
+        /* ── Compose panel body ── */
+        .msg-panel-body { display:flex;flex-direction:column;gap:16px;padding:18px 22px 20px }
+        .msg-history-panel { padding:0 }
+        .msg-compose-panel { padding:0 }
+
+        /* ── Field groups ── */
+        .msg-field-group { display:flex;flex-direction:column;gap:6px }
+        .msg-field-label { font-size:11px;font-weight:700;color:var(--text-secondary,#68708d);letter-spacing:.06em }
+        .msg-field-label-row { display:flex;justify-content:space-between;align-items:center }
+
+        /* ── Audience pills ── */
+        .msg-pills-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px }
+        .msg-audience-pill {
+          display:flex;align-items:flex-start;gap:10px;padding:11px 12px;
+          border:1.5px solid var(--border-color,#e8eaf0);border-radius:10px;
+          cursor:pointer;transition:border-color .15s,background .15s;
+          background:#fff;position:relative;user-select:none;
+        }
+        .msg-audience-pill:hover:not(.disabled) { border-color:#c4b8ff;background:#faf9ff }
+        .msg-audience-pill.active { border-color:#5b34ff;background:#f0ecff }
+        .msg-audience-pill.disabled { opacity:.45;cursor:not-allowed;pointer-events:none }
+        .msg-pill-icon-wrap {
+          width:32px;height:32px;border-radius:8px;
+          display:flex;align-items:center;justify-content:center;flex-shrink:0;
+          transition:background .15s;
+        }
+        .msg-pill-icon-wrap svg { width:17px;height:17px }
+        .msg-pill-text  { display:flex;flex-direction:column;gap:2px;flex:1;min-width:0 }
+        .msg-pill-label { font-size:12.5px;font-weight:700;color:var(--text-primary,#111936);line-height:1.2 }
+        .msg-pill-desc  { font-size:11px;color:var(--muted,#8890b0);line-height:1.3 }
+        .msg-super-chip {
+          position:absolute;top:6px;right:6px;font-size:9px;font-weight:700;
+          background:#fff3e0;color:#d97706;border-radius:4px;padding:1px 5px
+        }
+        .msg-pill-check-circle { position:absolute;bottom:8px;right:8px;line-height:0 }
+        .msg-pill-check-circle svg { display:block }
+
+        /* ── Autocomplete dropdown ── */
         .msg-ac-dd {
           position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:300;
           background:var(--bg-primary,#fff);border:1.5px solid #5b34ff33;
-          border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);
+          border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.13);
           max-height:220px;overflow-y:auto;
         }
-        .msg-ac-item { display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;transition:background .13s }
+        .msg-ac-item { display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;transition:background .12s }
         .msg-ac-item:hover { background:var(--bg-secondary,#f5f7fe) }
-        .msg-ac-av  { width:30px;height:30px;border-radius:50%;background:#f0ecff;color:#5b34ff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0 }
+        .msg-ac-av   { width:30px;height:30px;border-radius:50%;background:#f0ecff;color:#5b34ff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0 }
         .msg-ac-name  { font-size:13px;font-weight:600;color:var(--text-primary) }
         .msg-ac-email { font-size:11px;color:var(--muted) }
         .msg-ac-empty { padding:12px;text-align:center;font-size:12px;color:var(--muted) }
 
-        .msg-chip { display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-secondary,#f5f7fe);border:1.5px solid var(--border-color);border-radius:8px;margin-bottom:6px;font-size:12.5px }
+        /* ── Chip (selected user/meeting) ── */
+        .msg-chip { display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-secondary,#f5f7fe);border:1.5px solid var(--border-color);border-radius:8px;margin-bottom:4px;font-size:12.5px }
         .msg-chip.hidden { display:none }
         .msg-chip-av  { width:24px;height:24px;border-radius:50%;background:#f0ecff;color:#5b34ff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0 }
         .msg-chip-nm  { font-weight:600;color:var(--text-primary);flex:1 }
         .msg-chip-sub { font-size:11px;color:var(--muted);display:block }
-        .msg-chip-rm  { background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;border-radius:4px;transition:color .13s;margin-left:auto }
+        .msg-chip-rm  { background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;border-radius:4px;transition:color .12s;margin-left:auto }
         .msg-chip-rm:hover { color:#e54040 }
 
+        /* ── Search input icon ── */
         .msg-srch-ico { position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none }
         .msg-srch-ico svg { width:14px;height:14px }
         .msg-pad-left { padding-left:34px }
 
+        /* ── Char counter ── */
         .msg-char-count      { font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums }
         .msg-char-count.warn { color:#d97706 }
         .msg-char-count.over { color:#e54040;font-weight:700 }
 
-        .msg-rcpt-badge      { display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:#f0ecff;color:#5b34ff }
-        .msg-rcpt-badge.empty{ background:#f5f7fe;color:var(--muted);font-weight:400 }
-        .msg-rcpt-badge.warn { background:#ffeaea;color:#e54040 }
-        .msg-rcpt-badge em   { font-style:normal;font-weight:400;font-size:11px;opacity:.8 }
+        /* ── Recipient badge ── */
+        .msg-rcpt-badge { display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:4px 10px;border-radius:20px;background:#f0ecff;color:#5b34ff }
+        .msg-rcpt-badge svg { width:13px;height:13px;opacity:.8 }
+        .msg-rcpt-badge.empty { background:#f5f7fe;color:var(--muted,#8890b0);font-weight:400 }
+        .msg-rcpt-badge.warn  { background:#ffeaea;color:#e54040 }
+        .msg-rcpt-badge em    { font-style:normal;font-weight:400;font-size:11px;opacity:.8 }
 
-        .msg-broadcast-notice { font-size:12px;color:#d97706;background:#fffbeb;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px }
-        .msg-broadcast-notice strong { font-weight:700 }
+        /* ── Compose footer ── */
+        .msg-compose-footer { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-top:4px }
 
-        .msg-send-btn { display:inline-flex;align-items:center;gap:6px }
+        /* ── Send button ── */
+        .msg-send-btn {
+          display:inline-flex;align-items:center;gap:7px;
+          padding:10px 20px;border-radius:10px;border:none;
+          background:linear-gradient(135deg,#5b34ff,#7c5cff);
+          color:#fff;font-size:13px;font-weight:600;cursor:pointer;
+          box-shadow:0 4px 12px rgba(91,52,255,.3);transition:opacity .15s;
+        }
+        .msg-send-btn:hover { opacity:.9 }
+        .msg-send-btn svg { width:14px;height:14px }
         .msg-send-btn.msg-confirm-mode { background:linear-gradient(135deg,#d97706,#f59e0b);animation:confirmPulse .6s ease infinite alternate }
         @keyframes confirmPulse { from { box-shadow:0 0 0 0 #f59e0b44 } to { box-shadow:0 0 0 8px transparent } }
 
-        .an-form-label { display:block;font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em }
-        .an-form-input,.an-form-select,.an-form-textarea { width:100%;padding:9px 12px;border:1.5px solid var(--border-color);border-radius:8px;font-size:13px;color:var(--text-primary);background:var(--bg-primary);outline:none;box-sizing:border-box;transition:border-color .18s }
-        .an-form-input:focus,.an-form-select:focus,.an-form-textarea:focus { border-color:#5b34ff;box-shadow:0 0 0 3px #5b34ff14 }
-        .an-form-textarea { resize:vertical;min-height:100px }
+        /* ── Broadcast notice ── */
+        .msg-broadcast-notice { font-size:12px;color:#d97706;background:#fffbeb;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px }
+        .msg-broadcast-notice strong { font-weight:700 }
+
+        /* ── Form inputs (scoped to avoid global bleed) ── */
+        .msg-compose-panel .an-form-input,
+        .msg-compose-panel .an-form-textarea {
+          width:100%;padding:9px 12px;border:1.5px solid var(--border-color,#e8eaf0);
+          border-radius:8px;font-size:13px;color:var(--text-primary);background:var(--bg-primary,#fff);
+          outline:none;box-sizing:border-box;transition:border-color .15s;
+        }
+        .msg-compose-panel .an-form-input:focus,
+        .msg-compose-panel .an-form-textarea:focus { border-color:#5b34ff;box-shadow:0 0 0 3px #5b34ff12 }
+        .msg-compose-panel .an-form-textarea { resize:vertical;min-height:110px }
+
+        /* ── Tip bar ── */
+        .msg-tip { font-size:12px;color:var(--muted,#8890b0);margin:4px 0 0 }
+        .msg-tip-link { color:#5b34ff;font-weight:600;text-decoration:none }
+        .msg-tip-link:hover { text-decoration:underline }
+
+        /* ── Sent history ── */
+        .msg-hist-list { padding:8px 0;max-height:560px;overflow-y:auto }
+        .msg-hist-row {
+          display:flex;align-items:flex-start;gap:13px;
+          padding:14px 20px;border-bottom:1px solid var(--border-color,#f0f0f8);
+          transition:background .12s;
+        }
+        .msg-hist-row:last-child { border-bottom:none }
+        .msg-hist-row:hover { background:var(--bg-secondary,#f9f8ff) }
+        .msg-hist-icon {
+          width:36px;height:36px;border-radius:9px;flex-shrink:0;
+          background:#eeeaff;color:#5b34ff;
+          display:flex;align-items:center;justify-content:center;
+          margin-top:1px;
+        }
+        .msg-hist-icon svg { width:16px;height:16px }
+        .msg-hist-body { flex:1;min-width:0 }
+        .msg-hist-top { display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:3px }
+        .msg-hist-subject { font-size:13.5px;font-weight:700;color:var(--text-primary,#111936);line-height:1.3 }
+        .msg-hist-right { display:flex;align-items:center;gap:7px;flex-shrink:0 }
+        .msg-hist-badge {
+          font-size:10px;font-weight:700;letter-spacing:.04em;
+          padding:2px 8px;border-radius:5px;white-space:nowrap;
+        }
+        .msg-hist-date { font-size:11.5px;color:var(--muted,#8890b0);white-space:nowrap }
+        .msg-hist-preview { font-size:12.5px;color:var(--text-secondary,#68708d);margin:2px 0 6px;line-height:1.4 }
+        .msg-hist-rcpt {
+          display:inline-flex;align-items:center;gap:4px;
+          font-size:11.5px;color:#5b34ff;font-weight:500;
+          background:#f0ecff;padding:2px 9px;border-radius:20px;
+        }
+        .msg-hist-rcpt svg { width:12px;height:12px }
       </style>
     </div>
   `;

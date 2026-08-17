@@ -7,7 +7,7 @@ import { colorForInit, textColorForInit } from '../utils.js';
 let _logs = null;
 let _total = 0;
 let _offset = 0;
-const _limit = 25;
+let _limit = 25;
 let _auditExpandedRow = null;
 let _filterAction = '';
 let _filterTarget = '';
@@ -168,13 +168,15 @@ export function renderAuditLog() {
             <div class="dt-showing">Showing ${_offset + 1}–${Math.min(_offset + _limit, _total)} of ${_total.toLocaleString()} records</div>
             <div class="pagination-row">
               <div class="pagination">
-                ${pageBtn(IC.chevronLeft, currentPage - 1, currentPage <= 1)}
-                ${Array.from({ length: Math.min(totalPages, 5) }, (_, i) => pageBtn(i + 1, i + 1)).join('')}
+                ${totalPages <= 1 ? '' : pageBtn(IC.chevronLeft, currentPage - 1, currentPage <= 1)}
+                ${Array.from({ length: Math.min(Math.max(totalPages, 1), 5) }, (_, i) => pageBtn(i + 1, i + 1, false)).join('')}
                 ${totalPages > 5 ? `<span class="pg-ellipsis">…</span>${pageBtn(totalPages, totalPages)}` : ''}
-                ${pageBtn(IC.chevronRight, currentPage + 1, currentPage >= totalPages)}
+                ${totalPages <= 1 ? '' : pageBtn(IC.chevronRight, currentPage + 1, currentPage >= totalPages)}
               </div>
               <div class="per-page-wrap">
-                <select class="filter-select"><option>25 per page</option></select>
+                <select class="filter-select" onchange="auditPerPage(Number(this.value))">
+                  ${[25,50,100].map(n => `<option value="${n}" ${_limit===n?'selected':''}>${n} per page</option>`).join('')}
+                </select>
               </div>
             </div>
           </div>
@@ -218,6 +220,11 @@ window.auditFilterTarget = function(val) {
 };
 window.auditClearFilters = function() {
   _filterAction = ''; _filterTarget = ''; _offset = 0; _logs = null;
+  const el = document.getElementById('admin-content-area');
+  if (el) el.innerHTML = renderAuditLog();
+};
+window.auditPerPage = function(n) {
+  _limit = n; _offset = 0; _logs = null;
   const el = document.getElementById('admin-content-area');
   if (el) el.innerHTML = renderAuditLog();
 };
