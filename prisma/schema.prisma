@@ -10,8 +10,7 @@ datasource db {
   // PostgreSQL for production (Neon). For local dev swap back to sqlite + file:./dev.db
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  // directUrl is used for prisma migrate (needs direct TCP). Comment out to use db push via pooler.
-  // directUrl = env("DIRECT_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────────

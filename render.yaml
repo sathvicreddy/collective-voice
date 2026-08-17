@@ -8,7 +8,7 @@ services:
     runtime: node
     plan: free                          # Free tier — sleeps after 15 min inactivity
     region: singapore                   # Closest to India; change to ohio/oregon for US
-    buildCommand: npm install && npx prisma generate
+    buildCommand: npm install && npx prisma generate && npx prisma db push
     startCommand: node -r dotenv/config backend/server.js
     healthCheckPath: /health            # Render uses this to know your service is up
 
@@ -18,7 +18,11 @@ services:
         value: production
 
       - key: DATABASE_URL
-        sync: false                     # Set manually in Render dashboard (your Neon URL)
+        sync: false                     # Pooled connection — used by the app at runtime
+
+      - key: DIRECT_URL
+        sync: false                     # Direct connection — used by prisma db push at build time
+                                        # Same as DATABASE_URL but without -pooler in the hostname
 
       - key: JWT_SECRET
         generateValue: true             # Render auto-generates a secure random value
