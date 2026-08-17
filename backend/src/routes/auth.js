@@ -39,6 +39,8 @@ const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || "").toLowerCase();
 // Google OAuth config
 const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+// GOOGLE_CALLBACK_URL must be set in production via env var.
+// Falls back to localhost only for local dev.
 const GOOGLE_CALLBACK_URL  = process.env.GOOGLE_CALLBACK_URL  ||
   "http://localhost:3000/api/auth/google/callback";
 
