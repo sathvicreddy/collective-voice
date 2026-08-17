@@ -598,7 +598,7 @@ function renderDetail() {
       
       <div class="ma-detail-actions">
         ${u.role !== 'superadmin' ? `
-          <button class="ma-detail-btn outline" onclick="maChangeRole('${u.id}','${u.role === 'admin' ? 'customer' : 'admin}')">${IC.arrowSwap} ${u.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button>
+          <button class="ma-detail-btn outline" onclick="maChangeRole('${u.id}','${u.role === 'admin' ? 'customer' : 'admin'}')">${IC.arrowSwap} ${u.role === 'admin' ? 'Remove Admin' : 'Make Admin'}</button>
         ` : ''}
         <button class="ma-detail-btn outline" onclick="window.adminToast('Permissions are managed via role assignment.','info')">${IC.shieldCheck} Permissions</button>
         ${!isSelf ? `
