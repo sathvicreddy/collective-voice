@@ -810,7 +810,9 @@ export function renderJoin(step = "start") {
     `;
     shell(phone(mobile, "meetings", true), "", desktopMain, "");
   } else {
-    shell(phone(screens[step], "meetings", true));
+    // Pass a non-empty desktopMain so shell() uses the desktop-full-layout path.
+    // This ensures the phone frame is shown correctly on mobile screens.
+    shell(phone(screens[step], "meetings", true), "", " ", "");
   }
   // After the scan screen HTML is painted, start the camera RAF loop
   if (step === "scan") setTimeout(mountScanScreen, 0);
@@ -828,7 +830,7 @@ export function renderJoining() {
       </div>
       <button class="btn" onclick="go('/audience')">${icons.arrowRight} Enter Room</button>
     </div>
-  `, null, true));
+  `, null, true), "", " ", "");
   // Auto-navigate after a brief connection animation so the participant
   // doesn't get stuck on the spinner if they don't click the button.
   setTimeout(() => { if (window.go) window.go("/audience"); }, 800);
@@ -1625,7 +1627,9 @@ export function renderCreate(step = "type") {
     const { mainForm, rightPanel } = screens.details;
     shell('', '', mainForm, rightPanel);
   } else {
-    shell(phone(screens[step], 'meetings', true));
+    // Pass a non-empty desktopMain so shell() uses the desktop-full-layout path,
+    // ensuring the phone frame renders correctly on mobile.
+    shell(phone(screens[step], 'meetings', true), '', ' ', '');
   }
 
   // ── Template global handlers ─────────────────────────────────────────────

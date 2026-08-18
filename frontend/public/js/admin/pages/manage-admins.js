@@ -644,6 +644,7 @@ export function renderManageAdmins() {
   }
 
   const isMobile = window.innerWidth <= 768;
+  const rows = pageItems();
 
   /* Mobile card list */
   const maCardHtml = rows.map(u => {
