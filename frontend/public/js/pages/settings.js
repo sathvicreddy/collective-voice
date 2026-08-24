@@ -298,6 +298,7 @@ export function renderSettings() {
         </article>
       `).join("")}
       <button class="btn secondary" style="width:100%;margin-top:8px" onclick="go('/profile')">${icons.arrowLeft} Back to Profile</button>
+      <button class="btn danger" style="width:100%;margin-top:8px" id="mobile-logout-btn" onclick="profileLogout()">${icons.logOut} Log Out</button>
     </div>
   `, "profile", true);
 
@@ -338,6 +339,13 @@ export function renderSettings() {
             </div>
           </button>
         `).join("")}
+        <button class="settings-sidebar-logout" id="sidebarLogoutBtn" onclick="profileLogout()">
+          <div class="settings-nav-icon">${icons.logOut}</div>
+          <div class="settings-nav-text">
+            <strong>Log Out</strong>
+            <span>Sign out of your account</span>
+          </div>
+        </button>
       </div>
 
       <!-- Right Settings Content -->
@@ -372,8 +380,16 @@ export function renderSettings() {
               </div>
               ${icons.chevronRight}
             </button>
+            <button class="settings-action-card" id="logoutBtn" onclick="profileLogout()">
+              <div class="icon-box orange" style="width:38px;height:38px">${icons.logOut}</div>
+              <div style="flex:1;text-align:left">
+                <strong style="font-size:14px;display:block">Log Out</strong>
+                <span class="subtle" style="font-size:12px">Sign out of your account on this device</span>
+              </div>
+              ${icons.chevronRight}
+            </button>
             <button class="settings-action-card danger" id="deleteAccountBtn" onclick="openDeleteAccount()">
-              <div class="icon-box red" style="width:38px;height:38px">${icons.logOut}</div>
+              <div class="icon-box red" style="width:38px;height:38px">${icons.trash}</div>
               <div style="flex:1;text-align:left">
                 <strong style="font-size:14px;display:block;color:var(--danger)">Delete Account</strong>
                 <span class="subtle" style="font-size:12px">Permanently delete your account and all data</span>

@@ -586,6 +586,32 @@
   color: var(--primary);
 }
 
+/* Sidebar Logout Button */
+.settings-sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  color: var(--muted);
+  transition: all var(--transition);
+  width: 100%;
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 6px;
+}
+
+.settings-sidebar-logout:hover {
+  background: #fff1f0;
+  color: var(--danger);
+}
+
+.settings-sidebar-logout:hover .settings-nav-text strong {
+  color: var(--danger);
+}
+
 /* Settings Content */
 .settings-content {
   min-width: 0;
