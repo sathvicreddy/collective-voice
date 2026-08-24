@@ -311,24 +311,12 @@ export function renderProfile() {
         <button class="link-btn">View all</button>
       </div>
       <div class="prof-questions-list">
-        ${[
-          { text: "How can AI be used ethically in education?",         cat: "AI in Education",   upvotes: 12, status: "Answered",     statusClass: "success" },
-          { text: "What are the long-term impacts of remote learning?", cat: "Remote Learning",   upvotes: 8,  status: "Under Review", statusClass: "warning" },
-          { text: "How to ensure data privacy in EdTech platforms?",    cat: "Data Privacy",       upvotes: 5,  status: "Pending",      statusClass: "" }
-        ].map(q => `
-          <div class="prof-q-item">
-            <div class="icon-box" style="width:34px;height:34px;flex-shrink:0">${icons.messageCircle}</div>
-            <div class="prof-q-body">
-              <p class="prof-q-text">${q.text}</p>
-              <span class="subtle" style="font-size:12px">In ${q.cat}</span>
-            </div>
-            <span class="badge ${q.statusClass}" style="font-size:11px">${q.status}</span>
-            <div class="prof-q-upvotes">
-              <strong>${q.upvotes}</strong>
-              <span class="subtle" style="font-size:11px">Upvotes</span>
-            </div>
-          </div>
-        `).join("")}
+        <div style="text-align:center;padding:24px 16px;color:var(--muted)">
+          <div style="font-size:32px;margin-bottom:10px">💬</div>
+          <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 6px">No questions yet</p>
+          <p style="font-size:12px;margin:0 0 14px">Join a meeting and ask your first question to see it here.</p>
+          <button class="btn secondary small" onclick="go('/meetings')">${icons.calendar} Find a Meeting</button>
+        </div>
       </div>
     </div>
   `;

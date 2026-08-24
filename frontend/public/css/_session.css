@@ -2690,20 +2690,123 @@
   border-color: #a5b4fc !important;
 }
 
+/* ── Mobile Bottom Navigation Bar ──────────────────────────── */
+.ses-mobile-bottom-nav {
+  display: none; /* hidden by default — shown only on mobile */
+}
+
 /* ── Mobile Responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
-  .ses-content {
-    padding: 16px;
+  /* Show mobile bottom nav, hide desktop navbar tabs */
+  .ses-navbar-tabs {
+    display: none;
   }
 
+  .ses-mobile-bottom-nav {
+    display: flex;
+    align-items: stretch;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    box-shadow: 0 -2px 12px rgba(99, 102, 241, .08);
+    flex-shrink: 0;
+    z-index: 200;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .ses-mob-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 4px 6px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all .15s;
+    min-height: 56px;
+  }
+
+  .ses-mob-tab:active {
+    background: #f0f4ff;
+  }
+
+  .ses-mob-tab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+  }
+
+  .ses-mob-tab-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .ses-mob-tab-label {
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    letter-spacing: .01em;
+  }
+
+  .ses-mob-tab-active {
+    color: #6366f1;
+  }
+
+  .ses-mob-tab-active .ses-mob-tab-icon {
+    background: #eef2ff;
+    border-radius: 8px;
+  }
+
+  .ses-mob-tab-exit {
+    color: #ef4444;
+  }
+
+  .ses-mob-tab-exit:active {
+    background: #fff5f5;
+  }
+
+  /* Give content room above bottom nav */
+  .ses-content {
+    padding: 14px 14px 80px;
+    overflow-y: auto;
+  }
+
+  .ses-navbar {
+    padding: 0 14px;
+  }
+
+  /* Hide user pill text on mobile — just show avatar */
+  .ses-user-info {
+    display: none;
+  }
+
+  .ses-user-pill {
+    padding: 4px;
+    border-radius: 50%;
+  }
+
+  /* Moderator stats: 2 columns on mobile */
   .mod-stat-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
+  .mod-stat-card {
+    padding: 12px;
+  }
+
+  /* Main grid: single column */
   .mod-main-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
+  /* Move quick actions to top on mobile */
   .mod-right-col {
     order: -1;
   }
@@ -2714,21 +2817,30 @@
   }
 
   .mod-search {
-    width: 120px;
+    width: 140px;
+    flex: 1;
   }
 
   .mod-actions-grid {
     grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
   }
 
+  .mod-action-btn {
+    padding: 10px 6px;
+    font-size: 11px;
+  }
+
+  /* Speaker layout */
   .spk-main-grid {
     grid-template-columns: 1fr;
   }
 
   .spk-stats-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 
+  /* Participant layout */
   .ptc-main-grid {
     grid-template-columns: 1fr;
   }
@@ -2739,18 +2851,12 @@
     flex-wrap: wrap;
   }
 
-  .ses-navbar-tabs {
-    display: none;
-  }
-
-  .ses-navbar {
-    padding: 0 14px;
-  }
-
+  /* Role picker */
   .ses-rp-options {
     grid-template-columns: 1fr;
   }
 
+  /* Queue table: card view on mobile */
   .mod-queue-table thead {
     display: none;
   }
@@ -2770,6 +2876,20 @@
 
   .mod-actions-cell {
     flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  /* Header on mobile */
+  .mod-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .mod-page-title {
+    font-size: 18px;
   }
 }
 

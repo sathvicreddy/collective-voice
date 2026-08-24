@@ -523,7 +523,7 @@ export function renderLogin(kind = "login") {
                 <label class="auth-label">Full Name</label>
                 <div class="auth-input-wrap">
                   <span class="auth-input-icon">${icons.user}</span>
-                  <input id="fullName" class="auth-input" placeholder="Enter your full name" type="text" autocomplete="name">
+                  <input id="authName" class="auth-input" placeholder="Enter your full name" type="text" autocomplete="name">
                 </div>
               </div>
             ` : ""}
@@ -684,7 +684,7 @@ export function renderLogin(kind = "login") {
             </div>
           `}
 
-          <button class="auth-submit-btn" onclick="authSubmit()">
+          <button class="auth-submit-btn" id="authSubmit" onclick="authSubmit()">
             ${isSignup ? "Create Account" : "Log in"}
           </button>
 

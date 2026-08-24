@@ -167,16 +167,20 @@ export function sidebar() {
 
 /* --- App Shell --------------------------------------------- */
 /**
- * shell(phoneHtml, desktopHtml, desktopMain, desktopRight)
+ * shell(phoneHtml, desktopHtml, desktopMain, desktopRight, formLayout)
  *
  * - phoneHtml:    The mobile phone-frame content (shown on mobile, hidden on desktop)
  * - desktopHtml:  Legacy right panel content (used when desktopMain is empty)
  * - desktopMain:  New: main desktop content column
  * - desktopRight: New: right desktop panel column
+ * - formLayout:   When true, adds .desktop-full-layout--form class so the desktop
+ *                 columns stay visible and responsive on mobile (no phone frame shown).
+ *                 Use for pages like Create Meeting where the form must not be duplicated.
  */
-export function shell(phoneHtml, desktopHtml = "", desktopMain = "", desktopRight = "") {
+export function shell(phoneHtml, desktopHtml = "", desktopMain = "", desktopRight = "", formLayout = false) {
   const hasDesktopLayout = desktopMain !== "";
   const hasRightCol = desktopRight !== "";
+  const layoutClass = formLayout ? "desktop-full-layout desktop-full-layout--form" : "desktop-full-layout";
 
   app.innerHTML = `
     <div class="app-shell">
@@ -184,7 +188,7 @@ export function shell(phoneHtml, desktopHtml = "", desktopMain = "", desktopRigh
       <main class="content">
         ${hasDesktopLayout ? `
           <!-- Desktop layout: full-width with topbar + optional two columns -->
-          <div class="desktop-full-layout">
+          <div class="${layoutClass}">
             ${phoneHtml /* mobile phone hidden on desktop */}
             <div class="${hasRightCol ? "desktop-two-col" : "desktop-single-col"}">
               <div class="desktop-main-col">${desktopMain}</div>
@@ -203,6 +207,7 @@ export function shell(phoneHtml, desktopHtml = "", desktopMain = "", desktopRigh
   `;
 }
 
+
 /* --- Desktop Dashboard (legacy right panel for non-home pages) */
 export function desktopDashboard() {
   const data = state.home;
@@ -214,49 +219,22 @@ export function desktopDashboard() {
       </div>
       
       <div class="stack" style="gap: 16px; margin-top: 16px">
+        ${data?.recentActivity ? `
         <article class="row" style="align-items: flex-start; gap: 12px">
           <div class="icon-box green" style="width: 32px; height: 32px; background: #e8f7f0">${icons.checkCircle}</div>
           <div style="flex:1">
-            <div style="display:flex; justify-content:space-between">
-              <h3 style="font-size:13px;font-weight:600;margin-bottom:4px">Your question received 12 upvotes</h3>
-            </div>
-            <p class="subtle" style="font-size:12px; line-height: 1.4">${data?.recentActivity?.text || "How can AI be used ethically in education?"}</p>
-            <span class="subtle" style="font-size: 11px; display: block; margin-top: 4px; text-align: right">2m ago</span>
+            <h3 style="font-size:13px;font-weight:600;margin-bottom:4px">Your question received upvotes</h3>
+            <p class="subtle" style="font-size:12px; line-height: 1.4">${data.recentActivity.text}</p>
           </div>
         </article>
-        
-        <div class="divider" style="margin:0"></div>
-        
-        <article class="row" style="align-items: flex-start; gap: 12px">
-          <div class="icon-box orange" style="width: 32px; height: 32px">${icons.arrowUp}</div>
-          <div style="flex:1">
-            <h3 style="font-size:13px;font-weight:600;margin-bottom:4px">You upvoted a question</h3>
-            <p class="subtle" style="font-size:12px">What are the long-term impacts of remote learning?</p>
-            <span class="subtle" style="font-size: 11px; display: block; margin-top: 4px; text-align: right">15m ago</span>
-          </div>
-        </article>
-        
-        <div class="divider" style="margin:0"></div>
-        
-        <article class="row" style="align-items: flex-start; gap: 12px">
-          <div class="icon-box blue" style="width: 32px; height: 32px">${icons.calendar}</div>
-          <div style="flex:1">
-            <h3 style="font-size:13px;font-weight:600;margin-bottom:4px">You joined a meeting</h3>
-            <p class="subtle" style="font-size:12px">Future of Remote Learning</p>
-            <span class="subtle" style="font-size: 11px; display: block; margin-top: 4px; text-align: right">1h ago</span>
-          </div>
-        </article>
-        
-        <div class="divider" style="margin:0"></div>
-        
-        <article class="row" style="align-items: flex-start; gap: 12px">
-          <div class="icon-box" style="width: 32px; height: 32px">${icons.user}</div>
-          <div style="flex:1">
-            <h3 style="font-size:13px;font-weight:600;margin-bottom:4px">You registered for a meeting</h3>
-            <p class="subtle" style="font-size:12px">Data Privacy in EdTech</p>
-            <span class="subtle" style="font-size: 11px; display: block; margin-top: 4px; text-align: right">Yesterday</span>
-          </div>
-        </article>
+        ` : `
+        <div style="text-align:center;padding:20px 12px;color:var(--muted)">
+          <div style="font-size:28px;margin-bottom:8px">✨</div>
+          <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 4px">No activity yet</p>
+          <p style="font-size:12px;margin:0 0 12px">Join a meeting to get started.</p>
+          <button class="btn secondary" style="width:100%;font-size:12px" onclick="go('/meetings')">${icons.calendar} Browse Meetings</button>
+        </div>
+        `}
       </div>
     </section>
     

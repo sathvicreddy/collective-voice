@@ -513,4 +513,74 @@ details[open] .cf-adv-chevron {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ── Mobile: create form inside phone shell ──────────────────── */
+@media (max-width: 1000px) {
+  /* The phone-main adds its own padding, so remove extra padding from sections */
+  .phone-main .cf-section {
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .phone-main .cf-page-heading {
+    padding: 12px 0 8px;
+  }
+
+  .phone-main .cf-breadcrumb {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .phone-main .cf-heading-title {
+    font-size: 20px;
+  }
+
+  .phone-main .cf-row-2 {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .phone-main .cf-actions {
+    padding-top: 12px;
+    margin-top: 4px;
+    justify-content: stretch;
+  }
+
+  .phone-main .cf-actions .btn,
+  .phone-main .cf-actions-right .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Hide the right-panel summary card on mobile (it's desktop-only) */
+  .phone-main .cf-summary-card {
+    display: none;
+  }
+
+  /* Report page mobile: ensure content is readable */
+  .phone-main .rpt-wrap {
+    padding: 12px 0 80px;
+  }
+
+  .phone-main .rpt-body-grid {
+    display: block;
+  }
+
+  .phone-main .rpt-right-col {
+    display: none;
+  }
+
+  .phone-main .rpt-stat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .phone-main .rpt-page-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .phone-main .rpt-page-header-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}

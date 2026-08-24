@@ -239,21 +239,11 @@ export function renderMeetings() {
           <button class="link-btn" onclick="go('/meetings')">View all</button>
         </div>
         <div class="home-activity-list">
-          ${[
-            { icon: icons.checkCircle, color: "green",  title: "Your question received 12 upvotes",       sub: "How can AI be used ethically in education?",    time: "2m ago"   },
-            { icon: icons.thumbsUp,    color: "",        title: "You upvoted a question",                  sub: "What are the long-term impacts of remote learning?", time: "15m ago" },
-            { icon: icons.calendar,    color: "blue",    title: "You joined a meeting",                    sub: "Future of Remote Learning",                     time: "1h ago"   },
-            { icon: icons.user,        color: "",        title: "You registered for a meeting",            sub: "Data Privacy in EdTech",                        time: "Yesterday" }
-          ].map(a => `
-            <div class="home-activity-item">
-              <div class="icon-box ${a.color}" style="width:32px;height:32px;flex-shrink:0">${a.icon}</div>
-              <div class="home-activity-body">
-                <p class="home-activity-title">${a.title}</p>
-                <p class="home-activity-sub">${a.sub}</p>
-              </div>
-              <span class="home-activity-time">${a.time}</span>
-            </div>
-          `).join("")}
+          <div style="text-align:center;padding:20px 12px;color:var(--muted)">
+            <div style="font-size:24px;margin-bottom:8px">✨</div>
+            <p style="font-size:12px;font-weight:600;color:var(--ink);margin:0 0 4px">No activity yet</p>
+            <p style="font-size:11px;margin:0">Join a meeting to start building your history.</p>
+          </div>
         </div>
       </div>
 
@@ -1625,7 +1615,10 @@ export function renderCreate(step = "type") {
   // Details step uses a rich two-column desktop layout; other steps use the phone shell
   if (step === 'details') {
     const { mainForm, rightPanel } = screens.details;
-    shell('', '', mainForm, rightPanel);
+    // Pass formLayout=true (5th arg) so the CSS modifier .desktop-full-layout--form
+    // keeps the desktop columns visible and responsive on mobile.
+    // This avoids duplicating form DOM IDs which would break saveDetails() querySelector calls.
+    shell('', '', mainForm, rightPanel, true);
   } else {
     // Pass a non-empty desktopMain so shell() uses the desktop-full-layout path,
     // ensuring the phone frame renders correctly on mobile.

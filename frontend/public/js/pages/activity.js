@@ -260,21 +260,12 @@ export function renderActivity(tab = "questions") {
           <span class="act-card-title">Recent Activity</span>
         </div>
         <div class="act-recent-list">
-          ${[
-            { icon: icons.checkCircle, color: "green",  text: `You answered a question in "AI in Education: Opportunities & Challenges"`, time: "2 min ago",  btn: "View Question", route: "/activity" },
-            { icon: icons.thumbsUp,    color: "",        text: `You upvoted a question "How can AI be used ethically in education?"`,       time: "15 min ago", btn: "View Question", route: "/activity" },
-            { icon: icons.calendar,    color: "orange",  text: `You joined "Future of Remote Learning"`,                                   time: "1 hour ago", btn: "View Meeting",  route: "/meetings" },
-            { icon: icons.user,        color: "blue",    text: `You registered for "Data Privacy in EdTech"`,                              time: "Yesterday",  btn: "View Meeting",  route: "/meetings" }
-          ].map(a => `
-            <div class="act-recent-item">
-              <div class="icon-box ${a.color}" style="width:34px;height:34px;flex-shrink:0">${a.icon}</div>
-              <div class="act-recent-body">
-                <p class="act-recent-text">${a.text}</p>
-                <p class="act-recent-time">${a.time}</p>
-              </div>
-              <button class="btn secondary small" onclick="go('${a.route}')">${a.btn}</button>
-            </div>
-          `).join("")}
+          <div style="text-align:center;padding:28px 16px;color:var(--muted)">
+            <div style="font-size:32px;margin-bottom:10px">📋</div>
+            <p style="font-size:14px;font-weight:600;color:var(--ink);margin:0 0 6px">No activity yet</p>
+            <p style="font-size:13px;margin:0 0 16px">Join a meeting, ask questions, and upvote to build your activity history.</p>
+            <button class="btn secondary small" onclick="go('/meetings')">${icons.calendar} Browse Meetings</button>
+          </div>
         </div>
         <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--line-light)">
           <button class="link-btn" onclick="go('/activity')">View all activity</button>

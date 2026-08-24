@@ -257,9 +257,30 @@ async function handleApiRequest(req, res) {
     const ownedMeetings = await db.meeting.findMany({ where: { ownerId: user.id }, select: { id: true } });
     const ownedIds      = ownedMeetings.map(m => m.id);
 
-    const liveM    = await db.meeting.findFirst({ where: { status: "live" } });
-    const upcoming = await db.meeting.findMany({ where: { status: "upcoming" }, take: 5 });
-    const liveQs   = liveM ? await getCache(liveM.id) : [];
+    // Find meetings the user is enrolled in
+    const enrolledMeetings = await db.enrollment.findMany({
+      where: { userId: user.id },
+      select: { meetingId: true }
+    });
+    const enrolledIds = enrolledMeetings.map(e => e.meetingId);
+
+    // Upcoming: only meetings the user owns OR is enrolled in
+    const userMeetingIds = [...new Set([...ownedIds, ...enrolledIds])];
+    const upcoming = userMeetingIds.length > 0
+      ? await db.meeting.findMany({
+          where: { id: { in: userMeetingIds }, status: "upcoming" },
+          orderBy: { scheduledAt: "asc" },
+          take: 5
+        })
+      : [];
+
+    // Live: prefer a meeting the user is involved in; fall back to any live meeting
+    const liveM = userMeetingIds.length > 0
+      ? await db.meeting.findFirst({ where: { id: { in: userMeetingIds }, status: "live" } })
+        || await db.meeting.findFirst({ where: { status: "live" } })
+      : await db.meeting.findFirst({ where: { status: "live" } });
+
+    const liveQs = liveM ? await getCache(liveM.id) : [];
 
     return json(res, 200, {
       user:           { id: user.id, name: user.name, email: user.email, picture: user.picture, ownedMeetingIds: ownedIds },

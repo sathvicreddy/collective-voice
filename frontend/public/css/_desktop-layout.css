@@ -29,6 +29,28 @@
   .desktop-single-col {
     display: none !important;
   }
+
+  /* For pages that use .desktop-full-layout--form (e.g. Create Meeting details),
+     keep the desktop columns visible on mobile — the form's own CSS makes it
+     single-column responsive. The phone frame is hidden on these pages. */
+  .desktop-full-layout--form>.phone {
+    display: none !important;
+  }
+
+  .desktop-full-layout--form .desktop-two-col,
+  .desktop-full-layout--form .desktop-single-col {
+    display: block !important;
+    padding: 12px 16px 80px;
+  }
+
+  .desktop-full-layout--form .desktop-two-col {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .desktop-full-layout--form .desktop-right-col {
+    display: none;
+  }
 }
 
 /* ============================================================

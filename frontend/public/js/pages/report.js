@@ -6,7 +6,7 @@
 import { icons } from "../utils/icons.js";
 import { state } from "../state.js";
 import { go } from "../utils/api.js";
-import { shell } from "../components/shared.js";
+import { shell, phone } from "../components/shared.js";
 import { getSessionState, selectRankedQuestions, stopSessionTimer } from "../store/SessionStore.js";
 
 // ── Chart helpers ──────────────────────────────────────────────
@@ -136,7 +136,9 @@ export async function renderSessionReport() {
 }
 
 function _renderShell(html) {
-  shell("", "", html, "");
+  // Pass phone-wrapped html as the first arg so mobile (≤1000px) shows content
+  // instead of a blank white screen (the CSS hides desktop cols on mobile).
+  shell(phone(html, "", true), "", html, "");
   _attachHandlers();
 }
 

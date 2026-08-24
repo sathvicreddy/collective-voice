@@ -52,7 +52,12 @@ export function renderHome() {
       <h2 class="screen-title">Upcoming Meetings</h2>
       <button class="link-btn" onclick="go('/meetings')">View all</button>
     </div>
-    <div class="stack">${(data.upcoming || []).slice(0, 3).map(m => meetingCard(m)).join("")}</div>
+    <div class="stack">${(state.myMeetings?.upcoming || []).length > 0
+      ? (state.myMeetings.upcoming).slice(0, 3).map(m => meetingCard(m)).join("")
+      : `<article class="list-card" style="text-align:center;padding:20px 16px">
+          <p class="subtle" style="font-size:13px">No upcoming meetings. <button class="link-btn" onclick="go('/meetings/create')">Create one →</button></p>
+        </article>`
+    }</div>
 
     <div class="empty-space"></div>
 
@@ -60,14 +65,19 @@ export function renderHome() {
       <h2 class="screen-title">Recent Activity</h2>
       <button class="link-btn" onclick="go('/activity')">View all</button>
     </div>
+    ${data.recentActivity ? `
     <article class="list-card row">
       <div class="icon-box green">${icons.thumbsUp}</div>
       <div style="flex:1">
-        <h3 style="font-size:14px;font-weight:600">Your question received 12 upvotes</h3>
-        <p class="subtle">${data.recentActivity?.text || "How can AI be used ethically in education?"}</p>
+        <h3 style="font-size:14px;font-weight:600">Your question received upvotes</h3>
+        <p class="subtle">${data.recentActivity.text}</p>
       </div>
-      <span class="subtle">2m ago</span>
     </article>
+    ` : `
+    <article class="list-card" style="text-align:center;padding:20px 16px">
+      <p class="subtle" style="font-size:13px">No activity yet — join a meeting to get started!</p>
+    </article>
+    `}
   `;
 
   /* ---- Desktop main column ---- */
@@ -140,15 +150,15 @@ export function renderHome() {
         <button class="link-btn" onclick="go('/meetings')">View all</button>
       </div>
       <div class="home-meetings-list">
-        ${(data.upcoming || []).slice(0, 3).map(m => `
+        ${(state.myMeetings?.upcoming || []).length > 0
+          ? (state.myMeetings.upcoming).slice(0, 3).map(m => `
           <div class="home-meeting-row">
             <div class="icon-box" style="background:#ede9ff;color:#5b34ff">${icons.calendar}</div>
             <div class="home-meeting-info">
               <strong>${m.title}</strong>
               <div class="home-meeting-meta">
-                <span>${icons.calendar} ${m.date}</span>
-                <span style="margin:0 6px">•</span>
-                <span>${m.time}</span>
+                <span>${icons.calendar} ${m.date || (m.scheduledAt ? new Date(m.scheduledAt).toLocaleDateString() : 'TBD')}</span>
+                ${m.time ? `<span style="margin:0 6px">•</span><span>${m.time}</span>` : ''}
               </div>
               <div class="home-meeting-meta">
                 <span>${icons.users} ${m.participants || 0} participants</span>
@@ -156,7 +166,12 @@ export function renderHome() {
             </div>
             <span class="home-meeting-badge ${m.status === 'live' ? 'live' : ''}">${m.startsIn || m.status || 'Upcoming'}</span>
           </div>
-        `).join("")}
+        `).join("")
+          : `<div style="text-align:center;padding:20px 0;color:var(--muted);font-size:13px">
+              📅 No upcoming meetings yet.<br>
+              <button class="link-btn" style="margin-top:8px" onclick="go('/meetings/create')">Create your first meeting →</button>
+            </div>`
+        }
       </div>
     </div>
   `;
@@ -171,21 +186,12 @@ export function renderHome() {
           <button class="link-btn" onclick="go('/activity')">View all</button>
         </div>
         <div class="home-activity-list">
-          ${[
-      { icon: icons.checkCircle, tone: "green", title: "Your question received 12 upvotes", sub: "How can AI be used ethically in education?", time: "2m ago" },
-      { icon: icons.arrowUp, tone: "orange", title: "You upvoted a question", sub: "What are the long-term impacts of remote learning?", time: "15m ago" },
-      { icon: icons.calendar, tone: "blue", title: "You joined a meeting", sub: "Future of Remote Learning", time: "1h ago" },
-      { icon: icons.user, tone: "", title: "You registered for a meeting", sub: "Data Privacy in EdTech", time: "Yesterday" }
-    ].map(a => `
-            <div class="home-activity-item">
-              <div class="icon-box ${a.tone}" style="width:34px;height:34px;flex-shrink:0">${a.icon}</div>
-              <div class="home-activity-body">
-                <p class="home-activity-title">${a.title}</p>
-                <p class="home-activity-sub">${a.sub}</p>
-              </div>
-              <span class="home-activity-time">${a.time}</span>
-            </div>
-          `).join("")}
+          <div style="text-align:center;padding:24px 16px;color:var(--muted)">
+            <div style="font-size:28px;margin-bottom:8px">✨</div>
+            <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 4px">No activity yet</p>
+            <p style="font-size:12px;margin:0">Join or create a meeting to start building your activity history.</p>
+            <button class="btn" style="margin-top:14px;font-size:12px" onclick="go('/meetings')">${icons.calendar} Browse Meetings</button>
+          </div>
         </div>
       </div>
 

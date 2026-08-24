@@ -84,6 +84,21 @@ function sessionShell(role) {
       </nav>
 
       <main class="ses-content" id="sessionViewContent"></main>
+
+      <!-- Mobile bottom navigation bar (hidden on desktop) -->
+      <nav class="ses-mobile-bottom-nav">
+        ${navTabs.map(tab => `
+          <button class="ses-mob-tab ${activeView === tab.id ? "ses-mob-tab-active" : ""}"
+            onclick="sessionSwitchView('${tab.id}')">
+            <span class="ses-mob-tab-icon">${tab.icon}</span>
+            <span class="ses-mob-tab-label">${tab.label}</span>
+          </button>
+        `).join("")}
+        <button class="ses-mob-tab ses-mob-tab-exit" onclick="go('/home')">
+          <span class="ses-mob-tab-icon">${icons.arrowLeft}</span>
+          <span class="ses-mob-tab-label">Exit</span>
+        </button>
+      </nav>
     </div>
   `;
 }
@@ -280,9 +295,19 @@ function _doPromoteToSpeaker(participantId) {
 
 export function sessionSwitchView(viewId) {
   state.session.activeView = viewId;
+
+  // Update desktop navbar tab active states
   document.querySelectorAll(".ses-nav-tab").forEach(btn => {
     btn.classList.toggle("ses-tab-active", btn.getAttribute("onclick").includes(`'${viewId}'`));
   });
+
+  // Update mobile bottom nav tab active states
+  document.querySelectorAll(".ses-mob-tab").forEach(btn => {
+    const onclick = btn.getAttribute("onclick") || "";
+    const isActive = onclick.includes(`'${viewId}'`);
+    btn.classList.toggle("ses-mob-tab-active", isActive);
+  });
+
   const container = document.querySelector("#sessionViewContent");
   if (container) _renderActiveView(container);
 }
