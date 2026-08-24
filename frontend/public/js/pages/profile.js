@@ -411,11 +411,29 @@ export function renderProfile() {
     if (panel) panel.style.display = "";
   };
 
-  /* Logout: clear all auth state then redirect to welcome */
+  /* Logout: revoke refresh token server-side then clear all local auth state */
   window.profileLogout = function() {
+    // H1 Fix: Tell the server to revoke the refresh token so it can't be replayed
+    const refreshToken = state.refreshToken ||
+      (() => { try { return localStorage.getItem("cv_refresh_token"); } catch { return null; } })();
+    const accessToken = state.token ||
+      (() => { try { return localStorage.getItem("cv_token"); } catch { return null; } })();
+
+    // Fire-and-forget — never let a network error block logout
+    fetch("/api/auth/logout", {
+      method:  "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${accessToken || ""}`
+      },
+      body: JSON.stringify({ refreshToken })
+    }).catch(() => {});
+
+    // Clear local state immediately (don't wait for server response)
     state.token        = null;
     state.refreshToken = null;
     state.profile      = null;
+    state.isHost       = false;
     try { localStorage.removeItem("cv_token"); } catch {}
     try { localStorage.removeItem("cv_refresh_token"); } catch {}
     go("/welcome");

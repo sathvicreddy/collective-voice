@@ -108,6 +108,7 @@ model Poll {
   meetingId  String
   meeting    Meeting    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   options    PollOption[]
+  pollVotes  PollVote[]   // H4 Fix: track who voted to prevent duplicates
 }
 
 model PollOption {
@@ -117,6 +118,19 @@ model PollOption {
 
   pollId String
   poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+}
+
+// H4 Fix: one vote per voter per poll — prevents anonymous vote spam
+model PollVote {
+  id        String   @id @default(cuid())
+  voterId   String   // userId for authed users, guestToken for anonymous
+  optionId  String
+  createdAt DateTime @default(now())
+
+  pollId    String
+  poll      Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, voterId])  // one vote per voter per poll
 }
 
 // ── Participants ───────────────────────────────────────────────────────────────

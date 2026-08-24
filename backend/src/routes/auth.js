@@ -20,6 +20,7 @@ const https   = require("https");
 const db      = require("../db/client");
 const { json, readBody } = require("../utils/helpers");
 const { isRateLimited, retryAfterSeconds, getClientIp } = require("../middleware/rateLimiter");
+const { sendMail } = require("../utils/mailer");
 // lazy-require to avoid circular deps at startup
 function _notifyAdmins(opts) {
   try { require("../utils/notify").notifyAdmins(opts).catch(() => {}); } catch { /* ignore */ }
@@ -89,8 +90,8 @@ function validateSignupInput(name, email, pass) {
     return "Name must be 100 characters or fewer.";
   if (!email || !EMAIL_REGEX.test(email))
     return "A valid email address is required.";
-  if (!pass || pass.length < 6)
-    return "Password must be at least 6 characters.";
+  if (!pass || pass.length < 8)
+    return "Password must be at least 8 characters.";
   if (pass.length > 128)
     return "Password must be 128 characters or fewer.";
   return null;
@@ -341,6 +342,12 @@ async function handleAuthRequest(req, res) {
 
   // ── POST /api/auth/forgot-password ────────────────────────
   if (req.method === "POST" && url.pathname === "/api/auth/forgot-password") {
+    // M3 Fix: Rate-limit to prevent email abuse / enumeration guessing
+    if (isRateLimited(ip)) {
+      return json(res, 429, {
+        error: `Too many requests. Try again in ${retryAfterSeconds(ip)} seconds.`
+      });
+    }
     const { email } = await readBody(req);
     const user = email ? await db.user.findUnique({ where: { email: email.toLowerCase() } }) : null;
 
@@ -356,8 +363,31 @@ async function handleAuthRequest(req, res) {
           expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS)
         }
       });
-      // In production this would send an email; for dev, log it
-      console.log(`[Auth] Password reset token for ${email}: ${rawToken}`);
+      // ── C3 Fix: Send actual reset email via mailer ──────────────
+      const appUrl   = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+      const resetUrl = `${appUrl}/#/reset?token=${rawToken}`;
+
+      sendMail({
+        to:      user.email,
+        subject: "Reset your CollectiveVoice password",
+        html: `
+          <div style="font-family:Inter,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px">
+            <h2 style="color:#5b34ff;margin:0 0 12px">Reset your password</h2>
+            <p style="color:#444;line-height:1.6;margin:0 0 20px">
+              Click the button below to reset your CollectiveVoice password.
+              This link expires in <strong>1 hour</strong>.
+            </p>
+            <a href="${resetUrl}"
+              style="display:inline-block;padding:12px 28px;background:#5b34ff;
+                     color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">
+              Reset Password
+            </a>
+            <p style="color:#888;font-size:12px;margin-top:28px;line-height:1.5">
+              If you didn't request a password reset, you can safely ignore this email.<br>
+              This link will expire automatically after 1 hour.
+            </p>
+          </div>`
+      }).catch(err => console.error("[Auth] Failed to send reset email:", err.message));
     }
     // Always 200 to prevent email enumeration
     return json(res, 200, { message: "If that email exists, a reset link has been sent." });
@@ -366,8 +396,8 @@ async function handleAuthRequest(req, res) {
   // ── POST /api/auth/reset-password ─────────────────────────
   if (req.method === "POST" && url.pathname === "/api/auth/reset-password") {
     const { token: rawToken, password } = await readBody(req);
-    if (!rawToken || !password || password.length < 6) {
-      return json(res, 400, { error: "Valid token and password (≥6 chars) are required." });
+    if (!rawToken || !password || password.length < 8) {
+      return json(res, 400, { error: "Valid token and password (≥8 chars) are required." });
     }
 
     const tokenHash = hashToken(rawToken);
@@ -505,6 +535,27 @@ async function handleAuthRequest(req, res) {
       res.end();
     }
     return;
+  }
+
+  // ── POST /api/auth/logout ────────────────────────────────────
+  // H1 Fix: Revoke the refresh token server-side so it cannot be
+  // replayed even if an attacker has a copy of it from localStorage.
+  if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+    const body = await readBody(req).catch(() => ({}));
+    const { refreshToken } = body;
+
+    if (refreshToken) {
+      // Delete this specific refresh token from the DB
+      const tokenHash = hashToken(refreshToken);
+      await db.refreshToken.deleteMany({ where: { tokenHash } }).catch(() => {});
+    } else {
+      // No refresh token provided — revoke ALL refresh tokens for this user (via access token)
+      const payload = verifyToken(req);
+      if (payload?.sub) {
+        await db.refreshToken.deleteMany({ where: { userId: payload.sub } }).catch(() => {});
+      }
+    }
+    return json(res, 200, { ok: true, message: "Logged out successfully." });
   }
 
   // Route not handled by auth

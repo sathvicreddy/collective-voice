@@ -566,6 +566,26 @@ async function handleApiRequest(req, res) {
     const body      = await readBody(req);
     const meetingId = getMeetingId(url, body) || "m_ai_education";
 
+    // ── H4 Fix: Require stable voter identity (auth or guestToken) ──
+    const pollAuth    = await requireAuth(req);
+    const pollVoterId = pollAuth?.user?.id || body.guestToken || null;
+    if (!pollVoterId) return json(res, 401, { error: "A voter identity (login or guestToken) is required to vote in a poll." });
+
+    // ── H4 Fix: Deduplicate — one vote per voter per poll ──────────
+    // NOTE: requires the PollVote model migration to be applied first.
+    // If db.pollVote is unavailable (migration not yet run), fall through gracefully.
+    if (db.pollVote) {
+      const existing = await db.pollVote.findUnique({
+        where: { pollId_voterId: { pollId: id, voterId: pollVoterId } }
+      }).catch(() => null);
+      if (existing) return json(res, 409, { error: "You have already voted in this poll." });
+
+      // Record the vote before incrementing
+      await db.pollVote.create({
+        data: { pollId: id, optionId: body.optionId, voterId: pollVoterId }
+      }).catch(() => {}); // silently ignore if race condition
+    }
+
     const option = await db.pollOption.update({
       where: { id: body.optionId },
       data:  { votes: { increment: 1 } }
@@ -910,6 +930,14 @@ async function handleApiRequest(req, res) {
   if (req.method === "GET" && url.pathname.match(/^\/api\/admin\/meetings\/[^/]+\/export\.csv$/)) {
     const segs      = url.pathname.split("/");  // ["","api","admin","meetings","<id>","export.csv"]
     const meetingId = segs[4];
+
+    // ── C1 Fix: Require admin/superadmin ──────────────────────
+    const authExport = await requireAuth(req);
+    if (!authExport) return json(res, 401, { error: "Unauthorized." });
+    if (authExport.user.role !== "admin" && authExport.user.role !== "superadmin") {
+      return json(res, 403, { error: "Admin access required." });
+    }
+
     const meeting   = await db.meeting.findUnique({ where: { id: meetingId } });
     if (!meeting) return json(res, 404, { error: "Meeting not found" });
 
@@ -969,8 +997,18 @@ async function handleApiRequest(req, res) {
     const segs      = url.pathname.split("/");        // ["","api","analytics","meeting","<id>","export"]
     const meetingId = segs[4];
     const format    = url.searchParams.get("format") || "json";
-    const meeting   = await db.meeting.findUnique({ where: { id: meetingId } });
-    if (!meeting) return json(res, 404, { error: "Meeting not found" });
+
+    // ── H5 Fix: Require auth and meeting ownership (or admin) ─
+    const exportAuth = await requireAuth(req);
+    if (!exportAuth) return json(res, 401, { error: "Unauthorized." });
+    const exportMeeting = await db.meeting.findUnique({ where: { id: meetingId } });
+    if (!exportMeeting) return json(res, 404, { error: "Meeting not found." });
+    if (exportMeeting.ownerId !== exportAuth.user.id &&
+        exportAuth.user.role !== "admin" && exportAuth.user.role !== "superadmin") {
+      return json(res, 403, { error: "You do not have permission to export this meeting's data." });
+    }
+
+    const meeting = exportMeeting;
 
     const questions    = await db.question.findMany({ where: { meetingId }, orderBy: { score: "desc" } });
     const participants = await db.participant.findMany({ where: { meetingId } });

@@ -141,6 +141,16 @@ const server = http.createServer(async (req, res) => {
   res.setHeader("X-Frame-Options",           "DENY");
   res.setHeader("X-XSS-Protection",          "1; mode=block");
   res.setHeader("Referrer-Policy",           "strict-origin-when-cross-origin");
+  // C4 Fix: Content-Security-Policy — primary XSS mitigation
+  res.setHeader("Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data: https:; " +
+    "connect-src 'self' wss: ws: https://accounts.google.com; " +
+    "frame-ancestors 'none';"
+  );
   if (process.env.NODE_ENV === "production") {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
@@ -521,6 +531,24 @@ wss.on("connection", (ws, req) => {
       case "speaker_accepted": {
         const { meetingId, participantId, speakerName } = data;
         if (!meetingId) break;
+
+        // ── C2 Fix: Verify the accepting client is the invited participant ──
+        const acceptMeta = clients.get(ws);
+        if (!acceptMeta) break;
+
+        const acceptPart = await db.participant.findUnique({
+          where:  { id: participantId },
+          select: { userId: true, guestToken: true }
+        }).catch(() => null);
+        if (!acceptPart) break;
+
+        const matchById    = acceptPart.userId    && acceptMeta.userId    === acceptPart.userId;
+        const matchByGuest = acceptPart.guestToken && acceptMeta.guestToken === acceptPart.guestToken;
+        if (!matchById && !matchByGuest) {
+          ws.send(JSON.stringify({ event: "error", data: { code: 403, message: "You can only accept an invite for yourself." } }));
+          break;
+        }
+
         // Update participant role in DB
         await db.participant.update({
           where: { id: participantId },
@@ -661,9 +689,9 @@ wss.on("connection", (ws, req) => {
       }
 
       default:
-        if (data.meetingId) {
-          broadcastToMeeting(event, data, data.meetingId, ws);
-        }
+        // H6 Fix: Unknown events are dropped — never broadcast arbitrary client events.
+        // This prevents message injection attacks via unrecognised event names.
+        console.warn(`[WS] Unrecognised event "${event}" from client (meetingId:${data?.meetingId || "none"}) — dropped.`);
         break;
     }
     })().catch(err => console.error("[WS] Handler error:", err.message));

@@ -93,7 +93,7 @@ window.toggleSidebarUserMenu = function() {
       <div onclick="adminNavigate('manage-admins');document.getElementById('sidebar-user-dropdown')?.remove()"
            style="padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text-primary);display:flex;align-items:center;gap:9px;transition:background .12s"
            onmouseover="this.style.background='var(--bg-secondary,#f5f7fe)'" onmouseout="this.style.background=''">👤 My Profile</div>
-      <div onclick="localStorage.removeItem('cv_token');window.location.href='/'"
+      <div onclick="(async()=>{ try { const rt=localStorage.getItem('cv_refresh_token'); const at=localStorage.getItem('cv_token'); await fetch('/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(at||'')},body:JSON.stringify({refreshToken:rt})}); } catch {} localStorage.removeItem('cv_token'); localStorage.removeItem('cv_refresh_token'); window.location.href='/'; })()"
            style="padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:#e54040;display:flex;align-items:center;gap:9px;transition:background .12s"
            onmouseover="this.style.background='#ffeaea'" onmouseout="this.style.background=''">🚪 Sign Out</div>
     </div>
