@@ -1020,6 +1020,16 @@
   transform: translateY(0);
 }
 
+.auth-social-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+  border-color: #e0dbff;
+  color: #3d4466;
+  background: white;
+  transform: none;
+}
+
 /* Guest card */
 .auth-guest-card {
   display: flex;
