@@ -13,9 +13,11 @@
     <meta name="apple-mobile-web-app-title" content="CollectiveVoice">
     <link rel="apple-touch-icon" href="/images/icon-192.png">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%235b34ff'/><text x='50' y='72' font-size='60' font-weight='900' fill='white' text-anchor='middle' font-family='sans-serif'>V</text></svg>">
+    <!-- Google Fonts loaded async so a network failure never blocks the app -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"></noscript>
     <title>CollectiveVoice — Smart Q&A for Live Meetings</title>
     <link rel="stylesheet" href="/css/index.css">
 

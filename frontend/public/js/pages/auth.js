@@ -34,10 +34,10 @@ function _showAuthError(msg) {
 
 function _storeToken(accessToken, refreshToken = null) {
   state.token = accessToken;
-  try { localStorage.setItem("cv_token", accessToken); } catch {}
+  try { localStorage.setItem("cv_token", accessToken); } catch { }
   if (refreshToken) {
     state.refreshToken = refreshToken;
-    try { localStorage.setItem("cv_refresh_token", refreshToken); } catch {}
+    try { localStorage.setItem("cv_refresh_token", refreshToken); } catch { }
   }
 }
 
@@ -45,18 +45,18 @@ function _storeToken(accessToken, refreshToken = null) {
 export async function authSubmit() {
   const isSignup = state.route === "/signup";
   // Use strict ID selectors — no fragile placeholder matching
-  const nameEl   = document.querySelector("#authName");
-  const emailEl  = document.querySelector("#authEmail");
-  const passEl   = document.querySelector("#authPassword");
-  const confEl   = document.querySelector("#authConfirm");
+  const nameEl = document.querySelector("#authName");
+  const emailEl = document.querySelector("#authEmail");
+  const passEl = document.querySelector("#authPassword");
+  const confEl = document.querySelector("#authConfirm");
 
-  const email    = emailEl?.value.trim() || "";
+  const email = emailEl?.value.trim() || "";
   const password = passEl?.value || "";
-  const name     = nameEl?.value.trim() || "";
-  const confirm  = confEl?.value || "";
+  const name = nameEl?.value.trim() || "";
+  const confirm = confEl?.value || "";
 
   // Input validation
-  if (!email)    { _showAuthError("Email address is required."); emailEl?.focus(); return; }
+  if (!email) { _showAuthError("Email address is required."); emailEl?.focus(); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _showAuthError("Please enter a valid email address."); emailEl?.focus(); return; }
   if (!password) { _showAuthError("Password is required."); passEl?.focus(); return; }
   if (isSignup && !name) { _showAuthError("Full name is required."); nameEl?.focus(); return; }
@@ -68,8 +68,8 @@ export async function authSubmit() {
 
   try {
     const endpoint = isSignup ? "/api/auth/signup" : "/api/auth/login";
-    const body     = isSignup ? { name, email, password } : { email, password };
-    const res      = await fetch(endpoint, {
+    const body = isSignup ? { name, email, password } : { email, password };
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -102,10 +102,10 @@ export async function authSubmit() {
 /** Handle forgot-password submit */
 export async function authForgot() {
   const emailEl = document.querySelector("input[type='email']");
-  const email   = emailEl?.value.trim();
+  const email = emailEl?.value.trim();
   if (!email) { _showAuthError("Please enter your email."); return; }
   try {
-    const res  = await fetch("/api/auth/forgot-password", {
+    const res = await fetch("/api/auth/forgot-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email })
@@ -118,22 +118,22 @@ export async function authForgot() {
 
 /** Handle reset-password submit */
 export async function authReset() {
-  const passEl   = document.querySelector("#resetPassword");
-  const confEl   = document.querySelector("#resetConfirm");
+  const passEl = document.querySelector("#resetPassword");
+  const confEl = document.querySelector("#resetConfirm");
   const password = passEl?.value || "";
-  const confirm  = confEl?.value || "";
+  const confirm = confEl?.value || "";
   if (!password || password.length < 8) { _showAuthError("Password must be at least 8 characters."); passEl?.focus(); return; }
-  if (password !== confirm)              { _showAuthError("Passwords do not match."); confEl?.focus(); return; }
+  if (password !== confirm) { _showAuthError("Passwords do not match."); confEl?.focus(); return; }
   // Read reset token from URL search params — e.g. ?token=abc123
   // This is safe: the token is server-generated and single-use.
   const params = new URLSearchParams(location.search);
-  const token  = params.get("token") || params.get("resetToken");
+  const token = params.get("token") || params.get("resetToken");
   if (!token) {
     _showAuthError("Invalid or missing reset link. Please request a new password reset.");
     return;
   }
   try {
-    const res  = await fetch("/api/auth/reset-password", {
+    const res = await fetch("/api/auth/reset-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, password })
@@ -238,11 +238,11 @@ export function renderWelcome() {
           <!-- Feature Icons -->
           <div class="landing-features">
             ${[
-              { icon: icons.users,      label: "Anonymous",        sub: "Ask without<br>revealing identity",   tone: "purple" },
-              { icon: icons.trendingUp, label: "Crowd-Prioritized", sub: "Top questions<br>surface first",      tone: "green" },
-              { icon: icons.zap,        label: "AI Clustering",    sub: "Smart grouping of<br>similar questions", tone: "orange" },
-              { icon: icons.activity,   label: "Real-Time",        sub: "Live updates in<br>under 40ms",         tone: "blue" }
-            ].map(f => `
+      { icon: icons.users, label: "Anonymous", sub: "Ask without<br>revealing identity", tone: "purple" },
+      { icon: icons.trendingUp, label: "Crowd-Prioritized", sub: "Top questions<br>surface first", tone: "green" },
+      { icon: icons.zap, label: "AI Clustering", sub: "Smart grouping of<br>similar questions", tone: "orange" },
+      { icon: icons.activity, label: "Real-Time", sub: "Live updates in<br>under 40ms", tone: "blue" }
+    ].map(f => `
               <div class="landing-feature-item">
                 <div class="landing-feature-icon landing-feature-${f.tone}">${f.icon}</div>
                 <span class="landing-feature-label">${f.label}</span>
@@ -274,11 +274,11 @@ export function renderWelcome() {
       <!-- Stats Bar -->
       <div class="landing-stats">
         ${[
-          { icon: icons.users,    value: "500+",  label: "Live Events",         tone: "purple" },
-          { icon: icons.users,    value: "50K+",  label: "Participants",         tone: "green" },
-          { icon: icons.barChart, value: "63%",   label: "Redundancy Reduced",  tone: "orange" },
-          { icon: icons.clock,    value: "40ms",  label: "Average Latency",     tone: "blue" }
-        ].map(s => `
+      { icon: icons.users, value: "500+", label: "Live Events", tone: "purple" },
+      { icon: icons.users, value: "50K+", label: "Participants", tone: "green" },
+      { icon: icons.barChart, value: "63%", label: "Redundancy Reduced", tone: "orange" },
+      { icon: icons.clock, value: "40ms", label: "Average Latency", tone: "blue" }
+    ].map(s => `
           <div class="landing-stat-item">
             <div class="landing-stat-icon landing-feature-${s.tone}">${s.icon}</div>
             <span class="landing-stat-value">${s.value}</span>
@@ -330,13 +330,13 @@ export function renderWelcome() {
           </div>
           <div class="ls-features-grid">
             ${[
-              { icon: icons.users,      title: "Anonymous Submissions",  desc: "Audience members can ask questions without revealing their identity — encouraging honest, fearless questions.", tone: "purple" },
-              { icon: icons.zap,        title: "AI Semantic Clustering", desc: "Similar questions are automatically grouped so you never answer the same thing twice. Focus on what matters.", tone: "blue" },
-              { icon: icons.trendingUp, title: "Live Upvoting",          desc: "The crowd votes in real time. The most important questions surface automatically — pure democratic prioritization.", tone: "green" },
-              { icon: icons.activity,   title: "Real-Time Dashboard",    desc: "Hosts see a live stream of questions ranked by votes. Respond, moderate, pin, or dismiss with one click.", tone: "orange" },
-              { icon: icons.shield,     title: "Moderation Controls",    desc: "Review questions before they go public. Block spam, hide inappropriate content, and keep your session on track.", tone: "purple" },
-              { icon: icons.barChart,   title: "Post-Event Analytics",   desc: "Get detailed reports: most voted questions, engagement rates, audience size, and session sentiment analysis.", tone: "blue" },
-            ].map(f => `
+      { icon: icons.users, title: "Anonymous Submissions", desc: "Audience members can ask questions without revealing their identity — encouraging honest, fearless questions.", tone: "purple" },
+      { icon: icons.zap, title: "AI Semantic Clustering", desc: "Similar questions are automatically grouped so you never answer the same thing twice. Focus on what matters.", tone: "blue" },
+      { icon: icons.trendingUp, title: "Live Upvoting", desc: "The crowd votes in real time. The most important questions surface automatically — pure democratic prioritization.", tone: "green" },
+      { icon: icons.activity, title: "Real-Time Dashboard", desc: "Hosts see a live stream of questions ranked by votes. Respond, moderate, pin, or dismiss with one click.", tone: "orange" },
+      { icon: icons.shield, title: "Moderation Controls", desc: "Review questions before they go public. Block spam, hide inappropriate content, and keep your session on track.", tone: "purple" },
+      { icon: icons.barChart, title: "Post-Event Analytics", desc: "Get detailed reports: most voted questions, engagement rates, audience size, and session sentiment analysis.", tone: "blue" },
+    ].map(f => `
               <div class="ls-feat-card">
                 <div class="ls-feat-icon ls-feat-icon--${f.tone}">${f.icon}</div>
                 <h4 class="ls-feat-title">${f.title}</h4>
@@ -411,11 +411,11 @@ export function renderWelcome() {
             <div class="ls-about-right">
               <div class="ls-value-cards">
                 ${[
-                  { emoji: "🎯", title: "Purpose-Built",   desc: "Designed specifically for live event Q&A — not a generic tool forced into a new shape." },
-                  { emoji: "🔒", title: "Privacy First",   desc: "Anonymous questions by default. We never sell data and your sessions are encrypted end-to-end." },
-                  { emoji: "⚡", title: "Lightning Fast",  desc: "Questions appear in under 40ms. Our real-time engine handles thousands of simultaneous participants." },
-                  { emoji: "🌍", title: "Inclusive Design", desc: "Works on any device, any browser, any connection speed — no app download required." },
-                ].map(v => `
+      { emoji: "🎯", title: "Purpose-Built", desc: "Designed specifically for live event Q&A — not a generic tool forced into a new shape." },
+      { emoji: "🔒", title: "Privacy First", desc: "Anonymous questions by default. We never sell data and your sessions are encrypted end-to-end." },
+      { emoji: "⚡", title: "Lightning Fast", desc: "Questions appear in under 40ms. Our real-time engine handles thousands of simultaneous participants." },
+      { emoji: "🌍", title: "Inclusive Design", desc: "Works on any device, any browser, any connection speed — no app download required." },
+    ].map(v => `
                   <div class="ls-value-card">
                     <span class="ls-value-emoji">${v.emoji}</span>
                     <div>
@@ -467,11 +467,11 @@ export function renderWelcome() {
 
         <div class="mobile-welcome-features">
           ${[
-            [icons.users, "Ask anonymously", "No sign-up required for audience"],
-            [icons.trendingUp, "Smart prioritization", "AI groups similar questions"],
-            [icons.zap, "Real-time updates", "Instant ranking & live interaction"],
-            [icons.shield, "Secure & private", "Your data is always protected"]
-          ].map(([ic, t, s]) => `
+      [icons.users, "Ask anonymously", "No sign-up required for audience"],
+      [icons.trendingUp, "Smart prioritization", "AI groups similar questions"],
+      [icons.zap, "Real-time updates", "Instant ranking & live interaction"],
+      [icons.shield, "Secure & private", "Your data is always protected"]
+    ].map(([ic, t, s]) => `
             <div class="mobile-welcome-feat">
               <div class="mobile-feat-icon">${ic}</div>
               <div>
@@ -737,9 +737,9 @@ export function renderLogin(kind = "login") {
    ============================================================ */
 export function renderOnboarding(step = 1) {
   const slides = [
-    { icon: icons.mic,      title: "Welcome to CollectiveVoice",  body: "Join live sessions, ask anonymously, and help the best questions rise to the top." },
-    { icon: icons.zap,      title: "AI Question Clustering",      body: "Similar questions are grouped into one ranked cluster so the speaker sees the real crowd priority." },
-    { icon: icons.send,     title: "Make Every Voice Count",      body: "Scan a QR code, join the room, upvote, and track answers — even after the meeting." }
+    { icon: icons.mic, title: "Welcome to CollectiveVoice", body: "Join live sessions, ask anonymously, and help the best questions rise to the top." },
+    { icon: icons.zap, title: "AI Question Clustering", body: "Similar questions are grouped into one ranked cluster so the speaker sees the real crowd priority." },
+    { icon: icons.send, title: "Make Every Voice Count", body: "Scan a QR code, join the room, upvote, and track answers — even after the meeting." }
   ];
   const index = Math.max(0, Math.min(slides.length - 1, Number(step) - 1));
   const slide = slides[index];
@@ -754,8 +754,8 @@ export function renderOnboarding(step = 1) {
         </div>
         <div style="display:flex;flex-direction:column;gap:12px">
           ${index < slides.length - 1
-            ? `<button class="auth-submit-btn" onclick="go('/onboarding/${index + 2}')">Next</button>`
-            : `<button class="auth-submit-btn" onclick="go('/login')">Get Started</button>`}
+      ? `<button class="auth-submit-btn" onclick="go('/onboarding/${index + 2}')">Next</button>`
+      : `<button class="auth-submit-btn" onclick="go('/login')">Get Started</button>`}
           <button class="auth-switch-link" onclick="go('/home')" style="padding:12px">Skip</button>
         </div>
       </div>
@@ -804,9 +804,9 @@ export function renderForgot() {
    ============================================================ */
 export function renderReset() {
   // Read reset token from URL search params — e.g. /?token=abc123#/reset
-  const params     = new URLSearchParams(location.search);
+  const params = new URLSearchParams(location.search);
   const resetToken = params.get("token") || params.get("resetToken");
-  const hasToken   = Boolean(resetToken);
+  const hasToken = Boolean(resetToken);
 
   app.innerHTML = `
     <div class="mobile-auth">
@@ -821,9 +821,9 @@ export function renderReset() {
       <div class="mobile-auth-body">
         <h1 class="mobile-auth-title">Reset Password ✅</h1>
         ${hasToken
-          ? `<p class="mobile-auth-sub">Enter your new password below.</p>`
-          : `<p class="mobile-auth-sub" style="color:#e54040">⚠️ Invalid or expired reset link. Please request a new one.</p>`
-        }
+      ? `<p class="mobile-auth-sub">Enter your new password below.</p>`
+      : `<p class="mobile-auth-sub" style="color:#e54040">⚠️ Invalid or expired reset link. Please request a new one.</p>`
+    }
         <div class="mobile-auth-form" id="reset-form">
           ${hasToken ? `
           <div class="auth-field">
@@ -877,9 +877,9 @@ function _initLandingInteractivity() {
 function _initScrollSpy() {
   const sectionMap = {
     "how-it-works": "nav-link-how",
-    "features":     "nav-link-features",
-    "for-events":   "nav-link-events",
-    "about":        "nav-link-about"
+    "features": "nav-link-features",
+    "for-events": "nav-link-events",
+    "about": "nav-link-about"
   };
 
   const sections = Object.keys(sectionMap)
@@ -892,7 +892,7 @@ function _initScrollSpy() {
     (entries) => {
       entries.forEach(entry => {
         const linkId = sectionMap[entry.target.id];
-        const link   = document.getElementById(linkId);
+        const link = document.getElementById(linkId);
         if (!link) return;
         if (entry.isIntersecting) {
           // Remove active from all, add to this one
@@ -950,25 +950,25 @@ function _initStatCounters() {
  * Preserves suffix ('+', 'K+', '%', 'ms').
  */
 function _animateCounter(el) {
-  const raw    = el.dataset.target || "";
+  const raw = el.dataset.target || "";
   // Extract numeric part and suffix
-  const match  = raw.match(/^([0-9.]+)(.*)$/);
+  const match = raw.match(/^([0-9.]+)(.*)$/);
   if (!match) return; // can't parse — leave as-is
 
   const target = parseFloat(match[1]);
   const suffix = match[2] || "";
-  const isK    = suffix.startsWith("K");
+  const isK = suffix.startsWith("K");
   const displayTarget = isK ? target * 1000 : target;
 
   const duration = 1200; // ms
-  const start    = performance.now();
+  const start = performance.now();
 
   function step(now) {
-    const elapsed  = now - start;
+    const elapsed = now - start;
     const progress = Math.min(elapsed / duration, 1);
     // Ease out cubic
-    const eased    = 1 - Math.pow(1 - progress, 3);
-    const current  = Math.round(displayTarget * eased);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(displayTarget * eased);
 
     if (isK) {
       el.textContent = current >= 1000

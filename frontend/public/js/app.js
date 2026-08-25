@@ -1,10 +1,32 @@
 /* ============================================================
    Application Entry Point & Router
    ============================================================ */
+// ── All imports MUST be at the top of an ES module ──
 import { state } from "./state.js";
 import { api, go } from "./utils/api.js";
 import { icons } from "./utils/icons.js";
 import { dispatch, getSessionState } from "./store/SessionStore.js";
+
+// Page Renderers
+import { renderWelcome, renderOnboarding, renderLogin, renderForgot, renderReset, authSubmit, authForgot, authReset } from "./pages/auth.js";
+import { renderHome, homejoinLive } from "./pages/home.js";
+import { renderMeetings, renderJoin, renderJoining, renderCreate } from "./pages/meetings.js";
+import { renderMeetingDetail } from "./pages/meetingDetail.js";
+import { renderActivity } from "./pages/activity.js";
+import { renderProfile } from "./pages/profile.js";
+import { renderSettings } from "./pages/settings.js";
+import { renderAudience, renderModerator, renderSpeaker, sessionSwitchView, sessionPromoteToSpeaker } from "./pages/session.js";
+import { renderAnalytics } from "./pages/analytics.js";
+import { renderNotifications } from "./pages/notifications.js";
+import { renderQuestionDetail } from "./pages/questions.js";
+import { renderSessionReport } from "./pages/report.js";
+import { renderHelp } from "./pages/help.js";
+import { initPWA } from "./utils/pwa.js";
+
+// View-level handlers (registered globally for inline onclick)
+import { moderatorSearchQuestions, moderatorSortQueue, moderatorDeferQuestion, moderatorShowQuestionMenu, moderatorFlagQuestion, moderatorAnswerQuestion, moderatorTogglePause, moderatorClearAnswered, moderatorBroadcastAnnouncement, moderatorCreatePoll, moderatorMakeSpeaker, moderatorEndSession, moderatorGoLive, moderatorMarkAnswering } from "./views/ModeratorView.js";
+import { speakerSaveNotes, speakerStartAnswering, speakerSkipQuestion, speakerMarkAnswered, speakerDeferQuestion } from "./views/SpeakerView.js";
+import { participantUpdateCharCount, participantSubmitQuestion, participantUpvote, participantVotePoll, participantTypingStart, participantTypingStop, participantReact } from "./views/ParticipantView.js";
 
 // ── Restore saved theme immediately (before first render) to avoid flash ──
 try {
@@ -19,45 +41,8 @@ try {
   if (prefs.compact) document.body?.classList.add("compact-mode");
 } catch { /* non-fatal */ }
 
-
-// Import Page Renderers
-import { renderWelcome, renderOnboarding, renderLogin, renderForgot, renderReset } from "./pages/auth.js";
-import { renderHome, homejoinLive } from "./pages/home.js";
-import { renderMeetings, renderJoin, renderJoining, renderCreate } from "./pages/meetings.js";
-import { renderMeetingDetail } from "./pages/meetingDetail.js";
-import { renderActivity } from "./pages/activity.js";
-import { renderProfile } from "./pages/profile.js";
-import { renderSettings } from "./pages/settings.js";
-import {
-  renderAudience, renderModerator, renderSpeaker,
-  sessionSwitchView, sessionPromoteToSpeaker
-} from "./pages/session.js";
-import { renderAnalytics } from "./pages/analytics.js";
-import { renderNotifications } from "./pages/notifications.js";
-import { renderQuestionDetail } from "./pages/questions.js";
-import { renderSessionReport } from "./pages/report.js";
-import { renderHelp } from "./pages/help.js";
-import { initPWA } from "./utils/pwa.js";
-
 // Register service worker + initialise offline queue support
 initPWA();
-
-// View-level handlers (registered globally for inline onclick)
-import {
-  moderatorSearchQuestions, moderatorSortQueue,
-  moderatorDeferQuestion, moderatorShowQuestionMenu,
-  moderatorFlagQuestion, moderatorAnswerQuestion,
-  moderatorTogglePause, moderatorClearAnswered,
-  moderatorBroadcastAnnouncement, moderatorCreatePoll, moderatorMakeSpeaker,
-  moderatorEndSession, moderatorGoLive, moderatorMarkAnswering
-} from "./views/ModeratorView.js";
-import { speakerSaveNotes, speakerStartAnswering, speakerSkipQuestion, speakerMarkAnswered, speakerDeferQuestion } from "./views/SpeakerView.js";
-import {
-  participantUpdateCharCount, participantSubmitQuestion,
-  participantUpvote, participantVotePoll,
-  participantTypingStart, participantTypingStop, participantReact
-} from "./views/ParticipantView.js";
-import { authSubmit, authForgot, authReset } from "./pages/auth.js";
 
 const app = document.querySelector("#app");
 
