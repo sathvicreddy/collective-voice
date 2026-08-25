@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node -r dotenv/config backend/server.js",
     "backend": "node -r dotenv/config backend/server.js",
+    "predev": "npx kill-port 3000 --silent || true",
     "dev": "node -r dotenv/config backend/server.js",
     "build": "npx prisma generate",
     "test": "jest --testPathPattern=backend/tests --forceExit",

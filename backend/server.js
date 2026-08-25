@@ -20,17 +20,31 @@ const { startScheduler } = require("./src/scheduler");
 // ── Process-level error guards ──────────────────────────────────────────────
 // Transient Neon/DB WebSocket drops are NOT fatal — log and continue.
 // Only exit on truly unrecoverable errors.
-const TRANSIENT_ERRORS = new Set([
+const TRANSIENT_ERRORS = [
   "Connection terminated unexpectedly",
   "Connection terminated",
   "connect ECONNREFUSED",
   "Can't reach database server",
   "ECONNRESET",
-]);
+  "WebSocket was closed",
+  "socket hang up",
+];
+
+// Neon WS teardown can throw TypeErrors like
+// "Cannot read properties of undefined (reading 'many')".
+// These originate inside @neondatabase/serverless internals — not our code.
+const NEON_INTERNAL_STACKS = [
+  "@neondatabase/serverless",
+  "node_modules/ws/",
+];
 
 function isTransientDbError(err) {
-  const msg = (err?.message || err?.toString() || "");
-  return TRANSIENT_ERRORS.has(msg) || [...TRANSIENT_ERRORS].some(s => msg.includes(s));
+  const msg  = err?.message || err?.toString() || "";
+  const stack = err?.stack  || "";
+  if (TRANSIENT_ERRORS.some(s => msg.includes(s))) return true;
+  // Swallow TypeErrors whose stack trace only touches Neon/ws internals
+  if (err instanceof TypeError && NEON_INTERNAL_STACKS.some(s => stack.includes(s))) return true;
+  return false;
 }
 
 process.on("uncaughtException", (err) => {
@@ -144,7 +158,7 @@ const server = http.createServer(async (req, res) => {
   // C4 Fix: Content-Security-Policy — primary XSS mitigation
   res.setHeader("Content-Security-Policy",
     "default-src 'self'; " +
-    "script-src 'self'; " +
+    "script-src 'self' https://cdnjs.cloudflare.com; " +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: https:; " +
