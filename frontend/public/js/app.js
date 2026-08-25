@@ -61,6 +61,21 @@ import { authSubmit, authForgot, authReset } from "./pages/auth.js";
 
 const app = document.querySelector("#app");
 
+/* --- Global Registration for Inline Handlers -------------- */
+Object.assign(window, {
+  go, authSubmit, authForgot, authReset, homejoinLive,
+  sessionSwitchView, sessionPromoteToSpeaker,
+  moderatorSearchQuestions, moderatorSortQueue, moderatorDeferQuestion,
+  moderatorShowQuestionMenu, moderatorFlagQuestion, moderatorAnswerQuestion,
+  moderatorTogglePause, moderatorClearAnswered, moderatorBroadcastAnnouncement,
+  moderatorCreatePoll, moderatorMakeSpeaker, moderatorEndSession,
+  moderatorGoLive, moderatorMarkAnswering,
+  speakerSaveNotes, speakerStartAnswering, speakerSkipQuestion,
+  speakerMarkAnswered, speakerDeferQuestion,
+  participantUpdateCharCount, participantSubmitQuestion, participantUpvote,
+  participantVotePoll, participantTypingStart, participantTypingStop, participantReact
+});
+
 /* --- Actions ----------------------------------------------- */
 
 /**
@@ -908,4 +923,8 @@ document.addEventListener("cv:ws_event", (e) => {
   if (["grace_period_started","meeting_expired","meeting_extended","meeting_rescheduled"].includes(event)) {
     handleGraceEvent(event, data);
   }
+});
+
+Object.assign(window, {
+  saveDetails, validateMeetingCode, validateMeetingCodeDirect, createMeeting
 });
