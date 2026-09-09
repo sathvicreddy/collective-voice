@@ -6,13 +6,14 @@
      - Network-first for everything else (SPA shell)
    ============================================================ */
 
-const CACHE_NAME    = "cv-static-v1";
+const CACHE_NAME    = "cv-static-v2";
 const API_PREFIX    = "/api/";
 const STATIC_EXTS   = [".css", ".js", ".png", ".svg", ".woff2", ".jpg", ".webp"];
 const PRECACHE_URLS = [
   "/",
   "/css/index.css",
-  "/js/app.js"
+  "/js/app.js",
+  "/js/vendor/jsQR.js"
 ];
 
 // ── Install: pre-cache the shell ─────────────────────────────
