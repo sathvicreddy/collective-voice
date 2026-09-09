@@ -372,7 +372,8 @@
   overflow: hidden;
 }
 
-/* Q&A Panel / Illustration wrap — fills to right edge */
+/* Q&A Panel / Illustration wrap — fills to right edge.
+   Decorative: passes pointer events through so nav buttons work. */
 .landing-illus-wrap {
   position: relative;
   width: 100%;
@@ -380,6 +381,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  pointer-events: none;
 }
 
 /* Landing hero illustration: fills right half, matches page bg naturally */
@@ -394,6 +396,9 @@
   /* The image has a lavender bg that matches #f5f4ff — blends seamlessly */
   border-radius: 0;
   filter: none;
+  /* Purely decorative — cannot intercept clicks */
+  pointer-events: none;
+  user-select: none;
 }
 
 /* Auth left illustration — handled via background-image on .auth-left */
@@ -1210,6 +1215,8 @@
   inset: 0;
   background: linear-gradient(155deg, #0f0a2e 0%, #1a0f5e 50%, #3d2aaa 100%);
   z-index: 0;
+  /* Pure background — must not intercept clicks */
+  pointer-events: none;
 }
 
 .mobile-welcome-content {

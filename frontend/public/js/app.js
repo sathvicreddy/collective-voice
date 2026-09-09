@@ -231,6 +231,18 @@ export async function createMeeting() {
 window.state = state;
 
 window.go = go;
+
+// Auth shims — registered early so clicking buttons before the module
+// fully loads doesn't silently fail with "authSubmit is not a function".
+// The real implementations are assigned below at line ~320 once imported.
+["authSubmit", "authForgot", "authReset"].forEach(fn => {
+  if (!window[fn]) {
+    window[fn] = function(...args) {
+      // Module not loaded yet — wait one tick and retry
+      setTimeout(() => { if (typeof window[fn] === "function") window[fn](...args); }, 50);
+    };
+  }
+});
 window.saveDetails = saveDetails;
 window.validateMeetingCode = validateMeetingCode;
 window.validateMeetingCodeDirect = validateMeetingCodeDirect;

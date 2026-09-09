@@ -6,6 +6,35 @@ import { state } from "../state.js";
 import { go } from "../utils/api.js";
 import { shell, phone, desktopTopbar } from "../components/shared.js";
 
+/* ── Logout: registered at module scope so it's available on ALL pages
+   (Settings, Profile, etc.) that call profileLogout() ── */
+window.profileLogout = function profileLogout() {
+  // Tell the server to revoke the refresh token so it can't be replayed
+  const refreshToken = state.refreshToken ||
+    (() => { try { return localStorage.getItem("cv_refresh_token"); } catch { return null; } })();
+  const accessToken = state.token ||
+    (() => { try { return localStorage.getItem("cv_token"); } catch { return null; } })();
+
+  // Fire-and-forget — never let a network error block logout
+  fetch("/api/auth/logout", {
+    method:  "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${accessToken || ""}`
+    },
+    body: JSON.stringify({ refreshToken })
+  }).catch(() => {});
+
+  // Clear local state immediately (don't wait for server response)
+  state.token        = null;
+  state.refreshToken = null;
+  state.profile      = null;
+  state.isHost       = false;
+  try { localStorage.removeItem("cv_token"); } catch {}
+  try { localStorage.removeItem("cv_refresh_token"); } catch {}
+  go("/welcome");
+};
+
 /* ── Engagement Chart (Canvas) ────────────────────────────── */
 function engagementChart(points) {
   const labels = ["May 25","May 28","May 31","Jun 03","Jun 06","Jun 09"];
@@ -411,31 +440,5 @@ export function renderProfile() {
     if (panel) panel.style.display = "";
   };
 
-  /* Logout: revoke refresh token server-side then clear all local auth state */
-  window.profileLogout = function() {
-    // H1 Fix: Tell the server to revoke the refresh token so it can't be replayed
-    const refreshToken = state.refreshToken ||
-      (() => { try { return localStorage.getItem("cv_refresh_token"); } catch { return null; } })();
-    const accessToken = state.token ||
-      (() => { try { return localStorage.getItem("cv_token"); } catch { return null; } })();
-
-    // Fire-and-forget — never let a network error block logout
-    fetch("/api/auth/logout", {
-      method:  "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${accessToken || ""}`
-      },
-      body: JSON.stringify({ refreshToken })
-    }).catch(() => {});
-
-    // Clear local state immediately (don't wait for server response)
-    state.token        = null;
-    state.refreshToken = null;
-    state.profile      = null;
-    state.isHost       = false;
-    try { localStorage.removeItem("cv_token"); } catch {}
-    try { localStorage.removeItem("cv_refresh_token"); } catch {}
-    go("/welcome");
-  };
+  // profileLogout is registered at module scope (top of this file) — nothing to do here
 }

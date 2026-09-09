@@ -87,33 +87,54 @@ const MODEL_METHODS = new Set([
 ]);
 
 /**
- * db proxy: wraps all model query methods with withRetry so "Connection terminated
- * unexpectedly" errors from Neon are transparently retried.
+ * dbProxy: wraps all model query methods with withRetry so transient Neon
+ * disconnects are transparently retried.
+ *
+ * If the Neon pool dies completely (PrismaClient returns undefined models),
+ * we recreate the singleton so the next request gets a fresh pool.
  *
  * $transaction is deliberately NOT proxied — it must receive raw Prisma promises,
  * not the plain JS Promises that withRetry() returns.
  */
-const dbProxy = new Proxy(db, {
-  get(target, prop) {
-    const value = target[prop];
+const dbProxy = new Proxy({}, {
+  get(_, prop) {
+    // Always read the current singleton (it may be recreated after a fatal disconnect)
+    const current = globalForPrisma.__cv_prisma;
+    const value = current[prop];
 
     // Skip $transaction and other $ top-level operators — do NOT wrap them.
-    if (typeof prop === "string" && prop.startsWith("$")) return value;
+    if (typeof prop === "string" && prop.startsWith("$")) return value?.bind(current) ?? value;
 
-    // Wrap model accessor objects (e.g. db.user, db.meeting)
+    // Wrap model accessor objects (e.g. db.user, db.meeting) — must be an object
+    // with a findMany method (true Prisma models). Never wrap $ operators or primitives.
     if (
       value &&
       typeof value === "object" &&
       !Array.isArray(value) &&
-      MODEL_METHODS.has("findMany") && typeof value.findMany === "function"
+      typeof value.findMany === "function"
     ) {
       return new Proxy(value, {
         get(modelTarget, method) {
           const fn = modelTarget[method];
           if (typeof fn !== "function") return fn;
           if (!MODEL_METHODS.has(method)) return fn.bind(modelTarget);
-          // Wrap query method with retry
-          return (...args) => withRetry(() => fn.apply(modelTarget, args));
+          // Wrap query method with retry + reconnect on fatal undefined error
+          return (...args) => withRetry(async () => {
+            try {
+              return await fn.apply(modelTarget, args);
+            } catch (err) {
+              // If Neon pool was recycled the model methods become undefined —
+              // recreate the client and retry immediately.
+              if (err instanceof TypeError && err.message.includes("undefined")) {
+                console.warn("[DB] Detected stale Prisma client — recreating...");
+                globalForPrisma.__cv_prisma = createClient();
+                const fresh = globalForPrisma.__cv_prisma[prop];
+                const freshFn = fresh?.[method];
+                if (typeof freshFn === "function") return await freshFn.apply(fresh, args);
+              }
+              throw err;
+            }
+          });
         },
       });
     }
