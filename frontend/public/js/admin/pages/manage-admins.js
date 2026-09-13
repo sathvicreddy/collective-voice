@@ -286,10 +286,10 @@ window.maOpenAddModal = function() {
   overlay.id = 'ma-modal-overlay';
   overlay.className = 'ma-modal-overlay';
   overlay.innerHTML = `
-    <div class="ma-modal" onclick="event.stopPropagation()">
+    <div class="ma-modal" data-action="stopPropagation">
       <div class="ma-modal-header">
         <div class="ma-modal-title">Invite New Administrator</div>
-        <div class="ma-modal-close" onclick="document.getElementById('ma-modal-overlay').remove()">${IC.x}</div>
+        <div class="ma-modal-close" data-action="removeElement" data-id="ma-modal-overlay">${IC.x}</div>
       </div>
       <div class="ma-form-group">
         <label class="ma-form-label">Full Name</label>
@@ -313,8 +313,8 @@ window.maOpenAddModal = function() {
         </select>
       </div>
       <div class="ma-modal-footer">
-        <button class="ma-btn-cancel" onclick="document.getElementById('ma-modal-overlay').remove()">Cancel</button>
-        <button id="ma-invite-submit" class="ma-btn-submit" onclick="maSubmitInvite()">Send Invitation</button>
+        <button class="ma-btn-cancel" data-action="removeElement" data-id="ma-modal-overlay">Cancel</button>
+        <button id="ma-invite-submit" class="ma-btn-submit" data-action="maSubmitInvite">Send Invitation</button>
       </div>
     </div>`;
   overlay.addEventListener('click', () => overlay.remove());
@@ -411,7 +411,7 @@ function renderRow(u) {
         <div style="position:relative;display:inline-block">
           <button class="ma-actions-btn" onclick="maToggleDropdown('${u.id}', event)" title="Actions">${IC.moreHoriz}</button>
           ${showDrop ? `
-            <div class="ma-dropdown" onclick="event.stopPropagation()">
+            <div class="ma-dropdown" data-action="stopPropagation">
               <div class="ma-dropdown-item" onclick="maSelectUser('${u.id}')">${IC.externalLink} View Profile</div>
               ${!isSelf && u.role !== 'superadmin' ? `
                 ${u.role === 'admin' ? `<div class="ma-dropdown-item" onclick="maChangeRole('${u.id}','customer')">${IC.userMinus} Demote to Customer</div>` : `<div class="ma-dropdown-item" onclick="maChangeRole('${u.id}','admin')">${IC.userCheck} Promote to Admin</div>`}
@@ -450,7 +450,7 @@ function renderPagination() {
           ${pageButtons}
           <button class="ma-page-btn" onclick="maGoPage(${p + 1})" ${p === tp ? 'disabled' : ''}>${IC.chevronRight}</button>
         </div>
-        <select class="ma-perpage-select" onchange="maPerPage(this.value)">
+        <select class="ma-perpage-select" data-change="maPerPage">
           ${[10,20,50].map(n => `<option value="${n}" ${adminState.perPage === n ? 'selected' : ''}>${n} per page</option>`).join('')}
         </select>
       </div>
@@ -695,21 +695,21 @@ export function renderManageAdmins() {
           <div class="ma-search-wrap">
             ${IC.search}
             <input class="ma-search" placeholder="Search admins…" value="${adminState.search}"
-              oninput="maSearch(this.value)">
+              data-input="maSearch">
           </div>
-          <select class="ma-select" onchange="maRoleFilter(this.value)">
+          <select class="ma-select" data-change="maRoleFilter">
             <option value="all" ${adminState.roleFilter==='all'?'selected':''}>All Roles</option>
             <option value="superadmin" ${adminState.roleFilter==='superadmin'?'selected':''}>Super Admin</option>
             <option value="admin" ${adminState.roleFilter==='admin'?'selected':''}>Admin</option>
             <option value="customer" ${adminState.roleFilter==='customer'?'selected':''}>Customer</option>
           </select>
-          <select class="ma-select" onchange="maStatusFilter(this.value)">
+          <select class="ma-select" data-change="maStatusFilter">
             <option value="all" ${adminState.statusFilter==='all'?'selected':''}>All Status</option>
             <option value="active" ${adminState.statusFilter==='active'?'selected':''}>Active</option>
             <option value="suspended" ${adminState.statusFilter==='suspended'?'selected':''}>Suspended</option>
             <option value="inactive" ${adminState.statusFilter==='inactive'?'selected':''}>Inactive</option>
           </select>
-          <select class="ma-select" onchange="maLastActiveFilter(this.value)">
+          <select class="ma-select" data-change="maLastActiveFilter">
             <option value="all">All Time</option>
             <option value="today">Today</option>
             <option value="week">This Week</option>

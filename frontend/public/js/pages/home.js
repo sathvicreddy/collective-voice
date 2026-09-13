@@ -27,7 +27,7 @@ export function renderHome() {
       [icons.activity, "Activity", "/activity", "blue"],
       [icons.user, "Profile", "/profile", "green"]
     ].map(([ic, label, route, tone]) => `
-        <button class="quick-card" onclick="go('${route}')">
+        <button class="quick-card" data-action="go" data-route="${route}">
           <span class="icon-box ${tone}">${ic}</span>
           <span>${label}</span>
         </button>
@@ -43,19 +43,19 @@ export function renderHome() {
       <p class="subtle">${icons.user} Speaker: ${live ? (live.speaker || 'Host') : '—'}</p>
       <div class="row">
         <span class="subtle">${icons.clock} Started 10 min ago</span>
-        ${live ? `<button class="btn small" onclick="homejoinLive('${live.id}')">${icons.arrowRight} Join Now</button>`
-          : `<button class="btn small" onclick="go('/meetings/create')">${icons.plus} Create</button>`}
+        ${live ? `<button class="btn small" data-action="homejoinLive" data-id="${live.id}">${icons.arrowRight} Join Now</button>`
+          : `<button class="btn small" data-action="go" data-route="/meetings/create">${icons.plus} Create</button>`}
       </div>
     </section>
 
     <div class="section-header">
       <h2 class="screen-title">Upcoming Meetings</h2>
-      <button class="link-btn" onclick="go('/meetings')">View all</button>
+      <button class="link-btn" data-action="go" data-route="/meetings">View all</button>
     </div>
     <div class="stack">${(state.myMeetings?.upcoming || []).length > 0
       ? (state.myMeetings.upcoming).slice(0, 3).map(m => meetingCard(m)).join("")
       : `<article class="list-card" style="text-align:center;padding:20px 16px">
-          <p class="subtle" style="font-size:13px">No upcoming meetings. <button class="link-btn" onclick="go('/meetings/create')">Create one →</button></p>
+          <p class="subtle" style="font-size:13px">No upcoming meetings. <button class="link-btn" data-action="go" data-route="/meetings/create">Create one →</button></p>
         </article>`
     }</div>
 
@@ -63,7 +63,7 @@ export function renderHome() {
 
     <div class="section-header">
       <h2 class="screen-title">Recent Activity</h2>
-      <button class="link-btn" onclick="go('/activity')">View all</button>
+      <button class="link-btn" data-action="go" data-route="/activity">View all</button>
     </div>
     ${data.recentActivity ? `
     <article class="list-card row">
@@ -97,7 +97,7 @@ export function renderHome() {
       { icon: icons.activity, label: "Activity", sub: "Track your engagement and impact", route: "/activity", tone: "blue" },
       { icon: icons.user, label: "Profile", sub: "Manage your profile and preferences", route: "/profile", tone: "green" }
     ].map(c => `
-          <button class="home-quick-card" onclick="go('${c.route}')">
+          <button class="home-quick-card" data-action="go" data-route="${c.route}">
             <div class="icon-box ${c.tone}">${c.icon}</div>
             <div class="home-quick-card-body">
               <strong>${c.label}</strong>
@@ -128,7 +128,7 @@ export function renderHome() {
               <div class="home-live-bar" style="height:${h * 0.7}px;opacity:${0.4 + i * 0.07}"></div>
             `).join("")}
           </div>
-          <button class="btn home-live-join-btn" onclick="homejoinLive('${live.id}')">Join Now</button>
+          <button class="btn home-live-join-btn" data-action="homejoinLive" data-id="${live.id}">Join Now</button>
         </div>
       </div>
       ` : `
@@ -139,7 +139,7 @@ export function renderHome() {
           <p class="home-live-speaker" style="color:#9ca3af">Create or join a meeting when it starts</p>
         </div>
         <div class="home-live-right">
-          <button class="btn home-live-join-btn" onclick="go('/meetings/create')">Create Meeting</button>
+          <button class="btn home-live-join-btn" data-action="go" data-route="/meetings/create">Create Meeting</button>
         </div>
       </div>
       `}
@@ -147,7 +147,7 @@ export function renderHome() {
       <!-- Upcoming Meetings -->
       <div class="home-section-header">
         <h2 class="home-section-title">Upcoming Meetings</h2>
-        <button class="link-btn" onclick="go('/meetings')">View all</button>
+        <button class="link-btn" data-action="go" data-route="/meetings">View all</button>
       </div>
       <div class="home-meetings-list">
         ${(state.myMeetings?.upcoming || []).length > 0
@@ -169,7 +169,7 @@ export function renderHome() {
         `).join("")
           : `<div style="text-align:center;padding:20px 0;color:var(--muted);font-size:13px">
               📅 No upcoming meetings yet.<br>
-              <button class="link-btn" style="margin-top:8px" onclick="go('/meetings/create')">Create your first meeting →</button>
+              <button class="link-btn" style="margin-top:8px" data-action="go" data-route="/meetings/create">Create your first meeting →</button>
             </div>`
         }
       </div>
@@ -183,14 +183,14 @@ export function renderHome() {
       <div class="home-panel-card">
         <div class="home-panel-header">
           <span class="home-panel-title">Recent Activity</span>
-          <button class="link-btn" onclick="go('/activity')">View all</button>
+          <button class="link-btn" data-action="go" data-route="/activity">View all</button>
         </div>
         <div class="home-activity-list">
           <div style="text-align:center;padding:24px 16px;color:var(--muted)">
             <div style="font-size:28px;margin-bottom:8px">✨</div>
             <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 4px">No activity yet</p>
             <p style="font-size:12px;margin:0">Join or create a meeting to start building your activity history.</p>
-            <button class="btn" style="margin-top:14px;font-size:12px" onclick="go('/meetings')">${icons.calendar} Browse Meetings</button>
+            <button class="btn" style="margin-top:14px;font-size:12px" data-action="go" data-route="/meetings">${icons.calendar} Browse Meetings</button>
           </div>
         </div>
       </div>
@@ -199,7 +199,7 @@ export function renderHome() {
       <div class="home-panel-card">
         <p class="home-panel-title" style="margin-bottom:8px">Stay Updated</p>
         <p class="subtle" style="font-size:13px;line-height:1.5;margin-bottom:16px">Get notified about upcoming meetings and live sessions.</p>
-        <button class="btn secondary" style="width:100%;justify-content:space-between" onclick="go('/notifications')">
+        <button class="btn secondary" style="width:100%;justify-content:space-between" data-action="go" data-route="/notifications">
           <span style="display:flex;align-items:center;gap:8px">${icons.bell} Manage Notifications</span>
           ${icons.arrowRight}
         </button>

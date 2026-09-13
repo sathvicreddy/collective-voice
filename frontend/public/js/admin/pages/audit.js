@@ -118,7 +118,7 @@ export function renderAuditLog() {
           <div class="audit-filter-label">Action type</div>
           <div class="filter-group" style="height:34px">
             <div class="filter-select-wrap">
-              <select class="filter-select" onchange="auditFilterAction(this.value)">
+              <select class="filter-select" data-change="auditFilterAction">
                 <option value="">All actions</option>
                 <option value="user.role_update"           ${_filterAction==='user.role_update'?'selected':''}>user.role_update</option>
                 <option value="user.delete"                ${_filterAction==='user.delete'?'selected':''}>user.delete</option>
@@ -134,7 +134,7 @@ export function renderAuditLog() {
           <div class="audit-filter-label">Target type</div>
           <div class="filter-group" style="height:34px">
             <div class="filter-select-wrap">
-              <select class="filter-select" onchange="auditFilterTarget(this.value)">
+              <select class="filter-select" data-change="auditFilterTarget">
                 <option value="">All target types</option>
                 <option value="User"        ${_filterTarget==='User'?'selected':''}>User</option>
                 <option value="Meeting"     ${_filterTarget==='Meeting'?'selected':''}>Meeting</option>

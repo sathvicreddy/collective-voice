@@ -278,7 +278,7 @@ export function renderAdminNotifications() {
             </button>
           `).join("")}
           <div class="an-tab-spacer"></div>
-          <select class="an-priority-select" onchange="adminNotifPriorityFilter(this.value)">
+          <select class="an-priority-select" data-change="adminNotifPriorityFilter">
             <option value="all">All Priorities</option>
             <option value="critical">Critical</option>
             <option value="high">High</option>

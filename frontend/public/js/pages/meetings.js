@@ -128,11 +128,11 @@ export function renderMeetings() {
         <p style="color:var(--ink-secondary);margin-bottom:10px;font-size:12px">Grace period — start now or choose an option.</p>
         <div style="display:flex;gap:8px">
           <button class="btn small" style="flex:1;font-size:12px"
-            onclick="extendMeeting('${m.id}', 30)">
+            data-action="extendMeeting" data-id="${m.id}" data-mins="30">
             ⏱ Extend 30 min
           </button>
           <button class="btn secondary small" style="flex:1;font-size:12px"
-            onclick="showRescheduleDialog('${m.id}')">
+            data-action="showRescheduleDialog" data-id="${m.id}">
             📅 Reschedule
           </button>
         </div>
@@ -145,11 +145,11 @@ export function renderMeetings() {
     <h1 class="screen-title">Meetings</h1>
     <p class="subtle">Create, join and manage your meetings.</p>
     <div class="form-grid" style="margin:16px 0">
-      <button class="action-card row" style="gap:12px" onclick="go('/meetings/create')">
+      <button class="action-card row" style="gap:12px" data-action="go" data-route="/meetings/create">
         <span class="icon-box">${icons.plus}</span>
         <span><strong>Create Meeting</strong><br><span class="subtle">Start a new meeting</span></span>
       </button>
-      <button class="action-card row" style="gap:12px" onclick="go('/join')">
+      <button class="action-card row" style="gap:12px" data-action="go" data-route="/join">
         <span class="icon-box blue">${icons.arrowRight}</span>
         <span><strong>Join Meeting</strong><br><span class="subtle">Enter a code to join</span></span>
       </button>
@@ -157,17 +157,17 @@ export function renderMeetings() {
     <div class="segmented">
       <button class="active">Upcoming ${upcoming.length}</button>
       <button>Ongoing ${ongoing.length}</button>
-      <button onclick="go('/conducted')">Past ${conducted.length}</button>
+      <button data-action="go" data-route="/conducted">Past ${conducted.length}</button>
     </div>
     <div class="stack">
       ${ongoing.length ? `
         <div class="section-header"><h2 class="screen-title">Ongoing Meeting</h2><span class="badge success"><span class="live-dot"></span>Live</span></div>
-        ${ongoing.map(m => meetingCard(m, `<button class="btn small" onclick="go('/join/preview')">${icons.arrowRight} Join Now</button>`)).join("")}
+        ${ongoing.map(m => meetingCard(m, `<button class="btn small" data-action="go" data-route="/join/preview">${icons.arrowRight} Join Now</button>`)).join("")}
       ` : ""}
       <div class="section-header"><h2 class="screen-title">Upcoming Meetings</h2><button class="link-btn">View all</button></div>
       ${upcoming.length ? upcoming.map(m => meetingCard(m) + graceBanner(m)).join("") : `<p class="subtle" style="padding:16px 0;text-align:center">No upcoming meetings yet.<br><small>Scan a QR code or enter a meeting ID to add one.</small></p>`}
-      <div class="section-header"><h2 class="screen-title">Conducted Meetings</h2><button class="link-btn" onclick="go('/conducted')">View all</button></div>
-      ${conducted.slice(0,1).map(m => meetingCard(m, `<button class="btn secondary small" onclick="go('/analytics')">${icons.barChart} Analytics</button>`)).join("")}
+      <div class="section-header"><h2 class="screen-title">Conducted Meetings</h2><button class="link-btn" data-action="go" data-route="/conducted">View all</button></div>
+      ${conducted.slice(0,1).map(m => meetingCard(m, `<button class="btn secondary small" data-action="go" data-route="/analytics">${icons.barChart} Analytics</button>`)).join("")}
     </div>
   `;
 
@@ -190,7 +190,7 @@ export function renderMeetings() {
             <div class="mtg-right-live-stats">
               <span>${icons.users} ${liveMeeting.participants || 0} participants</span>
             </div>
-            <button class="btn mtg-right-join-btn" onclick="go('/join/preview')">Join Now ${icons.arrowRight}</button>
+            <button class="btn mtg-right-join-btn" data-action="go" data-route="/join/preview">Join Now ${icons.arrowRight}</button>
           </div>
           <div class="mtg-right-live-art">
             <svg viewBox="0 0 90 90" width="90" height="90" style="display:block;opacity:0.85">
@@ -220,7 +220,7 @@ export function renderMeetings() {
             <span>${icons.calendar} ${fmtMtg(nextUpcoming).dateStr}</span>
             <span>${icons.clock} ${fmtMtg(nextUpcoming).timeStr}</span>
           </div>
-          <button class="btn" style="margin-top:12px;width:100%" onclick="go('/meetings/create')">${icons.plus} Create Meeting</button>
+          <button class="btn" style="margin-top:12px;width:100%" data-action="go" data-route="/meetings/create">${icons.plus} Create Meeting</button>
         </div>
       </div>
       ` : `
@@ -228,7 +228,7 @@ export function renderMeetings() {
         <div style="font-size:28px;margin-bottom:8px">📅</div>
         <p style="font-weight:700;color:#111936;margin:0 0 4px">No meetings today</p>
         <p style="font-size:12px;color:#68708d;margin:0 0 16px">Schedule a meeting to get started</p>
-        <button class="btn" style="width:100%" onclick="go('/meetings/create')">${icons.plus} Create Meeting</button>
+        <button class="btn" style="width:100%" data-action="go" data-route="/meetings/create">${icons.plus} Create Meeting</button>
       </div>
       `}
 
@@ -236,7 +236,7 @@ export function renderMeetings() {
       <div class="home-panel-card">
         <div class="home-panel-header">
           <span class="home-panel-title">Recent Activity</span>
-          <button class="link-btn" onclick="go('/meetings')">View all</button>
+          <button class="link-btn" data-action="go" data-route="/meetings">View all</button>
         </div>
         <div class="home-activity-list">
           <div style="text-align:center;padding:20px 12px;color:var(--muted)">
@@ -255,11 +255,11 @@ export function renderMeetings() {
             <p class="mtg-qr-sub">Share this QR code to invite others.</p>
             ${liveMeeting?.id ? `
               <button id="copy-link-btn-${liveMeeting.id}" class="mtg-qr-btn"
-                onclick="copyMeetingLink('${liveMeeting.id}')">
+                data-action="copyMeetingLink" data-id="${liveMeeting.id}">
                 ${icons.link} Copy Link
               </button>
               <button class="mtg-qr-btn" style="margin-top:6px"
-                onclick="shareMeetingQR('${liveMeeting.id}')">
+                data-action="shareMeetingQR" data-id="${liveMeeting.id}">
                 ${icons.share} Share QR Code
               </button>
             ` : `<p class="subtle" style="font-size:12px">No live meeting to share.</p>`}
@@ -301,7 +301,7 @@ export function renderMeetings() {
             ${icons.bell}
             <span class="desktop-notif-badge">3</span>
           </div>
-          <div class="desktop-user-pill" onclick="go('/profile')">
+          <div class="desktop-user-pill" data-action="go" data-route="/profile">
             ${(() => {
               const u = state.profile?.user || {};
               const name = u.name || "Guest";
@@ -326,7 +326,7 @@ export function renderMeetings() {
         <div class="mtg-left-col">
           <!-- CTA Cards -->
           <div class="mtg-cta-row">
-            <button class="mtg-cta-card mtg-cta-create" onclick="go('/meetings/create')">
+            <button class="mtg-cta-card mtg-cta-create" data-action="go" data-route="/meetings/create">
               <div class="mtg-cta-icon">${icons.plus}</div>
               <div class="mtg-cta-body">
                 <strong>Create Meeting</strong>
@@ -334,7 +334,7 @@ export function renderMeetings() {
               </div>
               <div class="mtg-cta-arrow">${icons.arrowRight}</div>
             </button>
-            <button class="mtg-cta-card mtg-cta-join" onclick="go('/join')">
+            <button class="mtg-cta-card mtg-cta-join" data-action="go" data-route="/join">
               <div class="mtg-cta-icon">${icons.arrowRight}</div>
               <div class="mtg-cta-body">
                 <strong>Join Meeting</strong>
@@ -346,13 +346,13 @@ export function renderMeetings() {
 
           <!-- Tabs -->
           <div class="mtg-tabs" id="mtgTabBar">
-            <button class="mtg-tab mtg-tab-active" onclick="mtgSwitchTab('upcoming', this)">
+            <button class="mtg-tab mtg-tab-active" data-action="mtgSwitchTab" data-tab="upcoming">
               ${icons.calendar} Upcoming <span class="mtg-tab-count">${upcoming.length}</span>
             </button>
-            <button class="mtg-tab" onclick="mtgSwitchTab('ongoing', this)">
+            <button class="mtg-tab" data-action="mtgSwitchTab" data-tab="ongoing">
               ${icons.radio} Ongoing <span class="mtg-tab-count">${ongoing.length}</span>
             </button>
-            <button class="mtg-tab" onclick="mtgSwitchTab('past', this)">
+            <button class="mtg-tab" data-action="mtgSwitchTab" data-tab="past">
               ${icons.clock} Past <span class="mtg-tab-count">${conducted.length}</span>
             </button>
           </div>
@@ -376,7 +376,7 @@ export function renderMeetings() {
               </div>
               <div class="mtg-live-right">
                 <div class="mtg-live-timer">ENDS IN <span class="mtg-timer-val">${countdown(19, 24)}</span></div>
-                <button class="btn mtg-join-btn" onclick="go('/join/preview')">${icons.arrowRight} Join Now</button>
+                <button class="btn mtg-join-btn" data-action="go" data-route="/join/preview">${icons.arrowRight} Join Now</button>
                 <button class="mtg-more-btn">${icons.moreVertical}</button>
               </div>
             </div>
@@ -391,10 +391,10 @@ export function renderMeetings() {
                   <div class="mtg-empty-icon">${icons.calendar}</div>
                   <p class="mtg-empty-title">No upcoming meetings</p>
                   <p class="mtg-empty-sub">Create a new meeting to get started.</p>
-                  <button class="btn" style="margin-top:12px" onclick="go('/meetings/create')">${icons.plus} Create Meeting</button>
+                  <button class="btn" style="margin-top:12px" data-action="go" data-route="/meetings/create">${icons.plus} Create Meeting</button>
                 </div>
               ` : upcoming.map(m => { const { dateStr, timeStr } = fmtMtg(m); return `
-                <div class="mtg-list-row" style="cursor:pointer" onclick="openMeetingDetail('${m.id}')">
+                <div class="mtg-list-row" style="cursor:pointer" data-action="openMeetingDetail" data-id="${m.id}">
                   <div class="icon-box" style="width:38px;height:38px;flex-shrink:0">${icons.calendar}</div>
                   <div class="mtg-list-info">
                     <strong class="mtg-list-title">${m.title}</strong>
@@ -406,7 +406,7 @@ export function renderMeetings() {
                   </div>
                   <div class="mtg-list-actions">
                     <span class="mtg-time-badge ${m.badge === 'In 2h' ? 'soon' : ''}">${m.badge || "Upcoming"}</span>
-                    <button class="mtg-more-btn" onclick="event.stopPropagation()">${icons.moreVertical}</button>
+                    <button class="mtg-more-btn" data-action="stopPropagation">${icons.moreVertical}</button>
                   </div>
                 </div>
               `; }).join("")}
@@ -420,7 +420,7 @@ export function renderMeetings() {
                   <p class="mtg-empty-sub">Start or join a live meeting to see it here.</p>
                 </div>
               ` : ongoing.map(m => { const { dateStr, timeStr } = fmtMtg(m); return `
-                <div class="mtg-list-row" style="cursor:pointer" onclick="openMeetingDetail('${m.id}')">
+                <div class="mtg-list-row" style="cursor:pointer" data-action="openMeetingDetail" data-id="${m.id}">
                   <div class="icon-box green" style="width:38px;height:38px;flex-shrink:0">${icons.radio}</div>
                   <div class="mtg-list-info">
                     <strong class="mtg-list-title">${m.title}</strong>
@@ -432,7 +432,7 @@ export function renderMeetings() {
                   </div>
                   <div class="mtg-list-actions">
                     <span class="badge success"><span class="live-dot"></span> Live</span>
-                    <button class="btn small" onclick="event.stopPropagation();openMeetingDetail('${m.id}')">${icons.arrowRight} Join</button>
+                    <button class="btn small" data-action="openMeetingDetail" data-id="${m.id}">${icons.arrowRight} Join</button>
                   </div>
                 </div>
               `; }).join("")}
@@ -458,11 +458,11 @@ export function renderMeetings() {
                   </div>
                   <div class="mtg-list-actions">
                     <span class="mtg-time-badge">Completed</span>
-                    <button class="mtg-outline-action" onclick="openReport('${m.id}')">${icons.barChart} Report</button>
+                    <button class="mtg-outline-action" data-action="openReport" data-id="${m.id}">${icons.barChart} Report</button>
                   </div>
                 </div>
               `; }).join("")}
-              <div class="mtg-view-all" onclick="go('/conducted')">
+              <div class="mtg-view-all" data-action="go" data-route="/conducted">
                 View all conducted meetings ${icons.chevronDown}
               </div>
             </div>
@@ -519,8 +519,8 @@ export function renderJoin(step = "start") {
           <div class="big-mark">${icons.users}</div>
         </div>
         <div class="stack" style="gap:12px">
-          <button class="btn" style="width:100%" onclick="go('/join/scan')">${icons.qrCode} Scan QR Code</button>
-          <button class="btn secondary" style="width:100%" onclick="go('/join/id')">${icons.hash} Enter Meeting ID</button>
+          <button class="btn" style="width:100%" data-action="go" data-route="/join/scan">${icons.qrCode} Scan QR Code</button>
+          <button class="btn secondary" style="width:100%" data-action="go" data-route="/join/id">${icons.hash} Enter Meeting ID</button>
         </div>
       </div>
     `,
@@ -538,7 +538,7 @@ export function renderJoin(step = "start") {
         </div>
       </div>
       <div class="stack" style="gap:10px;margin-top:16px">
-        <button class="btn secondary" style="width:100%" onclick="go('/join/id')">${icons.hash} Enter ID Instead</button>
+        <button class="btn secondary" style="width:100%" data-action="go" data-route="/join/id">${icons.hash} Enter ID Instead</button>
       </div>
     `,
     id: `
@@ -548,7 +548,7 @@ export function renderJoin(step = "start") {
         <div class="field"><label>Meeting ID</label><input id="meetingCode" value="482916" placeholder="Enter meeting ID"></div>
         <p class="subtle" style="padding:10px 14px;background:var(--soft);border-radius:var(--radius-sm)">${icons.info} The meeting ID is a 6 to 10 digit numeric code.</p>
       </div>
-      <button class="btn" style="width:100%;margin-top:100px" onclick="validateMeetingCode()">${icons.arrowRight} Join Meeting</button>
+      <button class="btn" style="width:100%;margin-top:100px" data-action="validateMeetingCode">${icons.arrowRight} Join Meeting</button>
     `,
     preview: (() => {
       /* Build speaker initials avatar */
@@ -621,8 +621,8 @@ export function renderJoin(step = "start") {
           </div>` : ""}
 
           <div class="jp-actions">
-            <button class="jp-join-btn" onclick="go('/joining')">${icons.arrowRight} Join Now</button>
-            <button class="jp-back-btn" onclick="history.back()">← Back</button>
+            <button class="jp-join-btn" data-action="go" data-route="/joining">${icons.arrowRight} Join Now</button>
+            <button class="jp-back-btn" data-action="historyBack">← Back</button>
           </div>
         </div>
       `;
@@ -700,8 +700,8 @@ export function renderJoin(step = "start") {
                   <div class="jp-role-value">Audience</div>
                 </div>
               </div>
-              <button class="jp-desktop-join-btn" onclick="go('/joining')">${icons.arrowRight} Join Now</button>
-              <button class="jp-desktop-back-btn" onclick="history.back()">← Back to Meetings</button>
+              <button class="jp-desktop-join-btn" data-action="go" data-route="/joining">${icons.arrowRight} Join Now</button>
+              <button class="jp-desktop-back-btn" data-action="historyBack">← Back to Meetings</button>
             </div>
           </div>
         </div>
@@ -723,8 +723,8 @@ export function renderJoin(step = "start") {
           ${meetingCard(meeting)}
           <div id="cv-waiting-actions" style="margin-top:16px">
             <button class="btn" id="cv-waiting-join-btn" style="width:100%;opacity:0.4;pointer-events:none" disabled
-              onclick="go('/joining')">${icons.arrowRight} Join Now (waiting for host…)</button>
-            <button class="btn secondary" style="width:100%;margin-top:8px" onclick="go('/meetings')">${icons.calendar} View Upcoming Meetings</button>
+              data-action="go" data-route="/joining">${icons.arrowRight} Join Now (waiting for host…)</button>
+            <button class="btn secondary" style="width:100%;margin-top:8px" data-action="go" data-route="/meetings">${icons.calendar} View Upcoming Meetings</button>
           </div>
         </div>
       `;
@@ -762,8 +762,8 @@ export function renderJoin(step = "start") {
           </div>
         </div>
         <div class="stack" style="gap:10px">
-          <button class="btn" style="width:100%" onclick="go('/join/id')">${icons.hash} Try Again</button>
-          <button class="btn secondary" style="width:100%" onclick="go('/join/scan')">${icons.qrCode} Scan QR Code</button>
+          <button class="btn" style="width:100%" data-action="go" data-route="/join/id">${icons.hash} Try Again</button>
+          <button class="btn secondary" style="width:100%" data-action="go" data-route="/join/scan">${icons.qrCode} Scan QR Code</button>
         </div>
       </div>
     `,
@@ -782,8 +782,8 @@ export function renderJoin(step = "start") {
           <p class="subtle" style="font-size:12px;margin-top:4px">${meeting.date || ""} ${meeting.time || ""}</p>
         </section>` : ""}
         <div class="stack" style="gap:10px">
-          <button class="btn" style="width:100%" onclick="go('/join')">${icons.arrowRight} Try Another Code</button>
-          <button class="btn secondary" style="width:100%" onclick="go('/home')">${icons.home || icons.users} Go Home</button>
+          <button class="btn" style="width:100%" data-action="go" data-route="/join">${icons.arrowRight} Try Another Code</button>
+          <button class="btn secondary" style="width:100%" data-action="go" data-route="/home">${icons.home || icons.users} Go Home</button>
         </div>
       </div>
     `
@@ -818,7 +818,7 @@ export function renderJoining() {
         <p class="subtle">Please wait while we connect you to the room.</p>
         <div class="spinner"></div>
       </div>
-      <button class="btn" onclick="go('/audience')">${icons.arrowRight} Enter Room</button>
+      <button class="btn" data-action="go" data-route="/audience">${icons.arrowRight} Enter Room</button>
     </div>
   `, null, true), "", " ", "");
   // Auto-navigate after a brief connection animation so the participant
@@ -957,7 +957,7 @@ export function renderMeetingStart() {
         <div class="ms-card-section">
           <div class="ms-section-label">Invite Participants</div>
           <div class="ms-share-row">
-            <input class="ms-share-input" readonly value="${joinLink}" onclick="this.select()" id="ms-join-link-input">
+            <input class="ms-share-input" readonly value="${joinLink}" data-action="selectInput" id="ms-join-link-input">
             <button class="ms-share-copy-btn" id="ms-copy-btn"
               onclick="
                 navigator.clipboard.writeText('${joinLink}').then(() => {
@@ -971,7 +971,7 @@ export function renderMeetingStart() {
           <div class="ms-share-icons">
             <button class="ms-share-icon-btn">${icons.share} Share</button>
             <button class="ms-share-icon-btn">${icons.mail} Email</button>
-            ${meeting.id ? `<button class="ms-share-icon-btn" onclick="shareMeetingQR('${meeting.id}')">${icons.qrCode || icons.share} QR</button>` : ""}
+            ${meeting.id ? `<button class="ms-share-icon-btn" data-action="shareMeetingQR" data-id="${meeting.id}">${icons.qrCode || icons.share} QR</button>` : ""}
           </div>
         </div>
 
@@ -986,7 +986,7 @@ export function renderMeetingStart() {
             <div class="ms-qr-text">
               <strong>Scan to join</strong>
               <p>Participants can scan this QR code to join instantly.</p>
-              <button class="ms-share-copy-btn" onclick="shareMeetingQR('${meeting.id}')">${icons.share} Share QR</button>
+              <button class="ms-share-copy-btn" data-action="shareMeetingQR" data-id="${meeting.id}">${icons.share} Share QR</button>
             </div>
           </div>
         </div>` : ""}
@@ -1001,10 +1001,10 @@ export function renderMeetingStart() {
 
         <!-- CTA -->
         <div class="ms-card-section">
-          <button class="ms-start-btn" onclick="go('/moderator')">
+          <button class="ms-start-btn" data-action="go" data-route="/moderator">
             ${icons.zap} ${isLive ? "Continue Meeting" : "Start Meeting Now"}
           </button>
-          <button class="ms-secondary-btn" onclick="go('/meetings')">
+          <button class="ms-secondary-btn" data-action="go" data-route="/meetings">
             ← Back to Meetings
           </button>
         </div>
@@ -1053,7 +1053,7 @@ export function renderMeetingStart() {
         <div class="ms-desktop-share-card">
           <div class="ms-desktop-share-title">${icons.link} Invite Participants</div>
           <div class="ms-share-row">
-            <input class="ms-share-input" readonly value="${joinLink}" onclick="this.select()" id="ms-join-link-input-desk">
+            <input class="ms-share-input" readonly value="${joinLink}" data-action="selectInput" id="ms-join-link-input-desk">
             <button class="ms-share-copy-btn" id="ms-copy-btn-desk"
               onclick="
                 navigator.clipboard.writeText('${joinLink}').then(() => {
@@ -1067,7 +1067,7 @@ export function renderMeetingStart() {
           <div class="ms-share-icons" style="margin-top:12px">
             <button class="ms-share-icon-btn">${icons.share} Share</button>
             <button class="ms-share-icon-btn">${icons.mail} Email</button>
-            ${meeting.id ? `<button class="ms-share-icon-btn" onclick="shareMeetingQR('${meeting.id}')">${icons.qrCode || icons.share} QR Code</button>` : ""}
+            ${meeting.id ? `<button class="ms-share-icon-btn" data-action="shareMeetingQR" data-id="${meeting.id}">${icons.qrCode || icons.share} QR Code</button>` : ""}
           </div>
 
           ${meeting.id ? `
@@ -1078,7 +1078,7 @@ export function renderMeetingStart() {
             <div class="ms-qr-text">
               <strong>Scan to join instantly</strong>
               <p>Share this QR code — participants scan it to enter the room.</p>
-              <button class="ms-share-copy-btn" onclick="shareMeetingQR('${meeting.id}')">${icons.share} Share QR</button>
+              <button class="ms-share-copy-btn" data-action="shareMeetingQR" data-id="${meeting.id}">${icons.share} Share QR</button>
             </div>
           </div>` : ""}
         </div>
@@ -1089,10 +1089,10 @@ export function renderMeetingStart() {
         <div class="ms-desktop-right-card">
           <div class="ms-desktop-right-header">Host Controls</div>
           <div class="ms-desktop-right-body">
-            <button class="ms-desktop-start-btn" onclick="go('/moderator')">
+            <button class="ms-desktop-start-btn" data-action="go" data-route="/moderator">
               ${icons.zap} ${isLive ? "Continue Meeting" : "Start Meeting Now"}
             </button>
-            <button class="ms-desktop-edit-btn" onclick="go('/meetings')">← Back to Meetings</button>
+            <button class="ms-desktop-edit-btn" data-action="go" data-route="/meetings">← Back to Meetings</button>
           </div>
         </div>
 
@@ -1176,13 +1176,13 @@ export function renderCreate(step = "type") {
       <p class="subtle">Choose how you want to run your meeting.</p>
       <div class="stack" style="margin-top:32px;gap:14px">
         <button class="action-card stack" style="padding:22px;gap:10px"
-          onclick="selectMeetingType('instant')">
+          data-action="selectMeetingType" data-type="instant">
           <span class="icon-box green" style="width:48px;height:48px">${icons.zap}</span>
           <h2 style="font-size:17px">Start Instantly</h2>
           <p class="subtle">Launch a live room right now — no scheduling needed.</p>
         </button>
         <button class="action-card stack" style="padding:22px;gap:10px"
-          onclick="selectMeetingType('scheduled')">
+          data-action="selectMeetingType" data-type="scheduled">
           <span class="icon-box" style="width:48px;height:48px">${icons.calendar}</span>
           <h2 style="font-size:17px">Schedule Meeting</h2>
           <p class="subtle">Pick a date and time and invite participants in advance.</p>
@@ -1190,7 +1190,7 @@ export function renderCreate(step = "type") {
       </div>
       <!-- ── Templates ── -->
       <div id="mtgTemplateSection" style="margin-top:20px">
-        <button class="mtg-template-toggle" onclick="mtgToggleTemplates(this)">
+        <button class="mtg-template-toggle" data-action="mtgToggleTemplates">
           ${icons.copy || '📋'} Start from a template
           <span class="mtg-template-chevron">▸</span>
         </button>
@@ -1248,7 +1248,7 @@ export function renderCreate(step = "type") {
         <!-- ── Page Heading ─────────────────────────────────── -->
         <div class="cf-page-heading ${isInstant ? 'cf-page-heading--instant' : 'cf-page-heading--sched'}">
           <div class="cf-breadcrumb">
-            <button class="cf-bc-btn" onclick="go('/meetings/create')">← Create Meeting</button>
+            <button class="cf-bc-btn" data-action="go" data-route="/meetings/create">← Create Meeting</button>
             <span class="cf-bc-sep">›</span>
             <span class="cf-bc-current">${isInstant ? 'Instant' : 'Scheduled'}</span>
           </div>
@@ -1381,7 +1381,7 @@ export function renderCreate(step = "type") {
 
 
         <div class="cf-actions">
-          <button id="createMeetingBtn" class="btn" style="width:100%;justify-content:center;gap:8px" onclick="saveDetails()">
+          <button id="createMeetingBtn" class="btn" style="width:100%;justify-content:center;gap:8px" data-action="saveDetails">
             ${icons.zap} ${isInstant ? 'Start Meeting Now' : 'Create Meeting'}
           </button>
         </div>
@@ -1481,10 +1481,10 @@ export function renderCreate(step = "type") {
         </div>
 
         <div class="cf-actions-right">
-          <button class="btn secondary cf-save-draft-btn" onclick="go('/meetings')">
+          <button class="btn secondary cf-save-draft-btn" data-action="go" data-route="/meetings">
             💾 Save as Draft
           </button>
-          <button id="createMeetingBtnRight" class="btn cf-create-btn" onclick="saveDetails()">
+          <button id="createMeetingBtnRight" class="btn cf-create-btn" data-action="saveDetails">
             ${icons.zap} ${isInstant ? 'Start Meeting Now' : 'Create Meeting'}
           </button>
         </div>
@@ -1507,8 +1507,8 @@ export function renderCreate(step = "type") {
         <label>Meeting Join Link</label>
         <div style="display:flex;gap:8px;align-items:center">
           <input id="inviteLinkInput" value="${location.origin}/#/join/..." readonly
-            style="flex:1;background:var(--surface-2,#f8f9fa);cursor:text;font-size:13px" onclick="this.select()">
-          <button class="btn secondary" onclick="copyInviteLink()" style="white-space:nowrap">${icons.link} Copy</button>
+            style="flex:1;background:var(--surface-2,#f8f9fa);cursor:text;font-size:13px" data-action="selectInput">
+          <button class="btn secondary" data-action="copyInviteLink" style="white-space:nowrap">${icons.link} Copy</button>
         </div>
       </div>
       <div class="row" style="justify-content:center;gap:20px;margin:18px 0">
@@ -1519,7 +1519,7 @@ export function renderCreate(step = "type") {
           </div>
         `).join("")}
       </div>
-      <button class="btn" style="width:100%;margin-top:8px" onclick="go('/meetings/create/review')">${icons.arrowRight} Review & Confirm</button>
+      <button class="btn" style="width:100%;margin-top:8px" data-action="go" data-route="/meetings/create/review">${icons.arrowRight} Review & Confirm</button>
     `,
     review: (() => {
       const settingsMap = {
@@ -1562,8 +1562,8 @@ export function renderCreate(step = "type") {
       </section>
 
       <div class="form-grid" style="margin-top:16px">
-        <button class="btn secondary" onclick="history.back()">Back</button>
-        <button id="createMeetingBtn" class="btn" onclick="createMeeting()">${icons.checkCircle} Create Meeting</button>
+        <button class="btn secondary" data-action="historyBack">Back</button>
+        <button id="createMeetingBtn" class="btn" data-action="createMeeting">${icons.checkCircle} Create Meeting</button>
       </div>
     `})(),
     done: `
@@ -1596,7 +1596,7 @@ export function renderCreate(step = "type") {
                 <br>
                 <button id="copy-link-btn-${state.joinTarget.id}"
                   style="margin-top:6px;font-size:12px;background:none;border:none;color:var(--primary);cursor:pointer"
-                  onclick="copyMeetingLink('${state.joinTarget.id}')">
+                  data-action="copyMeetingLink" data-id="${state.joinTarget.id}">
                   ${icons.link} Copy Join Link
                 </button>
               ` : ""}
@@ -1604,10 +1604,10 @@ export function renderCreate(step = "type") {
           ` : ""}
         </section>
         <div class="stack" style="gap:10px">
-          <button class="btn" style="width:100%" onclick="go('/moderator')">${icons.zap} Start Meeting Now</button>
-          <button class="btn secondary" style="width:100%" onclick="mtgSaveAsTemplate()">💾 Save as Template</button>
-          <button class="btn secondary" style="width:100%" onclick="go('/meetings')">${icons.calendar} View Meetings</button>
-          <button class="link-btn" style="text-align:center" onclick="go('/meetings')">Go to Meetings</button>
+          <button class="btn" style="width:100%" data-action="go" data-route="/moderator">${icons.zap} Start Meeting Now</button>
+          <button class="btn secondary" style="width:100%" data-action="mtgSaveAsTemplate">💾 Save as Template</button>
+          <button class="btn secondary" style="width:100%" data-action="go" data-route="/meetings">${icons.calendar} View Meetings</button>
+          <button class="link-btn" style="text-align:center" data-action="go" data-route="/meetings">Go to Meetings</button>
         </div>
       </div>
     `
@@ -1645,7 +1645,7 @@ export function renderCreate(step = "type") {
         return;
       }
       list.innerHTML = templates.map(t => `
-        <button class="mtg-template-item" onclick="mtgLoadTemplate('${t.id}')">
+        <button class="mtg-template-item" data-action="mtgLoadTemplate" data-id="${t.id}">
           <strong>${t.title || 'Untitled Template'}</strong>
           <span class="subtle" style="font-size:11px">${t.category ? '· ' + t.category : ''} ${t.duration ? '· ' + t.duration + ' min' : ''}</span>
         </button>
@@ -1686,7 +1686,7 @@ export function renderCreate(step = "type") {
       })
     }).catch(() => null);
     if (res?.ok) {
-      const btn = document.querySelector('[onclick="mtgSaveAsTemplate()"]');
+      const btn = document.querySelector('[data-action="mtgSaveAsTemplate"]');
       if (btn) { btn.innerHTML = '✓ Template Saved!'; btn.disabled = true; }
     } else {
       alert('Could not save template.');

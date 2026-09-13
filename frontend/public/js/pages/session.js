@@ -60,24 +60,24 @@ function sessionShell(role) {
         <div class="ses-navbar-tabs">
           ${navTabs.map(tab => `
             <button class="ses-nav-tab ${activeView === tab.id ? "ses-tab-active" : ""}"
-              onclick="sessionSwitchView('${tab.id}')">
+              data-action="sessionSwitchView" data-view="${tab.id}">
               ${tab.icon} ${tab.label}
             </button>
           `).join("")}
         </div>
 
         <div class="ses-navbar-right">
-          <button class="ses-icon-btn" onclick="go('/notifications')" title="Notifications">
+          <button class="ses-icon-btn" data-action="go" data-route="/notifications" title="Notifications">
             ${icons.bell}
           </button>
-          <div class="ses-user-pill" onclick="go('/profile')">
+          <div class="ses-user-pill" data-action="go" data-route="/profile">
             <div class="ses-avatar">${initials}</div>
             <div class="ses-user-info">
               <span class="ses-user-name">${name}</span>
               <span class="ses-user-role">${roleLabel}</span>
             </div>
           </div>
-          <button class="ses-icon-btn ses-exit-btn" onclick="go('/home')" title="Exit session">
+          <button class="ses-icon-btn ses-exit-btn" data-action="go" data-route="/home" title="Exit session">
             ${icons.arrowLeft}
           </button>
         </div>
@@ -89,12 +89,12 @@ function sessionShell(role) {
       <nav class="ses-mobile-bottom-nav">
         ${navTabs.map(tab => `
           <button class="ses-mob-tab ${activeView === tab.id ? "ses-mob-tab-active" : ""}"
-            onclick="sessionSwitchView('${tab.id}')">
+            data-action="sessionSwitchView" data-view="${tab.id}">
             <span class="ses-mob-tab-icon">${tab.icon}</span>
             <span class="ses-mob-tab-label">${tab.label}</span>
           </button>
         `).join("")}
-        <button class="ses-mob-tab ses-mob-tab-exit" onclick="go('/home')">
+        <button class="ses-mob-tab ses-mob-tab-exit" data-action="go" data-route="/home">
           <span class="ses-mob-tab-icon">${icons.arrowLeft}</span>
           <span class="ses-mob-tab-label">Exit</span>
         </button>

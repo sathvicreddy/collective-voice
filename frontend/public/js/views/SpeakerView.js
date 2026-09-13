@@ -56,10 +56,10 @@ function renderFocusCard(topQuestion, sessionTimer) {
       ` : ""}
 
       <div class="spk-next-actions">
-        <button class="spk-start-btn" onclick="speakerMarkAnswered('${topQuestion.id}')">
+        <button class="spk-start-btn" data-action="speakerMarkAnswered" data-id="${topQuestion.id}">
           ${icons.check} Mark Answered
         </button>
-        <button class="spk-skip-btn" onclick="speakerDeferQuestion('${topQuestion.id}')">
+        <button class="spk-skip-btn" data-action="speakerDeferQuestion" data-id="${topQuestion.id}">
           ${icons.skipForward} Defer
         </button>
       </div>
@@ -120,8 +120,8 @@ function renderUpcomingQueue(ranked) {
               </span>
             </div>
             <div class="spk-upcoming-actions">
-              <button class="spk-mini-btn" onclick="speakerMarkAnswered('${q.id}')" title="Mark answered">${icons.check}</button>
-              <button class="spk-mini-btn spk-mini-defer" onclick="speakerDeferQuestion('${q.id}')" title="Defer">${icons.skipForward}</button>
+              <button class="spk-mini-btn" data-action="speakerMarkAnswered" data-id="${q.id}" title="Mark answered">${icons.check}</button>
+              <button class="spk-mini-btn spk-mini-defer" data-action="speakerDeferQuestion" data-id="${q.id}" title="Defer">${icons.skipForward}</button>
             </div>
           </div>
         `).join("")}
@@ -139,7 +139,7 @@ function renderSpeakerNotes() {
       <p class="spk-notes-sub">Only visible to you — auto-saved locally.</p>
       <textarea id="speakerNotesTextarea" class="spk-notes-textarea"
         placeholder="Key points, references, reminders…"
-        oninput="speakerSaveNotes(this.value)">${saved}</textarea>
+        data-input="speakerSaveNotes">${saved}</textarea>
       <span class="spk-notes-saved" id="speakerNotesSavedTag">✓ Auto-saved</span>
     </div>
   `;
@@ -185,7 +185,7 @@ function _spkRenderAdminBanner() {
         ${body ? `<span class="cv-admin-announce-text">${body}</span>` : ""}
         ${senderName ? `<span class="cv-admin-announce-from">— ${senderName}</span>` : ""}
       </div>
-      <button class="cv-admin-announce-dismiss" onclick="(function(){window._cvDismissAnnouncement&&window._cvDismissAnnouncement()})()" title="Dismiss">✕</button>
+      <button class="cv-admin-announce-dismiss" data-action="dismissAnnouncement" title="Dismiss">✕</button>
     </div>
   `;
 }

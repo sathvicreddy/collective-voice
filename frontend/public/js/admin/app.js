@@ -4,6 +4,9 @@
 import { IC } from './icons.js';
 import { state } from './state.js';
 import { renderSidebar, renderTopbar } from './shell.js';
+import { setupDelegation } from '../utils/delegate.js';
+
+setupDelegation();
 
 /* Page renders & cache resets */
 import { renderOverview }           from './pages/overview.js';

@@ -352,7 +352,7 @@ export function renderNotifications() {
           ${unread > 0 ? `<span class="nv2-count-badge">${unread}</span>` : ""}
         </div>
         ${unread > 0 ? `
-          <button class="nv2-mark-btn" id="nv2-mark-all-m" onclick="markAllNotificationsRead()">
+          <button class="nv2-mark-btn" id="nv2-mark-all-m" data-action="markAllNotificationsRead">
             Mark all read
           </button>` : ""}
       </div>
@@ -360,7 +360,7 @@ export function renderNotifications() {
       <div class="nv2-mobile-tabs">
         ${tabs.map(t=>`
           <button class="nv2-mtab ${_activeFilter===t.key?"active":""}" data-filter="${t.key}"
-            onclick="notifFilterTab(this,'${t.key}')">
+            data-action="notifFilterTab" data-filter="${t.key}">
             ${t.label}${t.count>0?`<span class="nv2-tab-count">${t.count}</span>`:""}
           </button>
         `).join("")}
@@ -387,7 +387,7 @@ export function renderNotifications() {
               ${unread > 0 ? `<span class="nv2-unread-badge">${unread} unread</span>` : ""}
             </div>
             <button class="nv2-mark-btn" id="nv2-mark-all"
-              onclick="markAllNotificationsRead()" ${all.length===0?"disabled":""}>
+              data-action="markAllNotificationsRead" ${all.length===0?"disabled":""}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px"><polyline points="20 6 9 17 4 12"/></svg>
               Mark all read
             </button>
@@ -396,7 +396,7 @@ export function renderNotifications() {
           <div class="nv2-tabs-row">
             ${tabs.map(t=>`
               <button class="nv2-tab ${_activeFilter===t.key?"active":""}" data-filter="${t.key}"
-                onclick="notifFilterTab(this,'${t.key}')">
+                data-action="notifFilterTab" data-filter="${t.key}">
                 ${t.label}
                 ${t.count>0?`<span class="nv2-tab-count">${t.count}</span>`:""}
               </button>

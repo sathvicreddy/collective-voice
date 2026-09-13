@@ -28,7 +28,7 @@ function emptyState() {
       ${icons.barChart}
       <h2 class="screen-title" style="margin:16px 0 8px">No analytics yet</h2>
       <p class="subtle">Host or attend a meeting to see your session data here.</p>
-      <button class="btn" style="margin-top:16px" onclick="go('/meetings')">
+      <button class="btn" style="margin-top:16px" data-action="go" data-route="/meetings">
         ${icons.plus} Create a Meeting
       </button>
     </div>
@@ -118,7 +118,7 @@ export async function renderAnalytics() {
               <div style="font-weight:600;font-size:13px">${m.title}</div>
               <div style="font-size:11px;color:var(--ink-secondary)">${m.questionsCount||0} questions · ${m.participants||0} participants</div>
             </div>
-            <button class="btn secondary small" onclick="openReport('${m.id}')">${icons.barChart} Report</button>
+            <button class="btn secondary small" data-action="openReport" data-id="${m.id}">${icons.barChart} Report</button>
           </div>`).join("")}
       </div>
     </div>
@@ -130,10 +130,10 @@ export async function renderAnalytics() {
     </section>
 
     <div class="stack" style="margin-top:16px;gap:10px">
-      <button class="btn secondary" style="width:100%" onclick="exportAnalyticsData()">
+      <button class="btn secondary" style="width:100%" data-action="exportAnalyticsData">
         ${icons.download} Export Report (JSON)
       </button>
-      <button class="btn" style="width:100%" onclick="go('/conducted')">
+      <button class="btn" style="width:100%" data-action="go" data-route="/conducted">
         ${icons.fileText} Conducted Meetings
       </button>
     </div>

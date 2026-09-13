@@ -227,8 +227,8 @@ function buildHtml(apiData, rd, sess, localQs, ss, meetingId, isLoading) {
           <div class="rpt-export-wrap" style="position:relative;display:inline-block">
             <button class="rpt-primary-btn" id="rptExportBtn">${icons.download} Export ▾</button>
             <div class="rpt-export-menu" id="rptExportMenu" style="display:none;position:absolute;right:0;top:calc(100%+6px);background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;min-width:160px">
-              <div class="rpt-export-item" onclick="rptExport('json')">📄 Export as JSON</div>
-              <div class="rpt-export-item" onclick="rptExport('csv')">📊 Export as CSV</div>
+              <div class="rpt-export-item" data-action="rptExport" data-format="json">📄 Export as JSON</div>
+              <div class="rpt-export-item" data-action="rptExport" data-format="csv">📊 Export as CSV</div>
             </div>
           </div>
         </div>
@@ -236,12 +236,12 @@ function buildHtml(apiData, rd, sess, localQs, ss, meetingId, isLoading) {
 
       <!-- Tab bar -->
       <nav class="rpt-tabs">
-        <button class="rpt-tab ${_activeTab==="overview"?    "rpt-tab-active":""}" onclick="rptTab('overview',this)">Overview</button>
-        <button class="rpt-tab ${_activeTab==="questions"?   "rpt-tab-active":""}" onclick="rptTab('questions',this)">Questions (${totalQ})</button>
-        <button class="rpt-tab ${_activeTab==="participants"?"rpt-tab-active":""}" onclick="rptTab('participants',this)">Participants (${totalP})</button>
-        <button class="rpt-tab ${_activeTab==="polls"?       "rpt-tab-active":""}" onclick="rptTab('polls',this)">Polls (${polls.length})</button>
-        <button class="rpt-tab ${_activeTab==="insights"?    "rpt-tab-active":""}" onclick="rptTab('insights',this)">Insights</button>
-        <button class="rpt-tab ${_activeTab==="ai"?          "rpt-tab-active":""}" onclick="rptTab('ai',this)">AI Summary</button>
+        <button class="rpt-tab ${_activeTab==="overview"?    "rpt-tab-active":""}" data-action="rptTab" data-tab="overview">Overview</button>
+        <button class="rpt-tab ${_activeTab==="questions"?   "rpt-tab-active":""}" data-action="rptTab" data-tab="questions">Questions (${totalQ})</button>
+        <button class="rpt-tab ${_activeTab==="participants"?"rpt-tab-active":""}" data-action="rptTab" data-tab="participants">Participants (${totalP})</button>
+        <button class="rpt-tab ${_activeTab==="polls"?       "rpt-tab-active":""}" data-action="rptTab" data-tab="polls">Polls (${polls.length})</button>
+        <button class="rpt-tab ${_activeTab==="insights"?    "rpt-tab-active":""}" data-action="rptTab" data-tab="insights">Insights</button>
+        <button class="rpt-tab ${_activeTab==="ai"?          "rpt-tab-active":""}" data-action="rptTab" data-tab="ai">AI Summary</button>
       </nav>
 
       <!-- Body grid -->
@@ -383,7 +383,7 @@ function buildHtml(apiData, rd, sess, localQs, ss, meetingId, isLoading) {
                 <h2 class="rpt-card-title" style="margin:0">Engagement Trend</h2>
                 <span style="color:#9ca3af">${icons.info}</span>
               </div>
-              <select class="rpt-chart-sel" onchange="rptFilterChart(this.value)">
+              <select class="rpt-chart-sel" data-change="rptFilterChart">
                 <option value="actual">Question Submissions</option>
                 <option value="votes">Upvote Activity</option>
               </select>
@@ -421,8 +421,8 @@ function buildHtml(apiData, rd, sess, localQs, ss, meetingId, isLoading) {
               <p>Keep the conversation going. Review questions, export insights, or start a new session.</p>
             </div>
             <div class="rpt-next-actions">
-              <button class="rpt-outline-btn" onclick="go('/conducted')">View Questions</button>
-              <button class="rpt-primary-btn" onclick="go('/meetings/create')">${icons.plus} Start New Meeting</button>
+              <button class="rpt-outline-btn" data-action="go" data-route="/conducted">View Questions</button>
+              <button class="rpt-primary-btn" data-action="go" data-route="/meetings/create">${icons.plus} Start New Meeting</button>
             </div>
           </div>
 

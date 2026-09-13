@@ -143,11 +143,11 @@ export function renderMeetings() {
         <div><h1 class="page-title">Meetings <span class="page-count">${_meetings.length} meetings</span></h1></div>
       </div>
       <div class="dt-filters">
-        <div class="dt-search-wrap">${IC.search}<input class="dt-search-input" placeholder="Search by title or code…" type="text" value="${_searchQ}" oninput="meetingsSearch(this.value)"></div>
+        <div class="dt-search-wrap">${IC.search}<input class="dt-search-input" placeholder="Search by title or code…" type="text" value="${_searchQ}" data-input="meetingsSearch"></div>
         <div class="filter-group">
           <label class="filter-label">Status</label>
           <div class="filter-select-wrap">
-            <select class="filter-select" onchange="meetingsStatusFilter(this.value)">
+            <select class="filter-select" data-change="meetingsStatusFilter">
               <option ${_statusFilter==='All'?'selected':''}>All</option>
               <option ${_statusFilter==='live'?'selected':''} value="live">Live</option>
               <option ${_statusFilter==='upcoming'?'selected':''} value="upcoming">Upcoming</option>
@@ -186,7 +186,7 @@ export function renderMeetings() {
 function renderMeetingContextMenu(meetingId) {
   const sub = state.meetingContextMenu?.sub;
   return `
-    <div class="context-menu" onclick="event.stopPropagation()">
+    <div class="context-menu" data-action="stopPropagation">
       <div class="ctx-item" onclick="showStatusSubmenu('${meetingId}')">
         ${IC.zap} Force Status Change <span class="ctx-arrow">›</span>
         ${sub==='status'?`
@@ -413,7 +413,7 @@ function renderDeleteModal() {
   if (!meeting) return '';
   return `
     <div class="modal-overlay" onclick="closeDeleteModal()">
-      <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal" data-action="stopPropagation">
         <div class="modal-icon">${IC.alertCircle}</div>
         <h3 class="modal-title">Delete '${meeting.title}'?</h3>
         <p class="modal-body">This will permanently delete <b>${meeting.questionsCount} questions</b> and <b>${meeting.participantsCount} participant records</b>.</p>

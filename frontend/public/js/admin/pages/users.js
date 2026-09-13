@@ -83,7 +83,7 @@ export function renderUsers() {
   const deleteModal = _confirmDeleteId ? (() => {
     const u = _users.find(x => x.id === _confirmDeleteId);
     return `<div class="modal-overlay" onclick="cancelUserDelete()">
-      <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal" data-action="stopPropagation">
         <div class="modal-icon">${IC.alertCircle}</div>
         <h3 class="modal-title">Delete '${u?.name}'?</h3>
         <p class="modal-body">This will permanently delete this user account and all associated data.</p>
@@ -108,7 +108,7 @@ export function renderUsers() {
       <td class="dt-td">${roleBadge(u.role)}</td>
       <td class="dt-td">${authMethod(authType)}</td>
       <td class="dt-td dt-muted">${new Date(u.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</td>
-      <td class="dt-td dt-actions"><div class="dt-actions-wrap"><button class="dt-more-btn" onclick="event.stopPropagation();openUserMenu('${u.id}',event)">${IC.moreHoriz}</button></div></td>
+      <td class="dt-td dt-actions"><div class="dt-actions-wrap"><button class="dt-more-btn" data-action="openUserMenu" data-id="${u.id}">${IC.moreHoriz}</button></div></td>
     </tr>`;
   }).join('');
 
@@ -123,7 +123,7 @@ export function renderUsers() {
           <div class="mob-card-sub">${u.email}</div>
           <div class="mob-card-tags">${roleBadge(u.role)}</div>
         </div>
-        <button class="mob-card-more" onclick="event.stopPropagation();openUserMenu('${u.id}',event)">${IC.moreHoriz}</button>
+        <button class="mob-card-more" data-action="openUserMenu" data-id="${u.id}">${IC.moreHoriz}</button>
       </div>`;
   }).join('');
 
@@ -140,11 +140,11 @@ export function renderUsers() {
         <div><h1 class="page-title">Users <span class="page-count">${_users.length} users</span></h1></div>
       </div>
       <div class="dt-filters">
-        <div class="dt-search-wrap">${IC.search}<input class="dt-search-input" placeholder="Search by name or email…" type="text" value="${_searchQ}" oninput="usersSearch(this.value)"></div>
+        <div class="dt-search-wrap">${IC.search}<input class="dt-search-input" placeholder="Search by name or email…" type="text" value="${_searchQ}" data-input="usersSearch"></div>
         <div class="filter-group">
           <label class="filter-label">Role</label>
           <div class="filter-select-wrap">
-            <select class="filter-select" onchange="usersRoleFilter(this.value)">
+            <select class="filter-select" data-change="usersRoleFilter">
               <option ${_roleFilter==='All'?'selected':''}>All</option>
               <option ${_roleFilter==='Superadmin'?'selected':''}>Superadmin</option>
               <option ${_roleFilter==='Admin'?'selected':''}>Admin</option>

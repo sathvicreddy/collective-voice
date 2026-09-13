@@ -44,6 +44,23 @@ try {
 // Register service worker + initialise offline queue support
 initPWA();
 
+import { setupDelegation, registerActions } from "./utils/delegate.js";
+setupDelegation();
+
+registerActions({
+  go, authSubmit, authForgot, authReset, homejoinLive,
+  sessionSwitchView, sessionPromoteToSpeaker,
+  moderatorSearchQuestions, moderatorSortQueue, moderatorDeferQuestion, 
+  moderatorShowQuestionMenu, moderatorFlagQuestion, moderatorAnswerQuestion, 
+  moderatorTogglePause, moderatorClearAnswered, moderatorBroadcastAnnouncement, 
+  moderatorCreatePoll, moderatorMakeSpeaker, moderatorEndSession, 
+  moderatorGoLive, moderatorMarkAnswering,
+  speakerSaveNotes, speakerStartAnswering, speakerSkipQuestion, 
+  speakerMarkAnswered, speakerDeferQuestion,
+  participantUpdateCharCount, participantSubmitQuestion, participantUpvote, 
+  participantVotePoll, participantTypingStart, participantTypingStop, participantReact
+});
+
 const app = document.querySelector("#app");
 
 /* --- Actions ----------------------------------------------- */

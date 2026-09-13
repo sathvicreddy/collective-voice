@@ -80,10 +80,10 @@ export function renderQuestionDetail(id = "q1") {
 
     <h3 style="font-size:14px;font-weight:600;margin:18px 0 10px">Moderator Actions</h3>
     <div class="stack" style="gap:8px">
-      <button class="btn" style="width:100%" onclick="qDetailMarkAnswered('${question.id}')">${icons.check} Mark Answered</button>
-      <button class="btn secondary" style="width:100%" onclick="qDetailSetStatus('${question.id}', 'Deferred')">${icons.pause} Defer</button>
-      <button class="btn secondary" style="width:100%" onclick="qDetailSetStatus('${question.id}', 'Skipped')">${icons.skipForward} Skip</button>
-      <button class="btn secondary" style="width:100%" onclick="qDetailSetStatus('${question.id}', 'Flagged')">${icons.flag} Flag</button>
+      <button class="btn" style="width:100%" data-action="qDetailMarkAnswered" data-id="${question.id}">${icons.check} Mark Answered</button>
+      <button class="btn secondary" style="width:100%" data-action="qDetailSetStatus" data-id="${question.id}" data-status="Deferred">${icons.pause} Defer</button>
+      <button class="btn secondary" style="width:100%" data-action="qDetailSetStatus" data-id="${question.id}" data-status="Skipped">${icons.skipForward} Skip</button>
+      <button class="btn secondary" style="width:100%" data-action="qDetailSetStatus" data-id="${question.id}" data-status="Flagged">${icons.flag} Flag</button>
     </div>
   `, "activity", true), moderatorPanel);
 

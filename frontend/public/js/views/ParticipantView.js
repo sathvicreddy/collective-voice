@@ -34,7 +34,7 @@ function renderAskForm(isPaused) {
           ${isPaused ? "disabled" : ""}></textarea>
         <div class="ptc-ask-footer">
           <span class="ptc-char-count" id="participantCharCount">0 / 500</span>
-          <button class="ptc-submit-btn" onclick="participantSubmitQuestion()"
+          <button class="ptc-submit-btn" data-action="participantSubmitQuestion"
             ${isPaused ? "disabled" : ""}>
             ${icons.send} Submit
           </button>
@@ -82,7 +82,7 @@ function renderPollWidget(poll, votedOptionId) {
         <!-- Voting view -->
         <div class="ptc-poll-options" role="radiogroup">
           ${poll.options.map(opt => `
-            <button class="ptc-poll-option" onclick="participantVotePoll('${poll.id}', '${opt.id}')"
+            <button class="ptc-poll-option" data-action="participantVotePoll" data-poll="${poll.id}" data-opt="${opt.id}"
               role="radio" aria-checked="false">
               <span class="ptc-poll-radio"></span>
               <span>${opt.label}</span>
@@ -115,7 +115,7 @@ function renderReactionBar(q) {
   return `
     <div class="ptc-reaction-bar">
       ${emojis.map(e => `
-        <button class="ptc-reaction-btn" onclick="participantReact('${q.id}', '${e.key}')"
+        <button class="ptc-reaction-btn" data-action="participantReact" data-id="${q.id}" data-key="${e.key}"
           title="${e.key}" aria-label="React with ${e.key}">
           ${e.glyph}
           ${rc[e.key] ? `<span class="ptc-reaction-count">${rc[e.key]}</span>` : ""}
@@ -176,7 +176,7 @@ function renderQuestionFeed(questions, optimisticUpvotes = {}) {
               </div>
               <div class="ptc-q-actions">
                 <button class="ptc-upvote-btn ${voted ? "ptc-upvoted" : ""}"
-                  onclick="participantUpvote('${q.id}', this)"
+                  data-action="participantUpvote" data-id="${q.id}"
                   title="${voted ? "Remove upvote" : "Upvote this question"}"
                   aria-pressed="${voted}">
                   ${icons.arrowUp}
@@ -228,7 +228,7 @@ function renderAdminAnnouncementBanner() {
         ${body ? `<span class="cv-admin-announce-text">${body}</span>` : ""}
         ${senderName ? `<span class="cv-admin-announce-from">— ${senderName}</span>` : ""}
       </div>
-      <button class="cv-admin-announce-dismiss" onclick="(function(){window._cvDismissAnnouncement&&window._cvDismissAnnouncement()})()" title="Dismiss">✕</button>
+      <button class="cv-admin-announce-dismiss" data-action="dismissAnnouncement" title="Dismiss">✕</button>
     </div>
   `;
 }

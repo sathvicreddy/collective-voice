@@ -90,7 +90,7 @@ window.openChangePassword = function() {
     <div style="background:white;border-radius:20px;padding:32px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.18)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
         <h2 style="font-size:18px;font-weight:800;color:#111936">Change Password</h2>
-        <button onclick="document.getElementById('changePasswordModal').remove()" style="background:none;border:none;cursor:pointer;color:#8890b0;font-size:20px">✕</button>
+        <button data-action="removeElement" data-id="changePasswordModal" style="background:none;border:none;cursor:pointer;color:#8890b0;font-size:20px">✕</button>
       </div>
       <div id="cpwError" style="display:none;color:#e54040;font-size:13px;padding:8px 12px;background:#fff0f0;border-radius:8px;margin-bottom:16px;border:1px solid #ffd0d0"></div>
       <div style="display:flex;flex-direction:column;gap:14px">
@@ -109,7 +109,7 @@ window.openChangePassword = function() {
           <input id="cpwConfirm" type="password" autocomplete="new-password" placeholder="Repeat new password"
             style="width:100%;padding:10px 14px;border:1.5px solid #e0dbff;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
         </div>
-        <button id="cpwSubmitBtn" onclick="submitChangePassword()"
+        <button id="cpwSubmitBtn" data-action="submitChangePassword"
           style="margin-top:8px;padding:13px;background:linear-gradient(135deg,#5b34ff,#7c5cff);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">
           Update Password
         </button>
@@ -172,11 +172,11 @@ window.openDeleteAccount = function() {
           style="width:100%;padding:10px 14px;border:1.5px solid #ffd0d0;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
       </div>
       <div style="display:flex;gap:10px">
-        <button onclick="document.getElementById('deleteAccountModal').remove()"
+        <button data-action="removeElement" data-id="deleteAccountModal"
           style="flex:1;padding:13px;background:#f5f4ff;color:#5b34ff;border:1.5px solid #e0dbff;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">
           Cancel
         </button>
-        <button id="daSubmitBtn" onclick="submitDeleteAccount()"
+        <button id="daSubmitBtn" data-action="submitDeleteAccount"
           style="flex:1;padding:13px;background:#e54040;color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">
           Delete Forever
         </button>
@@ -297,8 +297,8 @@ export function renderSettings() {
           ${icons.chevronRight}
         </article>
       `).join("")}
-      <button class="btn secondary" style="width:100%;margin-top:8px" onclick="go('/profile')">${icons.arrowLeft} Back to Profile</button>
-      <button class="btn danger" style="width:100%;margin-top:8px" id="mobile-logout-btn" onclick="profileLogout()">${icons.logOut} Log Out</button>
+      <button class="btn secondary" style="width:100%;margin-top:8px" data-action="go" data-route="/profile">${icons.arrowLeft} Back to Profile</button>
+      <button class="btn danger" style="width:100%;margin-top:8px" id="mobile-logout-btn" data-action="profileLogout">${icons.logOut} Log Out</button>
     </div>
   `, "profile", true);
 
@@ -331,7 +331,7 @@ export function renderSettings() {
         ${settingsSections.map((s, i) => `
           <button class="settings-nav-btn ${i === 0 ? "active" : ""}"
             id="snav-${s.id}"
-            onclick="settingsNav(this,'${s.id}')">
+            data-action="settingsNav" data-id="${s.id}">
             <div class="settings-nav-icon">${s.icon}</div>
             <div class="settings-nav-text">
               <strong>${s.label}</strong>
@@ -339,7 +339,7 @@ export function renderSettings() {
             </div>
           </button>
         `).join("")}
-        <button class="settings-sidebar-logout" id="sidebarLogoutBtn" onclick="profileLogout()">
+        <button class="settings-sidebar-logout" id="sidebarLogoutBtn" data-action="profileLogout">
           <div class="settings-nav-icon">${icons.logOut}</div>
           <div class="settings-nav-text">
             <strong>Log Out</strong>
@@ -355,7 +355,7 @@ export function renderSettings() {
         <div id="sc-account" class="settings-section">
           <div class="settings-section-header">
             <h2 class="settings-section-title">Account Information</h2>
-            <button class="edit-profile-btn" id="editProfileBtn" onclick="go('/profile')">${icons.edit} Edit Profile</button>
+            <button class="edit-profile-btn" id="editProfileBtn" data-action="go" data-route="/profile">${icons.edit} Edit Profile</button>
           </div>
           <div class="settings-account-card">
             <div class="settings-account-avatar">${initials}</div>
@@ -372,7 +372,7 @@ export function renderSettings() {
 
           <h3 class="settings-group-title" style="margin-top:28px">Account Actions</h3>
           <div class="settings-actions-row">
-            <button class="settings-action-card" id="changePasswordBtn" onclick="openChangePassword()">
+            <button class="settings-action-card" id="changePasswordBtn" data-action="openChangePassword">
               <div class="icon-box" style="width:38px;height:38px">${icons.eye}</div>
               <div style="flex:1;text-align:left">
                 <strong style="font-size:14px;display:block">Change Password</strong>
@@ -380,7 +380,7 @@ export function renderSettings() {
               </div>
               ${icons.chevronRight}
             </button>
-            <button class="settings-action-card" id="logoutBtn" onclick="profileLogout()">
+            <button class="settings-action-card" id="logoutBtn" data-action="profileLogout">
               <div class="icon-box orange" style="width:38px;height:38px">${icons.logOut}</div>
               <div style="flex:1;text-align:left">
                 <strong style="font-size:14px;display:block">Log Out</strong>
@@ -388,7 +388,7 @@ export function renderSettings() {
               </div>
               ${icons.chevronRight}
             </button>
-            <button class="settings-action-card danger" id="deleteAccountBtn" onclick="openDeleteAccount()">
+            <button class="settings-action-card danger" id="deleteAccountBtn" data-action="openDeleteAccount">
               <div class="icon-box red" style="width:38px;height:38px">${icons.trash}</div>
               <div style="flex:1;text-align:left">
                 <strong style="font-size:14px;display:block;color:var(--danger)">Delete Account</strong>
@@ -435,7 +435,7 @@ export function renderSettings() {
                 <span class="subtle">Control who can see your profile information</span>
               </div>
               <select class="settings-select" id="privacyVisibility"
-                onchange="savePrefs({privacy_visibility:this.value}); settingsToast('Profile visibility updated')">
+                data-change="savePrefs" data-prefs="privacy_visibility:this.value">
                 <option value="public"  ${(prefs.privacy_visibility||"public")==="public"  ? "selected" : ""}>Public</option>
                 <option value="friends" ${(prefs.privacy_visibility||"public")==="friends" ? "selected" : ""}>Friends Only</option>
                 <option value="private" ${(prefs.privacy_visibility||"public")==="private" ? "selected" : ""}>Private</option>
@@ -486,15 +486,15 @@ export function renderSettings() {
                 <strong>Active Sessions</strong>
                 <span class="subtle">Manage devices logged into your account. Change your password to sign out all other devices.</span>
               </div>
-              <button class="link-btn" id="manageSessionsBtn" style="flex-shrink:0" onclick="manageActiveSessions()">Manage</button>
+              <button class="link-btn" id="manageSessionsBtn" style="flex-shrink:0" data-action="manageActiveSessions">Manage</button>
             </div>
-            <div class="settings-toggle-row" style="cursor:pointer" onclick="openChangePassword()">
+            <div class="settings-toggle-row" style="cursor:pointer" data-action="openChangePassword">
               <div class="icon-box blue" style="width:40px;height:40px;flex-shrink:0">${icons.shield}</div>
               <div class="settings-toggle-info">
                 <strong>Change Password</strong>
                 <span class="subtle">Update your login password</span>
               </div>
-              <button class="link-btn" style="flex-shrink:0" onclick="openChangePassword()">Change</button>
+              <button class="link-btn" style="flex-shrink:0" data-action="openChangePassword">Change</button>
             </div>
           </div>
         </div>
@@ -510,9 +510,9 @@ export function renderSettings() {
                 <span class="subtle">Choose your preferred colour scheme</span>
               </div>
               <div class="settings-theme-group" id="themeGroup">
-                <button class="settings-theme-btn ${savedTheme==="light"?"active":""}" id="themeBtn-light"   onclick="setTheme(this,'light')">☀️ Light</button>
-                <button class="settings-theme-btn ${savedTheme==="dark" ?"active":""}" id="themeBtn-dark"    onclick="setTheme(this,'dark')">🌙 Dark</button>
-                <button class="settings-theme-btn ${savedTheme==="system"?"active":""}" id="themeBtn-system" onclick="setTheme(this,'system')">💻 System</button>
+                <button class="settings-theme-btn ${savedTheme==="light"?"active":""}" id="themeBtn-light"   data-action="setTheme" data-theme="light">☀️ Light</button>
+                <button class="settings-theme-btn ${savedTheme==="dark" ?"active":""}" id="themeBtn-dark"    data-action="setTheme" data-theme="dark">🌙 Dark</button>
+                <button class="settings-theme-btn ${savedTheme==="system"?"active":""}" id="themeBtn-system" data-action="setTheme" data-theme="system">💻 System</button>
               </div>
             </div>
             <div class="settings-toggle-row">
@@ -522,7 +522,7 @@ export function renderSettings() {
                 <span class="subtle">Choose your preferred display language</span>
               </div>
               <select class="settings-select" id="languageSelect"
-                onchange="savePrefs({language:this.value}); settingsToast('Language preference saved')">
+                data-change="savePrefs" data-prefs="language:this.value">
                 <option value="en"    ${(prefs.language||"en")==="en"    ? "selected":""}>🇺🇸 English</option>
                 <option value="hi"    ${(prefs.language||"en")==="hi"    ? "selected":""}>🇮🇳 Hindi</option>
                 <option value="es"    ${(prefs.language||"en")==="es"    ? "selected":""}>🇪🇸 Spanish</option>
@@ -557,7 +557,7 @@ export function renderSettings() {
                 <strong>Download My Data</strong>
                 <span class="subtle">Get a copy of all your data (profile, meetings, questions) as a JSON file</span>
               </div>
-              <button class="btn" id="exportDataBtn" style="font-size:13px;padding:8px 14px;flex-shrink:0" onclick="downloadUserData()">⬇️ Download</button>
+              <button class="btn" id="exportDataBtn" style="font-size:13px;padding:8px 14px;flex-shrink:0" data-action="downloadUserData">⬇️ Download</button>
             </div>
             <div class="settings-toggle-row">
               <div class="icon-box red" style="width:40px;height:40px;flex-shrink:0">${icons.logOut}</div>
@@ -565,7 +565,7 @@ export function renderSettings() {
                 <strong>Delete All My Data</strong>
                 <span class="subtle">Permanently remove your account and all associated data from CollectiveVoice</span>
               </div>
-              <button class="btn secondary" id="deleteDataBtn" style="font-size:13px;padding:8px 14px;color:var(--danger);border-color:var(--danger);flex-shrink:0" onclick="openDeleteAccount()">🗑️ Delete</button>
+              <button class="btn secondary" id="deleteDataBtn" style="font-size:13px;padding:8px 14px;color:var(--danger);border-color:var(--danger);flex-shrink:0" data-action="openDeleteAccount">🗑️ Delete</button>
             </div>
           </div>
         </div>
@@ -580,7 +580,7 @@ export function renderSettings() {
               { type: "privacy", icon: icons.shield,        title: "Privacy Policy",  desc: "Read how we protect your data" },
               { type: "terms",   icon: icons.info,          title: "Terms of Service", desc: "Read our terms of service" }
             ].map(h => `
-              <div class="settings-toggle-row" style="cursor:pointer" id="help-${h.type}" onclick="openHelpLink('${h.type}')">
+              <div class="settings-toggle-row" style="cursor:pointer" id="help-${h.type}" data-action="openHelpLink" data-type="${h.type}">
                 <div class="icon-box" style="width:40px;height:40px;flex-shrink:0">${h.icon}</div>
                 <div class="settings-toggle-info">
                   <strong>${h.title}</strong>

@@ -79,9 +79,9 @@ function renderQuestionQueue(questions, search = "", sortBy = "score") {
           <div class="mod-search-wrap">
             ${icons.search}
             <input id="modQueueSearch" class="mod-search" type="search" placeholder="Search questions…"
-              value="${search}" oninput="moderatorSearchQuestions(this.value)">
+              value="${search}" data-input="moderatorSearchQuestions">
           </div>
-          <select class="mod-sort-select" onchange="moderatorSortQueue(this.value)">
+          <select class="mod-sort-select" data-change="moderatorSortQueue">
             <option value="score"  ${sortBy === "score"  ? "selected" : ""}>By Score</option>
             <option value="votes"  ${sortBy === "votes"  ? "selected" : ""}>By Votes</option>
             <option value="time"   ${sortBy === "time"   ? "selected" : ""}>By Time</option>
@@ -107,7 +107,7 @@ function renderQuestionQueue(questions, search = "", sortBy = "score") {
                 <div class="mod-empty-state">
                   <div class="mod-empty-icon">${icons.messageCircle}</div>
                   <p>No questions yet. Open up the floor!</p>
-                  <button class="mod-outline-btn" onclick="moderatorTogglePause()">Resume Questions</button>
+                  <button class="mod-outline-btn" data-action="moderatorTogglePause">Resume Questions</button>
                 </div>
               </td></tr>
             ` : ""}
@@ -135,24 +135,24 @@ function renderQuestionQueue(questions, search = "", sortBy = "score") {
                 <td>${statusBadge(q.status)}</td>
                 <td class="mod-actions-cell">
                   <button class="mod-action-btn mod-btn-answer"
-                    onclick="moderatorAnswerQuestion('${q.id}')"
+                    data-action="moderatorAnswerQuestion" data-id="${q.id}"
                     title="Mark this question as answered"
                     ${q.status === "Answered" ? "disabled" : ""}>
                     ${icons.check} Answer
                   </button>
                   <button class="mod-action-btn mod-btn-answering"
-                    onclick="moderatorMarkAnswering('${q.id}')"
+                    data-action="moderatorMarkAnswering" data-id="${q.id}"
                     title="Mark as currently answering"
                     ${q.status === "Answered" || q.status === "Answering" ? "disabled" : ""}>
                     ▶ Answering
                   </button>
                   <button class="mod-action-btn mod-btn-defer"
-                    onclick="moderatorDeferQuestion('${q.id}')"
+                    data-action="moderatorDeferQuestion" data-id="${q.id}"
                     ${q.status === "Answered" ? "disabled" : ""}>
                     ${icons.skipForward} Defer
                   </button>
                   <button class="mod-action-btn mod-btn-more"
-                    onclick="moderatorShowQuestionMenu('${q.id}', this)">
+                    data-action="moderatorShowQuestionMenu" data-id="${q.id}">
                     ${icons.moreVertical}
                   </button>
                 </td>
@@ -198,7 +198,7 @@ function renderPollsPanel(poll, allPolls = []) {
                   <td class="mod-ph-type">Multiple Choice</td>
                   <td class="mod-ph-resp">${p.totalVotes || 0}</td>
                   <td><span class="mod-ph-status ${p.active ? "live" : "done"}">${p.active ? "Live" : "Completed"}</span></td>
-                  <td><button class="mod-ph-action-btn" onclick="moderatorViewPollResults('${p.id}')">View Results</button></td>
+                  <td><button class="mod-ph-action-btn" data-action="moderatorViewPollResults" data-id="${p.id}">View Results</button></td>
                 </tr>
               `).join("")}
             </tbody>
@@ -206,7 +206,7 @@ function renderPollsPanel(poll, allPolls = []) {
         </div>
       `}
       <div class="mod-poll-create-row">
-        <button class="mod-poll-create-btn" onclick="moderatorCreatePoll()">
+        <button class="mod-poll-create-btn" data-action="moderatorCreatePoll">
           ${icons.plus || "+"} &nbsp;Create New Poll
         </button>
       </div>
@@ -222,7 +222,7 @@ function renderPollsPanel(poll, allPolls = []) {
         <div class="mod-empty-state">
           <div class="mod-empty-icon">${icons.barChart}</div>
           <p>No active poll right now.</p>
-          <button class="mod-poll-create-btn" onclick="moderatorCreatePoll()" style="margin-top:12px">
+          <button class="mod-poll-create-btn" data-action="moderatorCreatePoll" style="margin-top:12px">
             ${icons.plus || "+"} &nbsp;Create New Poll
           </button>
         </div>
@@ -247,7 +247,7 @@ function renderPollsPanel(poll, allPolls = []) {
         <div class="mod-ap-timer-block">
           <span class="mod-ap-timer-value" id="mod-poll-timer-val">${timerMM}:${timerSS}</span>
           <span class="mod-ap-timer-label">Time Left</span>
-          <button class="mod-ap-end-btn" onclick="moderatorEndPoll('${poll.id}')">
+          <button class="mod-ap-end-btn" data-action="moderatorEndPoll" data-id="${poll.id}">
             ${icons.square || "◼"} End Poll
           </button>
         </div>
@@ -286,7 +286,7 @@ function renderPollsPanel(poll, allPolls = []) {
       <!-- Footer -->
       <div class="mod-ap-footer">
         <span class="mod-ap-footer-note">${icons.info || "ⓘ"} You can download the results after the poll ends.</span>
-        <button class="mod-ap-download-btn" onclick="moderatorDownloadPollResults('${poll.id}')">
+        <button class="mod-ap-download-btn" data-action="moderatorDownloadPollResults" data-id="${poll.id}">
           ${icons.download || "↓"} Download Results
         </button>
       </div>
@@ -383,7 +383,7 @@ function renderParticipantsPanel(participants, currentSpeakerId) {
             <span class="mod-spk-banner-label">Current Speaker</span>
             <span class="mod-spk-banner-name">${currentSpk.name}</span>
           </div>
-          <button class="mod-remove-spk-btn" onclick="moderatorMakeSpeaker(null, null, null)">
+          <button class="mod-remove-spk-btn" data-action="moderatorMakeSpeaker" data-id="null" data-name="null" data-initials="null">
             ${icons.arrowLeft} Remove
           </button>
         </div>
@@ -404,7 +404,7 @@ function renderParticipantsPanel(participants, currentSpeakerId) {
           const isSpk = p.id === currentSpeakerId;
           return `
             <div class="mod-participant-row ${isSpk ? "mod-participant-speaker" : ""}"
-              onclick="moderatorMakeSpeaker('${p.id}', '${p.name}', '${p.initials}')">
+              data-action="moderatorMakeSpeaker" data-id="'${p.id}'" data-name="'${p.name}'" data-initials="'${p.initials}'">
               <span class="mod-contributor-rank">${i + 1}</span>
               <div class="mod-contributor-avatar"
                 style="${isSpk ? "background:linear-gradient(135deg,#6366f1,#8b5cf6);" : ""}">
@@ -436,19 +436,19 @@ function renderQuickActions(isPaused) {
         <div class="mod-panel-title">${icons.zap}<h2>Quick Actions</h2></div>
       </div>
       <div class="mod-actions-grid">
-        <button class="mod-qa-btn mod-qa-primary" onclick="moderatorBroadcastAnnouncement()">
+        <button class="mod-qa-btn mod-qa-primary" data-action="moderatorBroadcastAnnouncement">
           ${icons.send}
           <span>Broadcast</span>
         </button>
-        <button class="mod-qa-btn ${isPaused ? "mod-qa-warning" : "mod-qa-secondary"}" onclick="moderatorTogglePause()">
+        <button class="mod-qa-btn ${isPaused ? "mod-qa-warning" : "mod-qa-secondary"}" data-action="moderatorTogglePause">
           ${isPaused ? icons.skipForward : icons.pause}
           <span>${isPaused ? "Resume Qs" : "Pause Qs"}</span>
         </button>
-        <button class="mod-qa-btn mod-qa-secondary" onclick="moderatorClearAnswered()">
+        <button class="mod-qa-btn mod-qa-secondary" data-action="moderatorClearAnswered">
           ${icons.checkCircle}
           <span>Clear Done</span>
         </button>
-        <button class="mod-qa-btn mod-qa-danger" onclick="moderatorEndSession()">
+        <button class="mod-qa-btn mod-qa-danger" data-action="moderatorEndSession">
           ${icons.flag}
           <span>End Session</span>
         </button>
@@ -464,11 +464,11 @@ function renderSpeakerPickerModal(questionId) {
   const candidates = ss.participants || [];
 
   return `
-    <div class="mod-modal-overlay" id="speakerPickerModal" onclick="moderatorCloseModal(event)">
+    <div class="mod-modal-overlay" id="speakerPickerModal" data-action="moderatorCloseModal">
       <div class="mod-modal">
         <div class="mod-modal-header">
           <h3>Select Speaker</h3>
-          <button class="mod-modal-close" onclick="moderatorCloseModal()">${icons.arrowLeft}</button>
+          <button class="mod-modal-close" data-action="moderatorCloseModal">${icons.arrowLeft}</button>
         </div>
         <p class="mod-modal-sub">Pick who answers this question. They'll be switched to Speaker view.</p>
         <div class="mod-speaker-list">
@@ -480,7 +480,7 @@ function renderSpeakerPickerModal(questionId) {
             </div>
           ` : candidates.map(p => `
             <button class="mod-speaker-option"
-              onclick="moderatorConfirmAssign('${questionId}', '${p.id}', '${p.name}', '${p.initials}')">
+              data-action="moderatorConfirmAssign" data-qid="${questionId}" data-pid="${p.id}" data-pname="${p.name}" data-pinitials="${p.initials}">
               <div class="mod-contributor-avatar">${p.initials}</div>
               <span>${p.name}</span>
               ${icons.chevronRight}
@@ -512,7 +512,7 @@ function _modRenderAdminBanner() {
         ${body ? `<span class="cv-admin-announce-text">${body}</span>` : ""}
         ${senderName ? `<span class="cv-admin-announce-from">— ${senderName}</span>` : ""}
       </div>
-      <button class="cv-admin-announce-dismiss" onclick="(function(){window._cvDismissAnnouncement&&window._cvDismissAnnouncement()})()" title="Dismiss">✕</button>
+      <button class="cv-admin-announce-dismiss" data-action="dismissAnnouncement" title="Dismiss">✕</button>
     </div>
   `;
 }
@@ -659,9 +659,9 @@ export function moderatorShowQuestionMenu(id, btn) {
   const menu = document.createElement("div");
   menu.className = "mod-ctx-menu";
   menu.innerHTML = `
-    <button onclick="moderatorFlagQuestion('${id}')"><span>${icons.flag}</span> Flag</button>
-    <button onclick="moderatorAnswerQuestion('${id}')"><span>${icons.check}</span> Mark Answered</button>
-    <button onclick="window.go('/question/${id}')"><span>${icons.eye}</span> View Details</button>
+    <button data-action="moderatorFlagQuestion" data-id="${id}"><span>${icons.flag}</span> Flag</button>
+    <button data-action="moderatorAnswerQuestion" data-id="${id}"><span>${icons.check}</span> Mark Answered</button>
+    <button data-action="go" data-route="/question/${id}"><span>${icons.eye}</span> View Details</button>
   `;
   const rect = btn.getBoundingClientRect();
   menu.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${rect.left - 80}px;z-index:9999`;
@@ -720,7 +720,7 @@ export function moderatorCreatePoll() {
     <div class="mod-modal-box" id="mod-create-poll-box">
       <div class="mod-modal-header">
         <h2 class="mod-modal-title">Create New Poll</h2>
-        <button class="mod-modal-close" onclick="document.getElementById('mod-create-poll-modal').remove()">&times;</button>
+        <button class="mod-modal-close" data-action="removeElement" data-id="mod-create-poll-modal">&times;</button>
       </div>
 
       <div class="mod-modal-body">
@@ -742,23 +742,23 @@ export function moderatorCreatePoll() {
           </div>
         </div>
         <button class="mod-add-option-btn" id="mod-add-option-btn"
-          onclick="_modAddPollOption()">
+          data-action="modAddPollOption">
           + Add Option
         </button>
 
         <label class="mod-modal-label" style="margin-top:18px">Duration</label>
         <div class="mod-poll-duration-row">
-          <button class="mod-dur-btn active" data-dur="300" onclick="_modSetDuration(this, 300)">5 min</button>
-          <button class="mod-dur-btn" data-dur="600" onclick="_modSetDuration(this, 600)">10 min</button>
-          <button class="mod-dur-btn" data-dur="900" onclick="_modSetDuration(this, 900)">15 min</button>
-          <button class="mod-dur-btn" data-dur="1800" onclick="_modSetDuration(this, 1800)">30 min</button>
+          <button class="mod-dur-btn active" data-dur="300" data-action="modSetDuration" data-dur="300">5 min</button>
+          <button class="mod-dur-btn" data-dur="600" data-action="modSetDuration" data-dur="600">10 min</button>
+          <button class="mod-dur-btn" data-dur="900" data-action="modSetDuration" data-dur="900">15 min</button>
+          <button class="mod-dur-btn" data-dur="1800" data-action="modSetDuration" data-dur="1800">30 min</button>
         </div>
         <input type="hidden" id="mod-poll-duration" value="300" />
       </div>
 
       <div class="mod-modal-footer">
-        <button class="mod-modal-cancel-btn" onclick="document.getElementById('mod-create-poll-modal').remove()">Cancel</button>
-        <button class="mod-modal-submit-btn" onclick="_modSubmitPoll()">Launch Poll</button>
+        <button class="mod-modal-cancel-btn" data-action="removeElement" data-id="mod-create-poll-modal">Cancel</button>
+        <button class="mod-modal-submit-btn" data-action="modSubmitPoll">Launch Poll</button>
       </div>
     </div>
   `;
@@ -784,7 +784,7 @@ window._modAddPollOption = function() {
   row.innerHTML = `
     <span class="mod-poll-opt-num" style="background:${color}">${count + 1}</span>
     <input class="mod-modal-input mod-poll-opt-input" placeholder="Option ${count + 1}" />
-    <button class="mod-poll-opt-remove" onclick="this.parentElement.remove(); _modRenumberOptions()">&times;</button>
+    <button class="mod-poll-opt-remove" data-action="modRemovePollOption">&times;</button>
   `;
   list.appendChild(row);
   if (count + 1 >= 6) document.getElementById("mod-add-option-btn").disabled = true;
@@ -897,7 +897,7 @@ export function moderatorViewPollResults(pollId) {
     <div class="mod-modal-box">
       <div class="mod-modal-header">
         <h2 class="mod-modal-title">Poll Results</h2>
-        <button class="mod-modal-close" onclick="document.getElementById('mod-poll-results-modal').remove()">&times;</button>
+        <button class="mod-modal-close" data-action="removeElement" data-id="mod-poll-results-modal">&times;</button>
       </div>
       <div class="mod-modal-body">
         <p style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:16px">${poll.question}</p>
@@ -925,8 +925,8 @@ export function moderatorViewPollResults(pollId) {
         <p style="margin-top:16px;font-size:12px;color:#6b7280">Total responses: ${poll.totalVotes || 0}</p>
       </div>
       <div class="mod-modal-footer">
-        <button class="mod-modal-cancel-btn" onclick="document.getElementById('mod-poll-results-modal').remove()">Close</button>
-        <button class="mod-modal-submit-btn" onclick="moderatorDownloadPollResults('${poll.id}')">Download CSV</button>
+        <button class="mod-modal-cancel-btn" data-action="removeElement" data-id="mod-poll-results-modal">Close</button>
+        <button class="mod-modal-submit-btn" data-action="moderatorDownloadPollResults" data-id="${poll.id}">Download CSV</button>
       </div>
     </div>
   `;

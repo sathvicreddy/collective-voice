@@ -142,13 +142,13 @@ export function renderActivity(tab = "questions") {
         <span class="badge success">Answered (5)</span>
       </div>
       <div class="stack">${state.questions.map((q, i) => questionCard(q, i)).join("")}</div>
-      <button class="btn" style="width:100%;margin-top:14px" onclick="go('/audience')">${icons.plus} Ask a New Question</button>
+      <button class="btn" style="width:100%;margin-top:14px" data-action="go" data-route="/audience">${icons.plus} Ask a New Question</button>
     `,
     meetings: `
       <div class="segmented" style="margin-bottom:12px">
         <button class="active">Upcoming (${meetings.filter(m => m.status === "upcoming").length})</button>
         <button>Live (${meetings.filter(m => m.status === "live").length})</button>
-        <button onclick="renderActivity('conducted')">Conducted (${meetings.filter(m => m.status === "conducted" || m.status === "past").length})</button>
+        <button data-action="renderActivity" data-tab="conducted">Conducted (${meetings.filter(m => m.status === "conducted" || m.status === "past").length})</button>
       </div>
       <div class="stack">
         ${meetings.filter(m => m.status === "live" || m.status === "upcoming").map(m => meetingCard(m)).join("")}
@@ -157,9 +157,9 @@ export function renderActivity(tab = "questions") {
     conducted: `
       <div class="stack">
         ${meetings.filter(m => m.status === "conducted" || m.status === "past").map(m =>
-          meetingCard(m, `<button class="btn secondary small" onclick="openReport('${m.id}')">${icons.barChart} Report</button>`)
+          meetingCard(m, `<button class="btn secondary small" data-action="openReport" data-id="${m.id}">${icons.barChart} Report</button>`)
         ).join("")}
-        <button class="btn secondary" style="width:100%" onclick="go('/analytics')">${icons.download} Export Report</button>
+        <button class="btn secondary" style="width:100%" data-action="go" data-route="/analytics">${icons.download} Export Report</button>
       </div>
     `,
     insights: `
@@ -199,10 +199,10 @@ export function renderActivity(tab = "questions") {
     <h1 class="screen-title">Activity</h1>
     <p class="subtle">Your engagement overview</p>
     <div class="tabs tabs-four">
-      <button class="${tab === "overview" ? "active" : ""}" onclick="renderActivity('overview')">Overview</button>
-      <button class="${tab === "questions" ? "active" : ""}" onclick="renderActivity('questions')">Questions</button>
-      <button class="${tab === "meetings" || tab === "conducted" ? "active" : ""}" onclick="renderActivity('meetings')">Meetings</button>
-      <button class="${tab === "insights" ? "active" : ""}" onclick="renderActivity('insights')">Insights</button>
+      <button class="${tab === "overview" ? "active" : ""}" data-action="renderActivity" data-tab="overview">Overview</button>
+      <button class="${tab === "questions" ? "active" : ""}" data-action="renderActivity" data-tab="questions">Questions</button>
+      <button class="${tab === "meetings" || tab === "conducted" ? "active" : ""}" data-action="renderActivity" data-tab="meetings">Meetings</button>
+      <button class="${tab === "insights" ? "active" : ""}" data-action="renderActivity" data-tab="insights">Insights</button>
     </div>
     ${mobileTabContent[tab] || mobileTabContent.questions}
   `;
@@ -228,7 +228,7 @@ export function renderActivity(tab = "questions") {
             <div class="icon-box ${s.color} act-stat-icon">${s.icon}</div>
             <div class="act-stat-value">${s.value}</div>
             <div class="act-stat-label">${s.label}</div>
-            <button class="link-btn act-stat-link" onclick="go('${s.route}')">${s.link}</button>
+            <button class="link-btn act-stat-link" data-action="go" data-route="${s.route}">${s.link}</button>
           </div>
         `).join("")}
       </div>
@@ -239,7 +239,7 @@ export function renderActivity(tab = "questions") {
         <div class="act-card act-engagement-card">
           <div class="act-card-header">
             <span class="act-card-title">Engagement Summary ${icons.info}</span>
-            <button class="link-btn" onclick="go('/analytics')">View Details</button>
+            <button class="link-btn" data-action="go" data-route="/analytics">View Details</button>
           </div>
           ${engagementDonut()}
         </div>
@@ -264,11 +264,11 @@ export function renderActivity(tab = "questions") {
             <div style="font-size:32px;margin-bottom:10px">📋</div>
             <p style="font-size:14px;font-weight:600;color:var(--ink);margin:0 0 6px">No activity yet</p>
             <p style="font-size:13px;margin:0 0 16px">Join a meeting, ask questions, and upvote to build your activity history.</p>
-            <button class="btn secondary small" onclick="go('/meetings')">${icons.calendar} Browse Meetings</button>
+            <button class="btn secondary small" data-action="go" data-route="/meetings">${icons.calendar} Browse Meetings</button>
           </div>
         </div>
         <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--line-light)">
-          <button class="link-btn" onclick="go('/activity')">View all activity</button>
+          <button class="link-btn" data-action="go" data-route="/activity">View all activity</button>
         </div>
       </div>
 
@@ -284,7 +284,7 @@ export function renderActivity(tab = "questions") {
             <div class="icon-box ${a.tone}" style="width:44px;height:44px;margin-bottom:12px">${a.icon}</div>
             <strong style="font-size:14px;font-weight:700;display:block;margin-bottom:6px;color:var(--ink)">${a.title}</strong>
             <p class="subtle" style="font-size:12px;line-height:1.5;margin-bottom:14px">${a.sub}</p>
-            <button class="link-btn" onclick="go('${a.route}')" style="font-size:13px">${a.link}</button>
+            <button class="link-btn" data-action="go" data-route="${a.route}" style="font-size:13px">${a.link}</button>
           </div>
         `).join("")}
       </div>
@@ -298,7 +298,7 @@ export function renderActivity(tab = "questions") {
       <div class="home-panel-card">
         <div class="home-panel-header">
           <span class="home-panel-title">Upcoming Meetings</span>
-          <button class="link-btn" onclick="go('/meetings')">View all</button>
+          <button class="link-btn" data-action="go" data-route="/meetings">View all</button>
         </div>
         <div class="activity-meetings-list">
           ${(() => {
@@ -306,7 +306,7 @@ export function renderActivity(tab = "questions") {
               .filter(m => m.status === "upcoming" || m.status === "live")
               .slice(0, 4);
             if (!upcoming.length) {
-              return `<p class="subtle" style="padding:12px 0;text-align:center">No upcoming meetings. <button class="link-btn" onclick="go('/meetings/create')">Create one \u2192</button></p>`;
+              return `<p class="subtle" style="padding:12px 0;text-align:center">No upcoming meetings. <button class="link-btn" data-action="go" data-route="/meetings/create">Create one \u2192</button></p>`;
             }
             return upcoming.map(m => `
               <div class="activity-meeting-item">

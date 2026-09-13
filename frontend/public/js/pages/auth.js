@@ -14,7 +14,7 @@ const app = document.querySelector("#app");
 
 /* ============================================================
    AUTH HANDLER FUNCTIONS (Phase 5)
-   Called by form submit buttons — replace onclick="go('/home')".
+   Called by form submit buttons — replace data-action="go" data-route="/home".
    ============================================================ */
 
 function _showAuthError(msg) {
@@ -148,7 +148,7 @@ export async function authReset() {
         <div style="font-size:40px;margin-bottom:12px">✅</div>
         <h3 style="font-size:18px;font-weight:800;color:#111936;margin-bottom:8px">Password Updated!</h3>
         <p style="color:#8890b0;font-size:14px;margin-bottom:24px">Your password has been changed successfully.</p>
-        <button class="auth-submit-btn" onclick="go('/login')">Log In Now</button>
+        <button class="auth-submit-btn" data-action="go" data-route="/login">Log In Now</button>
       </div>`;
     }
   } catch { _showAuthError("Network error."); }
@@ -189,7 +189,7 @@ export function renderWelcome() {
     <div class="landing-desktop" id="landing-top">
       <!-- Top Navbar -->
       <nav class="landing-nav" id="landing-nav">
-        <div class="landing-nav-brand" role="button" tabindex="0" onclick="scrollToLandingTop()" style="cursor:pointer" aria-label="Back to top">
+        <div class="landing-nav-brand" role="button" tabindex="0" data-action="scrollToLandingTop" style="cursor:pointer" aria-label="Back to top">
           <div class="landing-brand-mark">
             ${icons.mic}
           </div>
@@ -199,15 +199,15 @@ export function renderWelcome() {
           </div>
         </div>
         <div class="landing-nav-links" id="landing-nav-links">
-          <button class="landing-nav-link" id="nav-link-how" onclick="scrollToSection('how-it-works')">How It Works</button>
-          <button class="landing-nav-link" id="nav-link-features" onclick="scrollToSection('features')">Features</button>
-          <button class="landing-nav-link" id="nav-link-events" onclick="scrollToSection('for-events')">For Events</button>
-          <button class="landing-nav-link" id="nav-link-about" onclick="scrollToSection('about')">About Us</button>
+          <button class="landing-nav-link" id="nav-link-how" data-action="scrollToSection" data-section="how-it-works">How It Works</button>
+          <button class="landing-nav-link" id="nav-link-features" data-action="scrollToSection" data-section="features">Features</button>
+          <button class="landing-nav-link" id="nav-link-events" data-action="scrollToSection" data-section="for-events">For Events</button>
+          <button class="landing-nav-link" id="nav-link-about" data-action="scrollToSection" data-section="about">About Us</button>
         </div>
         <div class="landing-nav-actions">
-          <button class="landing-nav-login" id="landing-login-btn" onclick="go('/login')">Log in</button>
-          <button class="landing-nav-cta" id="landing-cta-btn" onclick="go('/signup')">Get Started <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
-          <button class="landing-hamburger" id="landing-hamburger" onclick="toggleLandingMenu()" aria-label="Menu">
+          <button class="landing-nav-login" id="landing-login-btn" data-action="go" data-route="/login">Log in</button>
+          <button class="landing-nav-cta" id="landing-cta-btn" data-action="go" data-route="/signup">Get Started <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+          <button class="landing-hamburger" id="landing-hamburger" data-action="toggleLandingMenu" aria-label="Menu">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
         </div>
@@ -215,13 +215,13 @@ export function renderWelcome() {
 
       <!-- Mobile nav overlay -->
       <div class="landing-mobile-menu" id="landing-mobile-menu">
-        <button class="landing-mobile-link" onclick="scrollToSection('how-it-works');toggleLandingMenu()">How It Works</button>
-        <button class="landing-mobile-link" onclick="scrollToSection('features');toggleLandingMenu()">Features</button>
-        <button class="landing-mobile-link" onclick="scrollToSection('for-events');toggleLandingMenu()">For Events</button>
-        <button class="landing-mobile-link" onclick="scrollToSection('about');toggleLandingMenu()">About Us</button>
+        <button class="landing-mobile-link" data-action="scrollToSection" data-section="how-it-works">How It Works</button>
+        <button class="landing-mobile-link" data-action="scrollToSection" data-section="features">Features</button>
+        <button class="landing-mobile-link" data-action="scrollToSection" data-section="for-events">For Events</button>
+        <button class="landing-mobile-link" data-action="scrollToSection" data-section="about">About Us</button>
         <hr style="border:none;border-top:1px solid #e8e0ff;margin:8px 0">
-        <button class="landing-mobile-link" onclick="go('/login');toggleLandingMenu()">Log in</button>
-        <button class="landing-mobile-link primary" onclick="go('/signup');toggleLandingMenu()">Get Started</button>
+        <button class="landing-mobile-link" data-action="go" data-route="/login">Log in</button>
+        <button class="landing-mobile-link primary" data-action="go" data-route="/signup">Get Started</button>
       </div>
 
       <!-- Hero Section -->
@@ -240,11 +240,11 @@ export function renderWelcome() {
             CollectiveVoice helps audiences ask better questions, speakers focus on what matters, and events become more engaging for everyone.
           </p>
           <div class="landing-hero-btns">
-            <button class="landing-btn-primary" id="hero-create-btn" onclick="landingCreateMeeting()">
+            <button class="landing-btn-primary" id="hero-create-btn" data-action="landingCreateMeeting">
               Create a Meeting
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
-            <button class="landing-btn-outline" id="hero-join-btn" onclick="go('/join')">
+            <button class="landing-btn-outline" id="hero-join-btn" data-action="go" data-route="/join">
               Join a Meeting
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4" rx="1"/></svg>
             </button>
@@ -380,7 +380,7 @@ export function renderWelcome() {
                 <li>Group similar doubts automatically</li>
                 <li>Works for classrooms of 5 to 5,000</li>
               </ul>
-              <button class="ls-event-btn" onclick="go('/signup')">Get Started Free →</button>
+              <button class="ls-event-btn" data-action="go" data-route="/signup">Get Started Free →</button>
             </div>
             <div class="ls-event-card ls-event-card--corp">
               <div class="ls-event-emoji">🏢</div>
@@ -391,7 +391,7 @@ export function renderWelcome() {
                 <li>Executive-level analytics</li>
                 <li>Brand your meeting room</li>
               </ul>
-              <button class="ls-event-btn" onclick="go('/signup')">Try for Your Team →</button>
+              <button class="ls-event-btn" data-action="go" data-route="/signup">Try for Your Team →</button>
             </div>
             <div class="ls-event-card ls-event-card--conf">
               <div class="ls-event-emoji">🎤</div>
@@ -402,7 +402,7 @@ export function renderWelcome() {
                 <li>Multi-speaker support</li>
                 <li>Export Q&amp;A reports</li>
               </ul>
-              <button class="ls-event-btn" onclick="go('/signup')">Host Your First Event →</button>
+              <button class="ls-event-btn" data-action="go" data-route="/signup">Host Your First Event →</button>
             </div>
           </div>
         </div>
@@ -450,15 +450,15 @@ export function renderWelcome() {
         <h2 class="ls-footer-cta-title">Ready to Make Every Voice Count?</h2>
         <p class="ls-footer-cta-sub">Join thousands of educators and event hosts already using CollectiveVoice.</p>
         <div class="ls-footer-cta-btns">
-          <button class="landing-btn-primary" id="footer-create-btn" onclick="landingCreateMeeting()">Create Free Account <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
-          <button class="ls-footer-ghost-btn" id="footer-join-btn" onclick="go('/join')">Join as Guest</button>
+          <button class="landing-btn-primary" id="footer-create-btn" data-action="landingCreateMeeting">Create Free Account <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+          <button class="ls-footer-ghost-btn" id="footer-join-btn" data-action="go" data-route="/join">Join as Guest</button>
         </div>
         <div class="ls-footer-links">
           <span class="ls-footer-link">© 2026 CollectiveVoice</span>
-          <button class="ls-footer-link" onclick="scrollToSection('how-it-works')" style="background:none;border:none;cursor:pointer;font:inherit">How It Works</button>
-          <button class="ls-footer-link" onclick="scrollToSection('features')" style="background:none;border:none;cursor:pointer;font:inherit">Features</button>
-          <button class="ls-footer-link" onclick="scrollToSection('for-events')" style="background:none;border:none;cursor:pointer;font:inherit">For Events</button>
-          <button class="ls-footer-link" onclick="scrollToSection('about')" style="background:none;border:none;cursor:pointer;font:inherit">About Us</button>
+          <button class="ls-footer-link" data-action="scrollToSection" data-section="how-it-works" style="background:none;border:none;cursor:pointer;font:inherit">How It Works</button>
+          <button class="ls-footer-link" data-action="scrollToSection" data-section="features" style="background:none;border:none;cursor:pointer;font:inherit">Features</button>
+          <button class="ls-footer-link" data-action="scrollToSection" data-section="for-events" style="background:none;border:none;cursor:pointer;font:inherit">For Events</button>
+          <button class="ls-footer-link" data-action="scrollToSection" data-section="about" style="background:none;border:none;cursor:pointer;font:inherit">About Us</button>
         </div>
       </div>
     </div>
@@ -498,10 +498,10 @@ export function renderWelcome() {
         </div>
 
         <div class="mobile-welcome-actions">
-          <button class="mobile-welcome-btn-primary" id="mobile-login-btn" onclick="go('/login')">Log In</button>
-          <button class="mobile-welcome-btn-secondary" id="mobile-signup-btn" onclick="go('/signup')">Sign Up</button>
+          <button class="mobile-welcome-btn-primary" id="mobile-login-btn" data-action="go" data-route="/login">Log In</button>
+          <button class="mobile-welcome-btn-secondary" id="mobile-signup-btn" data-action="go" data-route="/signup">Sign Up</button>
           <!-- Guest → /join lets them enter a meeting code without requiring data to be loaded -->
-          <button class="mobile-welcome-btn-ghost" id="mobile-guest-btn" onclick="go('/join')">Continue as Guest</button>
+          <button class="mobile-welcome-btn-ghost" id="mobile-guest-btn" data-action="go" data-route="/join">Continue as Guest</button>
         </div>
       </div>
     </div>
@@ -556,7 +556,7 @@ export function renderLogin(kind = "login") {
               <div class="auth-input-wrap">
                 <span class="auth-input-icon">${icons.shield}</span>
                 <input id="authPassword" class="auth-input" placeholder="Enter your password" type="password" autocomplete="${isSignup ? "new-password" : "current-password"}">
-                <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
+                <button class="auth-eye-btn" type="button" data-action="togglePassword">${icons.eye}</button>
               </div>
             </div>
 
@@ -566,16 +566,16 @@ export function renderLogin(kind = "login") {
                 <div class="auth-input-wrap">
                   <span class="auth-input-icon">${icons.shield}</span>
                   <input id="authConfirm" class="auth-input" placeholder="Confirm your password" type="password" autocomplete="new-password">
-                  <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
+                  <button class="auth-eye-btn" type="button" data-action="togglePassword">${icons.eye}</button>
                 </div>
               </div>
             ` : `
               <div class="auth-forgot-row">
-                <button class="auth-forgot-link" onclick="go('/forgot')">Forgot password?</button>
+                <button class="auth-forgot-link" data-action="go" data-route="/forgot">Forgot password?</button>
               </div>
             `}
 
-            <button type="button" class="auth-submit-btn" id="authSubmit" onclick="authSubmit()">
+            <button type="button" class="auth-submit-btn" id="authSubmit" data-action="authSubmit">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
               ${isSignup ? "Create Account" : "Log in"}
             </button>
@@ -589,7 +589,7 @@ export function renderLogin(kind = "login") {
 
             <!-- Social Buttons -->
             <div class="auth-social-row">
-              <button class="auth-social-btn" id="googleBtn" onclick="window.location.href='/api/auth/google'">
+              <button class="auth-social-btn" id="googleBtn" data-action="oauth" data-provider="google">
                 <svg viewBox="0 0 24 24" width="18" height="18">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -598,7 +598,7 @@ export function renderLogin(kind = "login") {
                 </svg>
                 Google
               </button>
-              <button type="button" class="auth-social-btn" id="microsoftBtn" disabled onclick="alert('Microsoft login is not configured'); return false;">
+              <button type="button" class="auth-social-btn" id="microsoftBtn" disabled data-action="alertNotConfigured">
                 <svg viewBox="0 0 24 24" width="18" height="18">
                   <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
                   <rect x="13" y="1" width="10" height="10" fill="#7FBA00"/>
@@ -607,7 +607,7 @@ export function renderLogin(kind = "login") {
                 </svg>
                 Microsoft
               </button>
-              <button type="button" class="auth-social-btn" id="githubBtn" disabled onclick="alert('GitHub login is not configured'); return false;">
+              <button type="button" class="auth-social-btn" id="githubBtn" disabled data-action="alertNotConfigured">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
                 </svg>
@@ -623,14 +623,14 @@ export function renderLogin(kind = "login") {
                   <strong>Join as audience</strong>
                   <span>No account needed. Enter meeting code</span>
                 </div>
-                <button type="button" class="auth-guest-btn" onclick="go('/join')">Join as Guest →</button>
+                <button type="button" class="auth-guest-btn" data-action="go" data-route="/join">Join as Guest →</button>
               </div>
             ` : ""}
 
             <!-- Switch link -->
             <p class="auth-switch">
               ${isSignup ? "Already have an account?" : "Don't have an account?"}
-              <button type="button" class="auth-switch-link" onclick="go('${isSignup ? "/login" : "/signup"}')">
+              <button type="button" class="auth-switch-link" data-action="go" data-route="${isSignup ? "/login" : "/signup"}">
                 ${isSignup ? "Log in" : "Sign up"}
               </button>
             </p>
@@ -647,7 +647,7 @@ export function renderLogin(kind = "login") {
     <!-- ===== MOBILE AUTH (hidden on desktop) ===== -->
     <div class="mobile-auth">
       <div class="mobile-auth-header">
-        <button class="mobile-auth-back" onclick="go('/welcome')">${icons.arrowLeft}</button>
+        <button class="mobile-auth-back" data-action="go" data-route="/welcome">${icons.arrowLeft}</button>
         <div class="mobile-auth-logo">
           <div class="mobile-auth-mark">${icons.mic}</div>
           <span>Collective<b>Voice</b></span>
@@ -681,7 +681,7 @@ export function renderLogin(kind = "login") {
             <div class="auth-input-wrap">
               <span class="auth-input-icon">${icons.shield}</span>
               <input id="authPassword" class="auth-input" placeholder="Enter your password" type="password" autocomplete="current-password">
-              <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
+              <button class="auth-eye-btn" type="button" data-action="togglePassword">${icons.eye}</button>
             </div>
           </div>
           ${isSignup ? `
@@ -690,16 +690,16 @@ export function renderLogin(kind = "login") {
               <div class="auth-input-wrap">
                 <span class="auth-input-icon">${icons.shield}</span>
                 <input id="authConfirm" class="auth-input" placeholder="Confirm your password" type="password" autocomplete="new-password">
-                <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
+                <button class="auth-eye-btn" type="button" data-action="togglePassword">${icons.eye}</button>
               </div>
             </div>
           ` : `
             <div class="auth-forgot-row">
-              <button type="button" class="auth-forgot-link" onclick="go('/forgot')">Forgot password?</button>
+              <button type="button" class="auth-forgot-link" data-action="go" data-route="/forgot">Forgot password?</button>
             </div>
           `}
 
-          <button type="button" class="auth-submit-btn" id="authSubmit" onclick="authSubmit()">
+          <button type="button" class="auth-submit-btn" id="authSubmit" data-action="authSubmit">
             ${isSignup ? "Create Account" : "Log in"}
           </button>
 
@@ -710,15 +710,15 @@ export function renderLogin(kind = "login") {
           </div>
 
           <div class="auth-social-row">
-            <button type="button" class="auth-social-btn" id="mobile-google-btn" onclick="window.location.href='/api/auth/google'">
+            <button type="button" class="auth-social-btn" id="mobile-google-btn" data-action="oauth" data-provider="google">
               <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
               Google
             </button>
-            <button type="button" class="auth-social-btn" id="mobile-microsoft-btn" disabled onclick="alert('Microsoft login is not configured'); return false;">
+            <button type="button" class="auth-social-btn" id="mobile-microsoft-btn" disabled data-action="alertNotConfigured">
               <svg viewBox="0 0 24 24" width="18" height="18"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
               Microsoft
             </button>
-            <button type="button" class="auth-social-btn" id="mobile-github-btn" disabled onclick="alert('GitHub login is not configured'); return false;">
+            <button type="button" class="auth-social-btn" id="mobile-github-btn" disabled data-action="alertNotConfigured">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
               GitHub
             </button>
@@ -731,13 +731,13 @@ export function renderLogin(kind = "login") {
                 <strong>Join as audience</strong>
                 <span>No account needed. Enter meeting code</span>
               </div>
-              <button type="button" class="auth-guest-btn" onclick="go('/join')">Join as Guest →</button>
+              <button type="button" class="auth-guest-btn" data-action="go" data-route="/join">Join as Guest →</button>
             </div>
           ` : ""}
 
           <p class="auth-switch">
             ${isSignup ? "Already have an account?" : "Don't have an account?"}
-            <button type="button" class="auth-switch-link" onclick="go('${isSignup ? "/login" : "/signup"}')">
+            <button type="button" class="auth-switch-link" data-action="go" data-route="${isSignup ? "/login" : "/signup"}">
               ${isSignup ? "Log in" : "Sign up"}
             </button>
           </p>
@@ -769,9 +769,9 @@ export function renderOnboarding(step = 1) {
         </div>
         <div style="display:flex;flex-direction:column;gap:12px">
           ${index < slides.length - 1
-      ? `<button class="auth-submit-btn" onclick="go('/onboarding/${index + 2}')">Next</button>`
-      : `<button class="auth-submit-btn" onclick="go('/login')">Get Started</button>`}
-          <button class="auth-switch-link" onclick="go('/home')" style="padding:12px">Skip</button>
+      ? `<button class="auth-submit-btn" data-action="go" data-route="/onboarding/${index + 2}">Next</button>`
+      : `<button class="auth-submit-btn" data-action="go" data-route="/login">Get Started</button>`}
+          <button class="auth-switch-link" data-action="go" data-route="/home" style="padding:12px">Skip</button>
         </div>
       </div>
     </div>
@@ -785,7 +785,7 @@ export function renderForgot() {
   app.innerHTML = `
     <div class="mobile-auth">
       <div class="mobile-auth-header">
-        <button class="mobile-auth-back" onclick="go('/login')">${icons.arrowLeft}</button>
+        <button class="mobile-auth-back" data-action="go" data-route="/login">${icons.arrowLeft}</button>
         <div class="mobile-auth-logo">
           <div class="mobile-auth-mark">${icons.mic}</div>
           <span>Collective<b>Voice</b></span>
@@ -803,10 +803,10 @@ export function renderForgot() {
               <input class="auth-input" placeholder="Enter your email" type="email">
             </div>
           </div>
-          <button class="auth-submit-btn" onclick="authForgot()">Send Reset Link</button>
+          <button class="auth-submit-btn" data-action="authForgot">Send Reset Link</button>
           <p class="auth-switch">
             Remember your password?
-            <button class="auth-switch-link" onclick="go('/login')">Log in</button>
+            <button class="auth-switch-link" data-action="go" data-route="/login">Log in</button>
           </p>
         </div>
       </div>
@@ -826,7 +826,7 @@ export function renderReset() {
   app.innerHTML = `
     <div class="mobile-auth">
       <div class="mobile-auth-header">
-        <button class="mobile-auth-back" onclick="go('/login')">${icons.arrowLeft}</button>
+        <button class="mobile-auth-back" data-action="go" data-route="/login">${icons.arrowLeft}</button>
         <div class="mobile-auth-logo">
           <div class="mobile-auth-mark">${icons.mic}</div>
           <span>Collective<b>Voice</b></span>
@@ -846,7 +846,7 @@ export function renderReset() {
             <div class="auth-input-wrap">
               <span class="auth-input-icon">${icons.shield}</span>
               <input id="resetPassword" class="auth-input" placeholder="Enter new password (min 8 chars)" type="password" autocomplete="new-password">
-              <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
+              <button class="auth-eye-btn" type="button" data-action="togglePassword">${icons.eye}</button>
             </div>
           </div>
           <div class="auth-field">
@@ -854,7 +854,7 @@ export function renderReset() {
             <div class="auth-input-wrap">
               <span class="auth-input-icon">${icons.shield}</span>
               <input id="resetConfirm" class="auth-input" placeholder="Confirm new password" type="password" autocomplete="new-password">
-              <button class="auth-eye-btn" type="button" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'">${icons.eye}</button>
+              <button class="auth-eye-btn" type="button" data-action="togglePassword">${icons.eye}</button>
             </div>
           </div>
           <div class="auth-password-rules">
@@ -862,9 +862,9 @@ export function renderReset() {
             <span>${icons.checkCircle} Include a number</span>
             <span>${icons.checkCircle} Include an uppercase letter</span>
           </div>
-          <button class="auth-submit-btn" id="resetSubmitBtn" onclick="authReset()">Reset Password</button>
+          <button class="auth-submit-btn" id="resetSubmitBtn" data-action="authReset">Reset Password</button>
           ` : `
-          <button class="auth-submit-btn" onclick="go('/forgot')">Request New Reset Link</button>
+          <button class="auth-submit-btn" data-action="go" data-route="/forgot">Request New Reset Link</button>
           `}
         </div>
       </div>

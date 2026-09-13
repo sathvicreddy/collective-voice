@@ -35,7 +35,7 @@ export async function renderMeetingDetail(meetingId) {
         ${icons.calendar}
         <h3>Meeting Not Found</h3>
         <p>This meeting may have been deleted or you don't have access.</p>
-        <button class="btn" style="margin-top:12px" onclick="go('/meetings')">
+        <button class="btn" style="margin-top:12px" data-action="go" data-route="/meetings">
           Back to Meetings
         </button>
       </div>
@@ -105,9 +105,9 @@ function _renderHostView(m) {
   const html = `
     <!-- Breadcrumb -->
     <div class="md-breadcrumb">
-      <span onclick="go('/meetings')" style="cursor:pointer">Meetings</span>
+      <span data-action="go" data-route="/meetings" style="cursor:pointer">Meetings</span>
       <span class="sep">›</span>
-      <span onclick="go('/meetings')" style="cursor:pointer">My Scheduled Meetings</span>
+      <span data-action="go" data-route="/meetings" style="cursor:pointer">My Scheduled Meetings</span>
       <span class="sep">›</span>
       <span class="current">Meeting Details</span>
     </div>
@@ -134,7 +134,7 @@ function _renderHostView(m) {
                   </p>
                 </div>
               </div>
-              <button class="md-edit-btn" id="md-edit-btn" onclick="mdEditMeeting('${m.id}')">
+              <button class="md-edit-btn" id="md-edit-btn" data-action="mdEditMeeting" data-id="${m.id}">
                 ${icons.edit} Edit Meeting
               </button>
             </div>
@@ -211,7 +211,7 @@ function _renderHostView(m) {
 
           <!-- Download button -->
           <div class="qr-download-wrap">
-            <button class="qr-download-btn" onclick="mdDownloadQR('${m.id}')">
+            <button class="qr-download-btn" data-action="mdDownloadQR" data-id="${m.id}">
               ${icons.download} Download QR
             </button>
           </div>
@@ -222,16 +222,16 @@ function _renderHostView(m) {
           <div class="md-sidebar-title">Meeting Actions</div>
           <div class="md-actions-body">
             <button class="md-action-btn primary" id="md-start-btn"
-                    onclick="mdStartMeeting('${m.id}')">
+                    data-action="mdStartMeeting" data-id="${m.id}">
               ${icons.arrowRight} ${status === "live" ? "Continue Meeting" : "Start Meeting"}
             </button>
-            <button class="md-action-btn" onclick="mdInviteParticipants('${m.id}')">
+            <button class="md-action-btn" data-action="mdInviteParticipants" data-id="${m.id}">
               ${icons.users} Invite Participants
             </button>
-            <button class="md-action-btn" onclick="mdShareMeeting('${m.id}')">
+            <button class="md-action-btn" data-action="mdShareMeeting" data-id="${m.id}">
               ${icons.share} Share Meeting
             </button>
-            <button class="md-action-btn danger" onclick="mdDeleteMeeting('${m.id}')">
+            <button class="md-action-btn danger" data-action="mdDeleteMeeting" data-id="${m.id}">
               ${icons.flag} Delete Meeting
             </button>
           </div>
@@ -295,7 +295,7 @@ function _hostTabOverview(m, joinLink) {
   const linkValue = joinLink
     ? `<div class="ov-link-row">
          <a class="ov-link-text" href="${joinLink}" target="_blank">${joinLink}</a>
-         <button class="ov-copy-pill" id="md-copy-link-btn" onclick="mdCopyLink('${joinLink}')">
+         <button class="ov-copy-pill" id="md-copy-link-btn" data-action="mdCopyLink" data-link="${joinLink}">
            ${icons.link} Copy
          </button>
        </div>`
@@ -361,7 +361,7 @@ function _hostTabOverview(m, joinLink) {
           <div class="ov-ready-badge">Ready to Launch</div>
           <h3 class="ov-ready-title">Be ready to go live!</h3>
           <p class="ov-ready-desc">Start at the scheduled time — participants can join instantly via link or QR code.</p>
-          <button class="ov-invite-btn" onclick="mdInviteParticipants('${m.id}')">
+          <button class="ov-invite-btn" data-action="mdInviteParticipants" data-id="${m.id}">
             ${icons.users} Invite Participants
           </button>
         </div>
@@ -462,9 +462,9 @@ function _renderParticipantView(m) {
   const html = `
     <!-- Breadcrumb -->
     <div class="md-breadcrumb">
-      <span onclick="go('/meetings')">Meetings</span>
+      <span data-action="go" data-route="/meetings">Meetings</span>
       <span class="sep">›</span>
-      <span onclick="go('/meetings')">Upcoming Meetings</span>
+      <span data-action="go" data-route="/meetings">Upcoming Meetings</span>
       <span class="sep">›</span>
       <span class="current">Meeting Details</span>
     </div>
@@ -518,7 +518,7 @@ function _renderParticipantView(m) {
                 <td><div class="md-dt-label">${icons.hash} Meeting ID</div></td>
                 <td class="md-dt-value">
                   ${shortId}
-                  <button class="md-copy-btn" onclick="mdCopyLink('${shortId}')" style="display:inline;margin-left:4px">
+                  <button class="md-copy-btn" data-action="mdCopyLink" data-link="${shortId}" style="display:inline;margin-left:4px">
                     ${icons.link}
                   </button>
                 </td>
@@ -559,7 +559,7 @@ function _renderParticipantView(m) {
         <!-- Status notice -->
         <div class="md-card" style="padding:20px 24px 16px">
           ${noticeHtml}
-          <div class="md-cal-row" onclick="mdAddToCalendar('${m.id}')">
+          <div class="md-cal-row" data-action="mdAddToCalendar" data-id="${m.id}">
             <div class="md-cal-row-left">${icons.calendar} Add to Calendar</div>
             ${icons.chevronRight}
           </div>
@@ -579,7 +579,7 @@ function _renderParticipantView(m) {
             </p>
             <button class="md-join-btn ${isLive ? "active" : "inactive"}"
                     id="md-join-btn"
-                    onclick="${isLive ? `mdJoinNow('${m.id}')` : "void(0)"}">
+                    data-action="mdJoinNowCond" data-islive="${isLive}" data-id="${m.id}">
               ${icons.monitor} Join Meeting
               ${!isLive ? `<br><span id="md-join-time-hint" style="font-size:11px;font-weight:400">(Will be active when the host starts)</span>` : ""}
             </button>

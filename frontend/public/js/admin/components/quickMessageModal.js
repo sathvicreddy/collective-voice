@@ -35,7 +35,7 @@ export function openQuickMessageModal({ audienceLabel, recipientCount = null, on
   overlay.addEventListener('click', closeQuickMessageModal);
 
   overlay.innerHTML = `
-    <div class="modal qmm-card" onclick="event.stopPropagation()" style="max-width:480px;width:calc(100% - 40px)">
+    <div class="modal qmm-card" data-action="stopPropagation" style="max-width:480px;width:calc(100% - 40px)">
 
       <!-- Header -->
       <div class="qmm-header">

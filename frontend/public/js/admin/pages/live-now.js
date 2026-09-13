@@ -67,7 +67,7 @@ export function renderLiveNow() {
         </div>
         <div class="spacer"></div>
         <button class="refresh-btn" title="Refresh" onclick="refreshLiveNow()">${IC.refresh}</button>
-        <div class="sort-select-wrap">Sort by: <select class="sort-select" onchange="sortLiveMeetings(this.value)">
+        <div class="sort-select-wrap">Sort by: <select class="sort-select" data-change="sortLiveMeetings">
           <option value="participants" ${_liveSort==='participants'?'selected':''}>Most participants</option>
           <option value="questions"    ${_liveSort==='questions'?'selected':''}>Most questions</option>
         </select></div>

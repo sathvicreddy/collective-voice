@@ -72,7 +72,7 @@ export function renderNLPEngine() {
                 <div class="nlp-slider-wrap">
                   <input type="range" id="nlp-threshold" class="nlp-slider" min="0" max="1" step="0.01" value="${nlpThreshold}"
                     style="--pct:${(nlpThreshold*100).toFixed(1)}%"
-                    oninput="updateNlpThreshold(this.value)">
+                    data-input="updateNlpThreshold">
                 </div>
                 <span class="nlp-range-val">1.00</span>
               </div>

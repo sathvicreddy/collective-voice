@@ -172,18 +172,18 @@ export function renderHelp() {
   const mobileContent = `
     <div class="hs-mobile">
       <div class="hs-mobile-header">
-        <button class="icon-btn ghost-icon" onclick="history.back()">${icons.arrowLeft}</button>
+        <button class="icon-btn ghost-icon" data-action="historyBack">${icons.arrowLeft}</button>
         <span class="hs-mobile-title">Help & Support</span>
       </div>
 
       <div class="hs-mobile-search-wrap">
         <svg class="hs-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="hs-search-input" placeholder="Search for help articles…" oninput="helpSearch(this.value)">
+        <input class="hs-search-input" placeholder="Search for help articles…" data-input="helpSearch">
       </div>
 
       <div class="hs-mobile-categories">
         ${CATEGORIES.map(c => `
-          <div class="hs-m-cat-card" onclick="openHelpCategory('${c.id}')">
+          <div class="hs-m-cat-card" data-action="openHelpCategory" data-id="${c.id}">
             <div class="hs-m-cat-icon">${c.icon}</div>
             <div class="hs-m-cat-title">${c.title}</div>
             <div class="hs-m-cat-desc">${c.desc}</div>
@@ -194,7 +194,7 @@ export function renderHelp() {
       <div class="hs-mobile-section">
         <div class="hs-mobile-section-title">Popular Articles</div>
         ${ARTICLES.map(a => `
-          <div class="hs-article-row" onclick="openHelpArticle('${a.id}')">
+          <div class="hs-article-row" data-action="openHelpArticle" data-id="${a.id}">
             <svg class="hs-article-icon" viewBox="0 0 24 24" fill="none" stroke="${a.tagColor}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <div class="hs-article-body">
               <div class="hs-article-title">${a.title}</div>
@@ -226,14 +226,14 @@ export function renderHelp() {
             class="hs-search-input-desktop"
             id="hs-search-desktop"
             placeholder="Search for help articles…"
-            oninput="helpSearch(this.value)"
+            data-input="helpSearch"
           >
         </div>
 
         <!-- Categories grid -->
         <div class="hs-categories-grid">
           ${CATEGORIES.map(c => `
-            <div class="hs-cat-card" onclick="openHelpCategory('${c.id}')">
+            <div class="hs-cat-card" data-action="openHelpCategory" data-id="${c.id}">
               <div class="hs-cat-icon">${c.icon}</div>
               <div class="hs-cat-title">${c.title}</div>
               <div class="hs-cat-desc">${c.desc}</div>
@@ -248,7 +248,7 @@ export function renderHelp() {
         <div class="hs-articles-section">
           <div class="hs-articles-header">
             <span class="hs-articles-title">Popular Articles</span>
-            <button class="hs-view-all-btn" onclick="showHelpToast('Opening all articles…')">
+            <button class="hs-view-all-btn" data-action="showHelpToast" data-msg="Opening all articles…">
               View All Articles
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>
@@ -256,7 +256,7 @@ export function renderHelp() {
 
           <div class="hs-articles-list">
             ${ARTICLES.map(a => `
-              <div class="hs-article-row" onclick="openHelpArticle('${a.id}')">
+              <div class="hs-article-row" data-action="openHelpArticle" data-id="${a.id}">
                 <svg class="hs-article-icon-d" viewBox="0 0 24 24" fill="none" stroke="#8890b0" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                 <div class="hs-article-body">
                   <div class="hs-article-title-d">${a.title}</div>
@@ -285,7 +285,7 @@ export function renderHelp() {
 
           <div class="hs-contact-list">
             <!-- Live Chat -->
-            <div class="hs-contact-row" onclick="helpLiveChat()">
+            <div class="hs-contact-row" data-action="helpLiveChat">
               <div class="hs-contact-icon" style="background:#edf9f3">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </div>
@@ -297,7 +297,7 @@ export function renderHelp() {
             </div>
 
             <!-- Email -->
-            <div class="hs-contact-row" onclick="showHelpToast('Opening email support…')">
+            <div class="hs-contact-row" data-action="showHelpToast" data-msg="Opening email support…">
               <div class="hs-contact-icon" style="background:#f0ecff">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#5b34ff" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               </div>
@@ -309,7 +309,7 @@ export function renderHelp() {
             </div>
 
             <!-- Phone -->
-            <div class="hs-contact-row" onclick="showHelpToast('Showing phone support…')">
+            <div class="hs-contact-row" data-action="showHelpToast" data-msg="Showing phone support…">
               <div class="hs-contact-icon" style="background:#fff7ed">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg>
               </div>
@@ -330,7 +330,7 @@ export function renderHelp() {
           </div>
           <div class="hs-resources-list">
             ${RESOURCES.map(r => `
-              <div class="hs-resource-row" onclick="showHelpToast('Opening: ${r.title}')">
+              <div class="hs-resource-row" data-action="showHelpToast" data-msg="Opening: ${r.title}">
                 <div class="hs-resource-icon" style="background:${r.iconBg}">${r.icon}</div>
                 <div>
                   <div class="hs-resource-title">${r.title}</div>

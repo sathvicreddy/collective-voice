@@ -37,14 +37,14 @@ export function topbar(showBack = false) {
     ${statusBar()}
     <div class="topbar">
       ${showBack
-        ? `<button class="icon-btn ghost-icon" onclick="history.back()" aria-label="Go back">${icons.arrowLeft}</button>`
+        ? `<button class="icon-btn ghost-icon" data-action="historyBack" aria-label="Go back">${icons.arrowLeft}</button>`
         : brand()}
       <div class="topbar-actions">
-        <button class="icon-btn ghost-icon" style="position:relative" onclick="go('/notifications')" aria-label="Notifications">
+        <button class="icon-btn ghost-icon" style="position:relative" data-action="go" data-route="/notifications" aria-label="Notifications">
           ${icons.bell}
           ${notifCount > 0 ? `<span style="position:absolute;top:-4px;right:-4px;background:#e54040;color:#fff;font-size:10px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}
         </button>
-        <button class="icon-btn" onclick="go('/profile')" aria-label="Profile">${avatarLetter}</button>
+        <button class="icon-btn" data-action="go" data-route="/profile" aria-label="Profile">${avatarLetter}</button>
       </div>
     </div>
   `;
@@ -69,11 +69,11 @@ export function desktopTopbar(title = "", subtitle = "", dateRange = "") {
             ${icons.calendar} ${dateRange} ${icons.chevronDown}
           </button>
         ` : ""}
-        <div class="desktop-notif-btn" onclick="go('/notifications')" style="position:relative">
+        <div class="desktop-notif-btn" data-action="go" data-route="/notifications" style="position:relative">
           ${icons.bell}
           ${notifCount > 0 ? `<span class="desktop-notif-badge">${notifCount > 9 ? "9+" : notifCount}</span>` : ""}
         </div>
-        <div class="desktop-user-pill" onclick="go('/profile')">
+        <div class="desktop-user-pill" data-action="go" data-route="/profile">
           <div class="desktop-avatar">${initials}</div>
           <div class="desktop-user-info">
             <span class="desktop-user-name">${name}</span>
@@ -98,7 +98,7 @@ export function bottomNav(active) {
   return `
     <nav class="bottom-nav" aria-label="Main navigation">
       ${items.map(([route, label, icon]) => `
-        <button class="${active === label.toLowerCase() ? "active" : ""}" onclick="go('${route}')">
+        <button class="${active === label.toLowerCase() ? "active" : ""}" data-action="go" data-route="${route}">
           ${icon}<span>${label}</span>
         </button>
       `).join("")}
@@ -136,13 +136,13 @@ export function sidebar() {
       ${brand()}
       <div class="side-nav" style="flex:1">
         ${topNav.map(([route, label, icon]) => `
-          <button class="nav-btn ${state.route === route ? "active" : ""}" onclick="go('${route}')">
+          <button class="nav-btn ${state.route === route ? "active" : ""}" data-action="go" data-route="${route}">
             ${icon}<span>${label}</span>
           </button>
         `).join("")}
         <div class="divider" style="margin: 12px 0;"></div>
         ${bottomNavItems.map(([route, label, icon]) => `
-          <button class="nav-btn ${state.route === route ? "active" : ""}" onclick="go('${route}')">
+          <button class="nav-btn ${state.route === route ? "active" : ""}" data-action="go" data-route="${route}">
             ${icon}<span>${label}</span>
           </button>
         `).join("")}
@@ -159,7 +159,7 @@ export function sidebar() {
         </div>
         <strong>Join a Meeting</strong>
         <p class="subtle" style="font-size:11px; margin: 6px 0 12px">Have a meeting ID or QR code? Join and be a part of the conversation.</p>
-        <button class="btn" style="width:100%" onclick="go('/join')">Join Meeting</button>
+        <button class="btn" style="width:100%" data-action="go" data-route="/join">Join Meeting</button>
       </div>
     </aside>
   `;
@@ -215,7 +215,7 @@ export function desktopDashboard() {
     <section class="panel" style="padding:22px; margin-bottom: 24px">
       <div class="section-header">
         <h2 class="screen-title" style="font-size: 14px">Recent Activity</h2>
-        <button class="link-btn" onclick="go('/activity')">View all</button>
+        <button class="link-btn" data-action="go" data-route="/activity">View all</button>
       </div>
       
       <div class="stack" style="gap: 16px; margin-top: 16px">
@@ -232,7 +232,7 @@ export function desktopDashboard() {
           <div style="font-size:28px;margin-bottom:8px">✨</div>
           <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 4px">No activity yet</p>
           <p style="font-size:12px;margin:0 0 12px">Join a meeting to get started.</p>
-          <button class="btn secondary" style="width:100%;font-size:12px" onclick="go('/meetings')">${icons.calendar} Browse Meetings</button>
+          <button class="btn secondary" style="width:100%;font-size:12px" data-action="go" data-route="/meetings">${icons.calendar} Browse Meetings</button>
         </div>
         `}
       </div>
@@ -241,7 +241,7 @@ export function desktopDashboard() {
     <section class="panel" style="padding:22px">
       <h2 class="screen-title" style="font-size: 14px; margin-bottom: 12px">Stay Updated</h2>
       <p class="subtle" style="font-size: 13px; margin-bottom: 16px; line-height: 1.5">Get notified about upcoming meetings and live sessions.</p>
-      <button class="btn secondary" style="width:100%; justify-content:space-between" onclick="go('/notifications')">
+      <button class="btn secondary" style="width:100%; justify-content:space-between" data-action="go" data-route="/notifications">
         <span class="row" style="gap:8px">${icons.bell} Manage Notifications</span>
         ${icons.arrowRight}
       </button>
@@ -255,7 +255,7 @@ export function meetingCard(meeting, action = "") {
   const isLive = meeting.status === "live";
   const safeId = String(meeting.id || "").replace(/[^a-zA-Z0-9_-]/g, "");
   return `
-    <article class="meeting-card" onclick="openMeetingDetail('${safeId}')" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')openMeetingDetail('${safeId}')">
+    <article class="meeting-card" data-action="openMeetingDetail" data-id="${safeId}" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')openMeetingDetail('${safeId}')">
       <div class="icon-box ${isLive ? "green" : ""}">
         ${isLive ? icons.zap : icons.calendar}
       </div>
@@ -292,14 +292,14 @@ export function questionCard(question, index, moderator = false) {
         </div>
         ${moderator ? `
           <div class="row" style="gap:6px;flex-wrap:wrap">
-            <button class="btn secondary small" onclick="go('/question/${safeId}')">${icons.eye} Details</button>
-            <button class="btn secondary small" onclick="window.moderatorAnswerQuestion && moderatorAnswerQuestion('${safeId}')">${icons.check} Answered</button>
-            <button class="btn secondary small" onclick="window.moderatorDeferQuestion && moderatorDeferQuestion('${safeId}')">${icons.pause} Defer</button>
+            <button class="btn secondary small" data-action="go" data-route="/question/${safeId}">${icons.eye} Details</button>
+            <button class="btn secondary small" data-action="moderatorAnswerQuestion" data-id="${safeId}">${icons.check} Answered</button>
+            <button class="btn secondary small" data-action="moderatorDeferQuestion" data-id="${safeId}">${icons.pause} Defer</button>
             <button class="btn secondary small" onclick="window.moderatorFlagQuestion && moderatorFlagQuestion('${safeId}')">${icons.flag} Flag</button>
           </div>
         ` : `
           <div class="row" style="gap:6px">
-            <button class="btn secondary small" onclick="go('/question/${safeId}')">${icons.eye} Details</button>
+            <button class="btn secondary small" data-action="go" data-route="/question/${safeId}">${icons.eye} Details</button>
             <button class="btn secondary small" onclick="window.participantUpvote && participantUpvote('${safeId}')">${icons.thumbsUp} Upvote</button>
           </div>
         `}

@@ -153,7 +153,7 @@ export function renderProfile() {
       <span class="badge" style="margin:6px 0">${role}</span>
       <p class="subtle" style="margin-top:8px">${icons.mail} ${email}</p>
       <p class="subtle">${icons.calendar} Joined ${joined}</p>
-      <button class="edit-profile-btn" style="margin-top:10px" onclick="go('/settings')">${icons.edit} Edit Profile</button>
+      <button class="edit-profile-btn" style="margin-top:10px" data-action="go" data-route="/settings">${icons.edit} Edit Profile</button>
     </div>
 
     <div class="wide-cards" style="grid-template-columns:repeat(2,1fr);margin:8px 0 20px;gap:10px">
@@ -179,13 +179,13 @@ export function renderProfile() {
         [icons.helpCircle, "Help & Support",           "Get help and contact support"],
         [icons.info,       "About CollectiveVoice",    "Version 1.4.0"]
       ].map(([ic, title, desc]) => `
-        <button class="list-card row" style="gap:14px" onclick="go('/settings')">
+        <button class="list-card row" style="gap:14px" data-action="go" data-route="/settings">
           <div class="icon-box" style="width:36px;height:36px">${ic}</div>
           <span style="flex:1;text-align:left"><strong style="font-size:14px">${title}</strong><br><span class="subtle">${desc}</span></span>
           ${icons.chevronRight}
         </button>
       `).join("")}
-      <button class="list-card row" style="gap:14px;color:var(--danger)" onclick="profileLogout()">
+      <button class="list-card row" style="gap:14px;color:var(--danger)" data-action="profileLogout">
         <div class="icon-box red" style="width:36px;height:36px">${icons.logOut}</div>
         <span style="flex:1;text-align:left"><strong style="font-size:14px">Log Out</strong></span>
         ${icons.chevronRight}
@@ -214,7 +214,7 @@ export function renderProfile() {
           <p class="prof-meta-item">${icons.mail} ${email}</p>
           <p class="prof-meta-item">${icons.calendar} Joined ${joined}</p>
         </div>
-        <button class="edit-profile-btn" onclick="go('/settings')">${icons.edit} Edit Profile</button>
+        <button class="edit-profile-btn" data-action="go" data-route="/settings">${icons.edit} Edit Profile</button>
       </div>
     </div>
 
@@ -237,10 +237,10 @@ export function renderProfile() {
 
     <!-- Tabs -->
     <div class="prof-tabs">
-      <button class="prof-tab active" onclick="profileTab(this,'overview')">Overview</button>
-      <button class="prof-tab" onclick="profileTab(this,'achievements')">Achievements</button>
-      <button class="prof-tab" onclick="profileTab(this,'badges')">Badges</button>
-      <button class="prof-tab" onclick="profileTab(this,'preferences')">Preferences</button>
+      <button class="prof-tab active" data-action="profileTab" data-tab="overview">Overview</button>
+      <button class="prof-tab" data-action="profileTab" data-tab="achievements">Achievements</button>
+      <button class="prof-tab" data-action="profileTab" data-tab="badges">Badges</button>
+      <button class="prof-tab" data-action="profileTab" data-tab="preferences">Preferences</button>
     </div>
 
     <!-- Tab Panels -->
@@ -329,7 +329,7 @@ export function renderProfile() {
     </div>
     <div id="prof-panel-preferences" class="prof-tab-panel" style="display:none">
       <div class="prof-card">
-        <p class="subtle" style="padding:12px 0">Manage preferences in <button class="link-btn" onclick="go('/settings')">Settings</button>.</p>
+        <p class="subtle" style="padding:12px 0">Manage preferences in <button class="link-btn" data-action="go" data-route="/settings">Settings</button>.</p>
       </div>
     </div>
 
@@ -344,7 +344,7 @@ export function renderProfile() {
           <div style="font-size:32px;margin-bottom:10px">💬</div>
           <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 6px">No questions yet</p>
           <p style="font-size:12px;margin:0 0 14px">Join a meeting and ask your first question to see it here.</p>
-          <button class="btn secondary small" onclick="go('/meetings')">${icons.calendar} Find a Meeting</button>
+          <button class="btn secondary small" data-action="go" data-route="/meetings">${icons.calendar} Find a Meeting</button>
         </div>
       </div>
     </div>
