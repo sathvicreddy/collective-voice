@@ -142,6 +142,10 @@ function handleEvent(e, attributePrefix) {
     console.warn(`No handler registered or on window for data-${attributePrefix}="${actionName}"`);
     return;
   }
+  
+  if (attributePrefix === "submit") {
+      e.preventDefault();
+  }
 
   if (attributePrefix === 'change' || attributePrefix === 'input') {
       const val = el.value || (el.type === 'checkbox' ? el.checked : null);
@@ -162,5 +166,8 @@ export function setupDelegation() {
   document.addEventListener("change", e => handleEvent(e, "change"));
   document.addEventListener("input", e => handleEvent(e, "input"));
   document.addEventListener("keydown", e => handleEvent(e, "keydown"));
-  document.addEventListener("submit", e => handleEvent(e, "submit"));
+  document.addEventListener("submit", e => {
+      e.preventDefault();
+      handleEvent(e, "submit");
+  });
 }
