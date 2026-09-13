@@ -1997,4 +1997,50 @@
   }
 }
 
+/* ── Mobile (≤600px) ────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .mtg-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
 
+  .mtg-topbar-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .mtg-cta-row {
+    grid-template-columns: 1fr;
+  }
+
+  .mtg-cta-card {
+    padding: 16px 18px;
+  }
+
+  .ms-desktop-stats-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mtg-page-title {
+    font-size: 20px;
+  }
+
+  .jp-desktop-left {
+    padding: 28px 24px;
+    min-height: auto;
+  }
+
+  .ms-desktop-hero {
+    padding: 28px 24px 24px;
+  }
+
+  .mtg-search-wrap {
+    width: 100%;
+  }
+
+  .mtg-search-wrap input {
+    width: 100%;
+  }
+}

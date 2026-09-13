@@ -276,6 +276,11 @@ window.scrollToLandingTop = function scrollToLandingTop() {
   }
 };
 
+window.toggleLandingMenu = function toggleLandingMenu() {
+  const menu = document.getElementById("landing-mobile-menu");
+  if (menu) menu.classList.toggle("open");
+};
+
 /**
  * Auth-guarded "Create a Meeting" button on the landing page.
  * - Logged-in users go straight to the create flow.

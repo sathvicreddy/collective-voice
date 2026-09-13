@@ -1153,3 +1153,18 @@
     justify-content: center;
   }
 }
+
+/* Very small screens */
+@media (max-width: 400px) {
+  .rpt-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rpt-header-actions {
+    flex-wrap: wrap;
+  }
+
+  .rpt-sub-stats {
+    grid-template-columns: 1fr;
+  }
+}

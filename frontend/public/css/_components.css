@@ -284,11 +284,19 @@
   gap: 12px;
   align-items: center;
   animation: fadeIn .3s ease-out;
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
 }
 
 .meeting-card:hover {
   border-color: var(--primary-light);
   box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.meeting-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius);
 }
 
 .meeting-card h3 {
@@ -462,6 +470,8 @@
   background: var(--white);
   margin: 14px 0;
   gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tabs-four {
@@ -653,7 +663,7 @@
 
 .bar-row {
   display: grid;
-  grid-template-columns: 120px 1fr 40px;
+  grid-template-columns: minmax(60px, 120px) 1fr 40px;
   gap: 10px;
   align-items: center;
   font-size: 13px;

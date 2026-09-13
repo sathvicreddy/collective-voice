@@ -253,8 +253,9 @@ export function desktopDashboard() {
 
 export function meetingCard(meeting, action = "") {
   const isLive = meeting.status === "live";
+  const safeId = String(meeting.id || "").replace(/[^a-zA-Z0-9_-]/g, "");
   return `
-    <article class="meeting-card">
+    <article class="meeting-card" onclick="openMeetingDetail('${safeId}')" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')openMeetingDetail('${safeId}')">
       <div class="icon-box ${isLive ? "green" : ""}">
         ${isLive ? icons.zap : icons.calendar}
       </div>

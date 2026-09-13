@@ -129,3 +129,21 @@
 body.compact-mode .panel,
 body.compact-mode .list-card { padding: 10px 14px; }
 body.compact-mode .stack     { gap: 8px; }
+
+/* ── Dark mode: bottom nav ───────────────────────────────────── */
+[data-theme="dark"] .bottom-nav {
+  background: rgba(18, 20, 42, .96);
+  border-top-color: var(--line);
+}
+
+/* ── Dark mode: live card ────────────────────────────────────── */
+[data-theme="dark"] .live-card {
+  background: linear-gradient(135deg, #1e2038 0%, #252745 60%, #2e2d5a 100%);
+  border-color: var(--line);
+}
+
+/* ── Dark mode: home live banner ─────────────────────────────── */
+[data-theme="dark"] .home-live-banner {
+  background: linear-gradient(135deg, #1e2038 0%, #252745 60%, #2e2d5a 100%);
+  border-color: var(--line);
+}

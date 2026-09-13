@@ -864,3 +864,21 @@
   padding: 6px 28px 0;
 }
 
+/* ── Mobile (≤600px) ────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .activity-stats-row,
+  .act-stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-action-grid,
+  .act-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-tabs,
+  .act-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

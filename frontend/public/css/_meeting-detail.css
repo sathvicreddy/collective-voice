@@ -1021,3 +1021,15 @@
 .md-error svg { width: 48px; height: 48px; color: var(--line); }
 .md-error h3 { font-size: 18px; font-weight: 700; color: var(--ink); margin: 0; }
 .md-error p  { font-size: 14px; margin: 0; }
+
+/* ── Small mobile (≤600px) ────────────────────────────────── */
+@media (max-width: 600px) {
+  .md-breadcrumb { padding: 14px 16px 0; font-size: 12px; }
+  .md-layout { padding: 12px 14px 40px; }
+  .md-card { margin-bottom: 12px; }
+  .md-host-header { padding: 16px 18px 14px; }
+  .md-host-title { font-size: 18px; }
+  .md-host-header-top { flex-direction: column; }
+  .md-host-actions { width: 100%; }
+  .md-host-actions .btn { width: 100%; justify-content: center; }
+}

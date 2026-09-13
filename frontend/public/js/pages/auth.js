@@ -207,8 +207,22 @@ export function renderWelcome() {
         <div class="landing-nav-actions">
           <button class="landing-nav-login" id="landing-login-btn" onclick="go('/login')">Log in</button>
           <button class="landing-nav-cta" id="landing-cta-btn" onclick="go('/signup')">Get Started <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+          <button class="landing-hamburger" id="landing-hamburger" onclick="toggleLandingMenu()" aria-label="Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
         </div>
       </nav>
+
+      <!-- Mobile nav overlay -->
+      <div class="landing-mobile-menu" id="landing-mobile-menu">
+        <button class="landing-mobile-link" onclick="scrollToSection('how-it-works');toggleLandingMenu()">How It Works</button>
+        <button class="landing-mobile-link" onclick="scrollToSection('features');toggleLandingMenu()">Features</button>
+        <button class="landing-mobile-link" onclick="scrollToSection('for-events');toggleLandingMenu()">For Events</button>
+        <button class="landing-mobile-link" onclick="scrollToSection('about');toggleLandingMenu()">About Us</button>
+        <hr style="border:none;border-top:1px solid #e8e0ff;margin:8px 0">
+        <button class="landing-mobile-link" onclick="go('/login');toggleLandingMenu()">Log in</button>
+        <button class="landing-mobile-link primary" onclick="go('/signup');toggleLandingMenu()">Get Started</button>
+      </div>
 
       <!-- Hero Section -->
       <div class="landing-hero">
