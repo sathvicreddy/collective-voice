@@ -14,6 +14,8 @@
     "test:auth": "jest --testPathPattern=backend/tests/auth --forceExit",
     "test:nlp": "jest --testPathPattern=backend/tests/nlp --forceExit",
     "test:db": "jest --testPathPattern=backend/tests/db --forceExit",
+    "test:clustering": "jest --testPathPattern=backend/tests/clustering --forceExit",
+    "test:clustering:integration": "jest --testPathPattern=backend/tests/clustering --forceExit",
     "test:watch": "jest --testPathPattern=backend/tests --watch",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",

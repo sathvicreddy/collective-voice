@@ -61,11 +61,12 @@ model Meeting {
   owner       User?    @relation(fields: [ownerId], references: [id])
 
   // Children
-  questions    Question[]
-  polls        Poll[]
-  participants Participant[]
-  enrollments  MeetingEnrollment[]
-  gracePeriod  GracePeriod?
+  questions        Question[]
+  polls            Poll[]
+  participants     Participant[]
+  enrollments      MeetingEnrollment[]
+  gracePeriod      GracePeriod?
+  questionClusters QuestionCluster[]
 }
 
 // ── Questions ─────────────────────────────────────────────────────────────────
@@ -93,6 +94,47 @@ model Question {
 
   votes_rel  Vote[]
   reactions  Reaction[]
+
+  // Phase-7 clustering: the Question row may belong to a QuestionCluster
+  clusterId  String?          // null until clustering runs
+  cluster    QuestionCluster? @relation(fields: [clusterId], references: [id])
+}
+
+// ── Question Clusters (Phase 7 — NLP semantic clustering) ─────────────────────────────────
+// One row per semantic cluster of related questions within a meeting.
+// The representative embedding is the first question's embedding — stored
+// once at cluster creation so similarity comparisons never need an extra
+// DB round-trip to recompute a centroid.
+
+model QuestionCluster {
+  id               String   @id @default(cuid())
+
+  // The meeting this cluster belongs to.
+  meetingId        String
+  meeting          Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  // Accumulated vote count across all merged questions in this cluster.
+  voteCount        Int      @default(1)
+
+  // Whether the moderator has marked this cluster answered.
+  // The clustering service only considers open (false) clusters when searching
+  // for merge candidates, keeping the comparison set small.
+  isAnswered       Boolean  @default(false)
+
+  // Representative embedding: JSON-stringified Float32Array (384 dims, all-MiniLM-L6-v2).
+  // Null when the model was unavailable at creation time (Dice fallback path).
+  embeddingJson    String?
+
+  // Canonical (best-phrased) question text from the cluster members.
+  canonicalText    String   @default("")
+
+  // All member Question rows that have been merged into this cluster.
+  questions        Question[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([meetingId, isAnswered])  // fast per-meeting open-cluster fetch
 }
 
 // ── Polls ─────────────────────────────────────────────────────────────────────
