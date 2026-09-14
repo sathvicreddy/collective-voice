@@ -258,7 +258,7 @@ async function handleApiRequest(req, res) {
     const ownedIds      = ownedMeetings.map(m => m.id);
 
     // Find meetings the user is enrolled in
-    const enrolledMeetings = await db.enrollment.findMany({
+    const enrolledMeetings = await db.meetingEnrollment.findMany({
       where: { userId: user.id },
       select: { meetingId: true }
     });
@@ -294,6 +294,52 @@ async function handleApiRequest(req, res) {
   if (req.method === "GET" && url.pathname === "/api/meetings") {
     const meetings = await db.meeting.findMany({ orderBy: { createdAt: "desc" } });
     return json(res, 200, { meetings });
+  }
+
+  // ── GET /api/meetings/mine ───────────────────────────────────────────────────
+  // MUST be before the generic /:id route — "mine" would otherwise be treated as an id.
+  // Returns the authenticated user's personally-enrolled meetings.
+  // The host also sees all meetings they own.
+  if (req.method === "GET" && url.pathname === "/api/meetings/mine") {
+    const auth = await requireAuth(req);
+    if (!auth) return json(res, 401, { error: "Unauthorized." });
+
+    const { user } = auth;
+
+    // Meetings enrolled in (attendee side)
+    const enrollments = await db.meetingEnrollment.findMany({
+      where:   { userId: user.id },
+      include: { meeting: { include: { gracePeriod: true } } },
+      orderBy: { enrolledAt: "desc" }
+    });
+    const enrolledMeetings = enrollments.map(e => ({
+      ...e.meeting,
+      enrolledAt: e.enrolledAt,
+      joinMethod: e.joinMethod
+    }));
+
+    // Meetings the user hosts (always included)
+    const ownedMeetings = await db.meeting.findMany({
+      where:   { ownerId: user.id },
+      include: { gracePeriod: true },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Merge, de-duplicate by id (host may also be enrolled in their own meeting)
+    const seen = new Set();
+    const all  = [...enrolledMeetings, ...ownedMeetings].filter(m => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+
+    // Split into upcoming, live, past, expired for the client
+    const upcoming  = all.filter(m => m.status === "upcoming" || m.status === "scheduled");
+    const live      = all.filter(m => m.status === "live");
+    const past      = all.filter(m => m.status === "conducted" || m.status === "past");
+    const expired   = all.filter(m => m.status === "expired");
+
+    return json(res, 200, { meetings: all, upcoming, live, past, expired });
   }
 
   // ── GET /api/meetings/:id ─────────────────────────────────
@@ -1896,51 +1942,6 @@ async function handleApiRequest(req, res) {
 
     const action = meeting.status === "live" ? "join_now" : "added_to_upcoming";
     return json(res, 201, { meeting, enrollment, action });
-  }
-
-  // ── GET /api/meetings/mine ───────────────────────────────────────────────────
-  // Returns the authenticated user's personally-enrolled meetings.
-  // The host also sees all meetings they own.
-  if (req.method === "GET" && url.pathname === "/api/meetings/mine") {
-    const auth = await requireAuth(req);
-    if (!auth) return json(res, 401, { error: "Unauthorized." });
-
-    const { user } = auth;
-
-    // Meetings enrolled in (attendee side)
-    const enrollments = await db.meetingEnrollment.findMany({
-      where:   { userId: user.id },
-      include: { meeting: { include: { gracePeriod: true } } },
-      orderBy: { enrolledAt: "desc" }
-    });
-    const enrolledMeetings = enrollments.map(e => ({
-      ...e.meeting,
-      enrolledAt: e.enrolledAt,
-      joinMethod: e.joinMethod
-    }));
-
-    // Meetings the user hosts (always included)
-    const ownedMeetings = await db.meeting.findMany({
-      where:   { ownerId: user.id },
-      include: { gracePeriod: true },
-      orderBy: { createdAt: "desc" }
-    });
-
-    // Merge, de-duplicate by id (host may also be enrolled in their own meeting)
-    const seen = new Set();
-    const all  = [...enrolledMeetings, ...ownedMeetings].filter(m => {
-      if (seen.has(m.id)) return false;
-      seen.add(m.id);
-      return true;
-    });
-
-    // Split into upcoming, live, past, expired for the client
-    const upcoming  = all.filter(m => m.status === "upcoming" || m.status === "scheduled");
-    const live      = all.filter(m => m.status === "live");
-    const past      = all.filter(m => m.status === "conducted" || m.status === "past");
-    const expired   = all.filter(m => m.status === "expired");
-
-    return json(res, 200, { meetings: all, upcoming, live, past, expired });
   }
 
   // ── GET /api/meetings/:id/grace ──────────────────────────────────────────────
