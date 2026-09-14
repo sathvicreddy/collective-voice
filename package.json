@@ -16,6 +16,8 @@
     "test:db": "jest --testPathPattern=backend/tests/db --forceExit",
     "test:clustering": "jest --testPathPattern=backend/tests/clustering --forceExit",
     "test:clustering:integration": "jest --testPathPattern=backend/tests/clustering --forceExit",
+    "test:e2e": "cross-env TEST_SKIP_INTEGRATION=1 jest --testPathPattern=clustering.e2e --forceExit --verbose",
+    "test:e2e:integration": "jest --testPathPattern=clustering.e2e --forceExit --verbose",
     "test:watch": "jest --testPathPattern=backend/tests --watch",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",
