@@ -145,7 +145,7 @@ export async function authReset() {
     const form = document.querySelector(".mobile-auth-form");
     if (form) {
       form.innerHTML = `<div style="text-align:center;padding:24px 0">
-        <div style="font-size:40px;margin-bottom:12px">✅</div>
+        <div style="width:52px;height:52px;margin:0 auto 16px;border-radius:50%;background:linear-gradient(135deg,#24b86f20,#24b86f10);display:grid;place-items:center;color:#24b86f">${icons.resetSuccess}</div>
         <h3 style="font-size:18px;font-weight:800;color:#111936;margin-bottom:8px">Password Updated!</h3>
         <p style="color:#8890b0;font-size:14px;margin-bottom:24px">Your password has been changed successfully.</p>
         <button type="button" class="auth-submit-btn" data-action="go" data-route="/login">Log In Now</button>
@@ -432,13 +432,13 @@ export function renderWelcome() {
             <div class="ls-about-right">
               <div class="ls-value-cards">
                 ${[
-      { emoji: "🎯", title: "Purpose-Built", desc: "Designed specifically for live event Q&A — not a generic tool forced into a new shape." },
-      { emoji: "🔒", title: "Privacy First", desc: "Anonymous questions by default. We never sell data and your sessions are encrypted end-to-end." },
-      { emoji: "⚡", title: "Lightning Fast", desc: "Questions appear in under 40ms. Our real-time engine handles thousands of simultaneous participants." },
-      { emoji: "🌍", title: "Inclusive Design", desc: "Works on any device, any browser, any connection speed — no app download required." },
+      { icon: icons.purposeBuilt, title: "Purpose-Built", desc: "Designed specifically for live event Q&A — not a generic tool forced into a new shape.", tone: "purple" },
+      { icon: icons.privacyFirst, title: "Privacy First", desc: "Anonymous questions by default. We never sell data and your sessions are encrypted end-to-end.", tone: "green" },
+      { icon: icons.lightningFast, title: "Lightning Fast", desc: "Questions appear in under 40ms. Our real-time engine handles thousands of simultaneous participants.", tone: "orange" },
+      { icon: icons.inclusiveDesign, title: "Inclusive Design", desc: "Works on any device, any browser, any connection speed — no app download required.", tone: "blue" },
     ].map(v => `
                   <div class="ls-value-card">
-                    <span class="ls-value-emoji">${v.emoji}</span>
+                    <span class="ls-value-icon ls-value-icon--${v.tone}">${v.icon}</span>
                     <div>
                       <div class="ls-value-title">${v.title}</div>
                       <div class="ls-value-desc">${v.desc}</div>
@@ -535,7 +535,7 @@ export function renderLogin(kind = "login") {
       <!-- Right White Panel -->
       <div class="auth-right">
         <div class="auth-right-inner">
-          <h2 class="auth-right-title">${isSignup ? "Create account 🎉" : "Welcome back! 👋"}</h2>
+          <h2 class="auth-right-title">${isSignup ? `<span style="display:inline-flex;align-items:center;gap:10px">Create account <span class="auth-title-icon auth-title-icon--celebrate">${icons.celebrate}</span></span>` : `<span style="display:inline-flex;align-items:center;gap:10px">Welcome back! <span class="auth-title-icon auth-title-icon--wave">${icons.wave}</span></span>`}</h2>
           <p class="auth-right-sub">${isSignup ? "Sign up to get started with CollectiveVoice" : "Log in to continue to CollectiveVoice"}</p>
 
           <form class="auth-form" data-submit="authSubmit">
@@ -662,7 +662,7 @@ export function renderLogin(kind = "login") {
       </div>
 
       <div class="mobile-auth-body">
-        <h1 class="mobile-auth-title">${isSignup ? "Create account 🎉" : "Welcome back! 👋"}</h1>
+        <h1 class="mobile-auth-title">${isSignup ? `<span style="display:inline-flex;align-items:center;gap:8px">Create account <span class="auth-title-icon auth-title-icon--celebrate">${icons.celebrate}</span></span>` : `<span style="display:inline-flex;align-items:center;gap:8px">Welcome back! <span class="auth-title-icon auth-title-icon--wave">${icons.wave}</span></span>`}</h1>
         <p class="mobile-auth-sub">${isSignup ? "Sign up to get started" : "Log in to continue"}</p>
 
         <form class="mobile-auth-form" data-submit="authSubmit">
@@ -799,7 +799,7 @@ export function renderForgot() {
         <div style="width:36px"></div>
       </div>
       <div class="mobile-auth-body">
-        <h1 class="mobile-auth-title">Forgot Password 🔑</h1>
+        <h1 class="mobile-auth-title"><span style="display:inline-flex;align-items:center;gap:8px">Forgot Password <span class="auth-title-icon auth-title-icon--key">${icons.keyIcon}</span></span></h1>
         <p class="mobile-auth-sub">Enter your email and we'll send instructions to reset your password.</p>
         <form class="mobile-auth-form" data-submit="authForgot">
           <div class="auth-field">
@@ -840,10 +840,10 @@ export function renderReset() {
         <div style="width:36px"></div>
       </div>
       <div class="mobile-auth-body">
-        <h1 class="mobile-auth-title">Reset Password ✅</h1>
+        <h1 class="mobile-auth-title"><span style="display:inline-flex;align-items:center;gap:8px">Reset Password <span class="auth-title-icon auth-title-icon--success">${icons.resetSuccess}</span></span></h1>
         ${hasToken
       ? `<p class="mobile-auth-sub">Enter your new password below.</p>`
-      : `<p class="mobile-auth-sub" style="color:#e54040">⚠️ Invalid or expired reset link. Please request a new one.</p>`
+      : `<p class="mobile-auth-sub" style="color:#e54040;display:flex;align-items:center;gap:6px"><span style="width:16px;height:16px;flex-shrink:0;color:#e54040">${icons.warningTriangle}</span> Invalid or expired reset link. Please request a new one.</p>`
     }
         <form class="mobile-auth-form" id="reset-form" data-submit="authReset">
           ${hasToken ? `

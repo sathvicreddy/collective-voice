@@ -122,18 +122,18 @@ export function renderMeetings() {
         font-size:13px;
       ">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:700;color:#ff8a2a">⏱ Meeting Overdue</span>
+          <span style="display:inline-flex;align-items:center;gap:5px;font-weight:700;color:#ff8a2a">${icons.timer} Meeting Overdue</span>
           <span style="font-family:monospace;font-weight:700;color:#ff8a2a" id="grace-cd-${m.id}">${countStr}</span>
         </div>
         <p style="color:var(--ink-secondary);margin-bottom:10px;font-size:12px">Grace period — start now or choose an option.</p>
         <div style="display:flex;gap:8px">
           <button class="btn small" style="flex:1;font-size:12px"
             data-action="extendMeeting" data-id="${m.id}" data-mins="30">
-            ⏱ Extend 30 min
+            ${icons.timer} Extend 30 min
           </button>
           <button class="btn secondary small" style="flex:1;font-size:12px"
             data-action="showRescheduleDialog" data-id="${m.id}">
-            📅 Reschedule
+            ${icons.reschedule} Reschedule
           </button>
         </div>
       </div>
@@ -225,7 +225,7 @@ export function renderMeetings() {
       </div>
       ` : `
       <div class="home-panel-card" style="text-align:center;padding:28px 16px">
-        <div style="font-size:28px;margin-bottom:8px">📅</div>
+        <div style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:0 auto 12px;border-radius:12px;background:var(--soft);color:var(--primary)">${icons.calendarEmpty}</div>
         <p style="font-weight:700;color:#111936;margin:0 0 4px">No meetings today</p>
         <p style="font-size:12px;color:#68708d;margin:0 0 16px">Schedule a meeting to get started</p>
         <button class="btn" style="width:100%" data-action="go" data-route="/meetings/create">${icons.plus} Create Meeting</button>
@@ -240,7 +240,7 @@ export function renderMeetings() {
         </div>
         <div class="home-activity-list">
           <div style="text-align:center;padding:20px 12px;color:var(--muted)">
-            <div style="font-size:24px;margin-bottom:8px">✨</div>
+            <div style="width:36px;height:36px;margin:0 auto 10px;border-radius:10px;background:var(--soft);display:grid;place-items:center;color:var(--muted)">${icons.sparkle}</div>
             <p style="font-size:12px;font-weight:600;color:var(--ink);margin:0 0 4px">No activity yet</p>
             <p style="font-size:11px;margin:0">Join a meeting to start building your history.</p>
           </div>
@@ -1260,7 +1260,7 @@ export function renderCreate(step = "type") {
               <div class="cf-heading-top">
                 <h1 class="cf-heading-title">${isInstant ? 'Start an Instant Meeting' : 'Schedule a Meeting'}</h1>
                 <span class="cf-mode-chip ${isInstant ? 'cf-mode-chip--live' : 'cf-mode-chip--sched'}">
-                  ${isInstant ? '<span class="cf-live-dot"></span> Live Now' : '📅 Scheduled'}
+                  ${isInstant ? '<span class="cf-live-dot"></span> Live Now' : `${icons.scheduledIcon} Scheduled`}
                 </span>
               </div>
               <p class="cf-heading-sub">${isInstant
@@ -1273,7 +1273,7 @@ export function renderCreate(step = "type") {
 
         <div class="cf-section">
           <div class="cf-section-header">
-            <span class="cf-section-icon">${icons.edit || icons.pen || '✏️'}</span>
+            <span class="cf-section-icon">${icons.edit}</span>
             <div>
               <div class="cf-section-title">Basic Details</div>
               <div class="cf-section-sub">Provide the essential information about your meeting</div>

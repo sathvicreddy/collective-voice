@@ -17,7 +17,7 @@ export function renderHome() {
 
   /* ---- Mobile content (phone frame) ---- */
   const mobileContent = `
-    <h1 class="screen-title">Hello, ${userName}! 👋</h1>
+    <h1 class="screen-title">Hello, ${userName}! <span class="greeting-icon">${icons.wave}</span></h1>
     <p class="subtle">Welcome back! Let's make conversations count.</p>
 
     <div class="quick-grid">
@@ -85,7 +85,7 @@ export function renderHome() {
     <div class="home-desktop-main">
       <!-- Greeting -->
       <div class="home-greeting">
-        <h1 class="home-greeting-title">Hello, ${userName}! 👋</h1>
+        <h1 class="home-greeting-title">Hello, ${userName}! <span class="greeting-icon">${icons.wave}</span></h1>
         <p class="home-greeting-sub">Welcome back! Let's make conversations count.</p>
       </div>
 
@@ -168,7 +168,8 @@ export function renderHome() {
           </div>
         `).join("")
           : `<div style="text-align:center;padding:20px 0;color:var(--muted);font-size:13px">
-              📅 No upcoming meetings yet.<br>
+              <div style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;margin:0 auto 12px;border-radius:10px;background:var(--soft);color:var(--primary)">${icons.calendarEmpty}</div>
+              No upcoming meetings yet.<br>
               <button class="link-btn" style="margin-top:8px" data-action="go" data-route="/meetings/create">Create your first meeting →</button>
             </div>`
         }
@@ -187,7 +188,7 @@ export function renderHome() {
         </div>
         <div class="home-activity-list">
           <div style="text-align:center;padding:24px 16px;color:var(--muted)">
-            <div style="font-size:28px;margin-bottom:8px">✨</div>
+            <div style="width:40px;height:40px;margin:0 auto 12px;border-radius:10px;background:var(--soft);display:grid;place-items:center;color:var(--muted)">${icons.sparkle}</div>
             <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 4px">No activity yet</p>
             <p style="font-size:12px;margin:0">Join or create a meeting to start building your activity history.</p>
             <button class="btn" style="margin-top:14px;font-size:12px" data-action="go" data-route="/meetings">${icons.calendar} Browse Meetings</button>
