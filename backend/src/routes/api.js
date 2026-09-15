@@ -9,6 +9,7 @@
 const crypto  = require("crypto");
 const qrcode  = require("qrcode");
 const db      = require("../db/client");
+const config  = require("../config");
 const { json, readBody } = require("../utils/helpers");
 const { processQuestion } = require("../nlp/engine");
 const { recomputeScores } = require("../nlp/scoring");
@@ -16,6 +17,7 @@ const { handleAuthRequest, verifyToken } = require("./auth");
 const { buildMeetingDigest }             = require("../utils/reportSummary");
 const { sendDigestEmail }                = require("../utils/mailer");
 const { notifyUser, notifyAdmins }       = require("../utils/notify");
+const { handleMeetingRequest }           = require("./meetings.routes");
 
 // ── NLP in-memory cache ───────────────────────────────────────
 // Questions are stored in Prisma but kept in RAM for fast NLP access.
@@ -242,6 +244,9 @@ async function handleApiRequest(req, res) {
     const handled = await handleAuthRequest(req, res);
     if (handled !== null) return;
   }
+
+  // ── Meetings / Polls / Home router (Phase 3a) ─────────────
+  if (await handleMeetingRequest(req, res, url, req.method)) return;
 
   // ── GET /health ──────────────────────────────────────────
   if (req.method === "GET" && url.pathname === "/health") {
@@ -1824,16 +1829,16 @@ async function handleApiRequest(req, res) {
     if (auth.user.role !== "admin" && auth.user.role !== "superadmin") return json(res, 403, { error: "Admin only." });
 
     return json(res, 200, {
-      threshold: parseFloat(process.env.NLP_THRESHOLD || "0.60"),
+      threshold: parseFloat(process.env.NLP_THRESHOLD || String(config.nlp.threshold)),
       weights: {
-        vote:    parseFloat(process.env.SCORE_ALPHA  || "0.40"),
-        fresh:   parseFloat(process.env.SCORE_BETA   || "0.25"),
-        novel:   parseFloat(process.env.SCORE_GAMMA  || "0.20"),
-        diverse: parseFloat(process.env.SCORE_DELTA  || "0.15"),
+        vote:    parseFloat(process.env.SCORE_ALPHA  || String(config.nlp.weights.vote)),
+        fresh:   parseFloat(process.env.SCORE_BETA   || String(config.nlp.weights.fresh)),
+        novel:   parseFloat(process.env.SCORE_GAMMA  || String(config.nlp.weights.novel)),
+        diverse: parseFloat(process.env.SCORE_DELTA  || String(config.nlp.weights.diverse)),
       },
       rateLimiting: {
-        maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "5"),
-        windowMs:    parseInt(process.env.RATE_LIMIT_WINDOW_MS    || "900000"),
+        maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || String(config.rateLimit.maxRequests)),
+        windowMs:    parseInt(process.env.RATE_LIMIT_WINDOW_MS    || String(config.rateLimit.windowMs)),
       }
     });
   }
@@ -1876,7 +1881,7 @@ async function handleApiRequest(req, res) {
       const { computeSimilarity } = require("../nlp/engine");
       if (computeSimilarity) {
         const score = await computeSimilarity(a.trim(), b.trim());
-        return json(res, 200, { score: Math.round(score * 100), wouldMerge: score >= parseFloat(process.env.NLP_THRESHOLD || "0.60") });
+        return json(res, 200, { score: Math.round(score * 100), wouldMerge: score >= parseFloat(process.env.NLP_THRESHOLD || String(config.nlp.threshold)) });
       }
     } catch { /* fallback below */ }
     // Fallback: dice-coefficient approximation
@@ -1884,7 +1889,7 @@ async function handleApiRequest(req, res) {
     const tokensB = new Set(b.toLowerCase().split(/\s+/));
     const inter = [...tokensA].filter(t => tokensB.has(t)).length;
     const dice = (2 * inter) / (tokensA.size + tokensB.size);
-    return json(res, 200, { score: Math.round(dice * 100), wouldMerge: dice >= parseFloat(process.env.NLP_THRESHOLD || "0.60") });
+    return json(res, 200, { score: Math.round(dice * 100), wouldMerge: dice >= parseFloat(process.env.NLP_THRESHOLD || String(config.nlp.threshold)) });
   }
 
 
@@ -2431,9 +2436,11 @@ async function handleApiRequestSafe(req, res) {
 }
 
 module.exports = handleApiRequestSafe;
-// Export NLP internals so server.js WS handler can share the same code path
-module.exports._nlpCache         = _nlpCache;
-module.exports.persistCluster    = persistCluster;
-module.exports.submitQuestionShared = submitQuestionShared;
+// Export NLP internals so server.js WS handler can share the same code path.
+// These now delegate to question.service.js which is the canonical home.
+const _qSvc = require("../services/question.service");
+module.exports._nlpCache            = _qSvc._nlpCache;
+module.exports.persistCluster       = _qSvc.persistCluster;
+module.exports.submitQuestionShared = _qSvc.submitQuestionShared;
 
 

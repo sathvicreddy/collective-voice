@@ -6,6 +6,7 @@
 "use strict";
 
 const nodemailer = require("nodemailer");
+const config     = require("../config");
 
 // ── Transport ─────────────────────────────────────────────────
 // Build once; reuse across calls. Falls back to Ethereal-style
@@ -15,18 +16,18 @@ let _transport = null;
 function _getTransport() {
   if (_transport) return _transport;
 
-  if (!process.env.SMTP_HOST) {
+  if (!config.smtp.host) {
     // Dev stub — no SMTP configured, log to console
     return null;
   }
 
   _transport = nodemailer.createTransport({
-    host:   process.env.SMTP_HOST,
-    port:   parseInt(process.env.SMTP_PORT || "587", 10),
-    secure: process.env.SMTP_PORT === "465",
+    host:   config.smtp.host,
+    port:   config.smtp.port,
+    secure: config.smtp.port === 465,
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: config.smtp.user,
+      pass: config.smtp.pass,
     },
   });
   return _transport;
@@ -42,14 +43,14 @@ async function sendMail({ to, subject, html }) {
 
   if (!transport) {
     // Dev-only fallback — never runs in production because SMTP_HOST is required
-    if (process.env.NODE_ENV !== "production") {
+    if (!config.isProduction) {
       console.log(`[Mailer] (dev stub — no SMTP) To: ${to} | Subject: ${subject}`);
     }
     return;
   }
 
   await transport.sendMail({
-    from:    process.env.SMTP_FROM || `"CollectiveVoice" <noreply@collectivevoice.app>`,
+    from:    config.smtp.from,
     to,
     subject,
     html,

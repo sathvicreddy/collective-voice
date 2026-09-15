@@ -270,7 +270,7 @@ export function renderWelcome() {
           <div class="landing-trust">
             <span class="landing-trust-label">Trusted by educators, organizations and event hosts</span>
             <div class="landing-trust-logos">
-              <span class="landing-trust-logo">🎓 LPU</span>
+              <span class="landing-trust-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg> LPU</span>
               <span class="landing-trust-logo">◆ IEEE</span>
               <span class="landing-trust-logo"><b>NASSCOM</b></span>
               <span class="landing-trust-logo"><b>JGI</b></span>
@@ -372,7 +372,9 @@ export function renderWelcome() {
           </div>
           <div class="ls-events-grid">
             <div class="ls-event-card ls-event-card--edu">
-              <div class="ls-event-emoji">🎓</div>
+              <div class="ls-event-icon ls-event-icon--edu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+              </div>
               <h3 class="ls-event-title">Education</h3>
               <p class="ls-event-desc">Transform lectures into interactive sessions. Students ask anonymously, instructors answer the most critical questions first.</p>
               <ul class="ls-event-list">
@@ -383,7 +385,9 @@ export function renderWelcome() {
               <button type="button" class="ls-event-btn" data-action="go" data-route="/signup">Get Started Free →</button>
             </div>
             <div class="ls-event-card ls-event-card--corp">
-              <div class="ls-event-emoji">🏢</div>
+              <div class="ls-event-icon ls-event-icon--corp">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><path d="M2 12h20"/></svg>
+              </div>
               <h3 class="ls-event-title">Corporate Events</h3>
               <p class="ls-event-desc">All-hands meetings, town halls, and conferences — give every employee a voice without the chaos of open mic sessions.</p>
               <ul class="ls-event-list">
@@ -394,7 +398,9 @@ export function renderWelcome() {
               <button type="button" class="ls-event-btn" data-action="go" data-route="/signup">Try for Your Team →</button>
             </div>
             <div class="ls-event-card ls-event-card--conf">
-              <div class="ls-event-emoji">🎤</div>
+              <div class="ls-event-icon ls-event-icon--conf">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              </div>
               <h3 class="ls-event-title">Conferences &amp; Webinars</h3>
               <p class="ls-event-desc">From small workshops to international conferences — real-time Q&amp;A that keeps your speakers and audience in sync.</p>
               <ul class="ls-event-list">

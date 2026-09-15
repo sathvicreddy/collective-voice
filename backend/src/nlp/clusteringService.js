@@ -110,13 +110,13 @@ async function findOrCreateCluster(meetingId, questionText, questionId) {
   // The @@index([meetingId, isAnswered]) on QuestionCluster makes this
   // an index seek. Expected row count: < 50 during a live meeting.
   const openClusters = await db.questionCluster.findMany({
-    where:  { meetingId, isAnswered: false },
+    where: { meetingId, isAnswered: false },
     select: { id: true, embeddingJson: true, voteCount: true, canonicalText: true },
   });
 
   // ── 3. Find best cosine match ──────────────────────────────
-  let bestCluster  = null;
-  let bestSim      = 0;
+  let bestCluster = null;
+  let bestSim = 0;
 
   if (incomingEmbedding !== null) {
     // Semantic path: compare against each cluster's representative embedding.
@@ -134,8 +134,8 @@ async function findOrCreateCluster(meetingId, questionText, questionId) {
 
       const sim = cosineSimilarity(incomingEmbedding, clusterEmbedding);
       if (sim > bestSim) {
-        bestSim      = sim;
-        bestCluster  = cluster;
+        bestSim = sim;
+        bestCluster = cluster;
       }
     }
   }
@@ -147,11 +147,11 @@ async function findOrCreateCluster(meetingId, questionText, questionId) {
     await db.$transaction([
       db.questionCluster.update({
         where: { id: bestCluster.id },
-        data:  { voteCount: { increment: 1 } },
+        data: { voteCount: { increment: 1 } },
       }),
       db.question.update({
         where: { id: questionId },
-        data:  { clusterId: bestCluster.id },
+        data: { clusterId: bestCluster.id },
       }),
     ]);
 
@@ -175,8 +175,8 @@ async function findOrCreateCluster(meetingId, questionText, questionId) {
   const newCluster = await db.questionCluster.create({
     data: {
       meetingId,
-      voteCount:     1,
-      isAnswered:    false,
+      voteCount: 1,
+      isAnswered: false,
       embeddingJson,
       canonicalText: questionText,
       // Link the first Question row to this cluster immediately.

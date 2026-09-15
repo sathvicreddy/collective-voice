@@ -3173,6 +3173,13 @@
   color: var(--ink, #111936);
   line-height: 1;
 }
+.ptc-reaction-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  stroke: var(--muted, #68708d);
+}
+.ptc-reaction-btn:hover svg { stroke: var(--primary, #5b34ff); }
 .ptc-reaction-btn:hover {
   background: var(--soft, #f6f4ff);
   border-color: var(--primary-light, #7c5cff);

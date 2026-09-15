@@ -76,7 +76,7 @@ function renderPollWidget(poll, votedOptionId) {
               </div>
             `;
           }).join("")}
-          <p class="ptc-poll-thanks">✓ Your vote was recorded · ${poll.totalVotes} total votes</p>
+          <p class="ptc-poll-thanks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;vertical-align:-1px;margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>Your vote was recorded &middot; ${poll.totalVotes} total votes</p>
         </div>
       ` : `
         <!-- Voting view -->
@@ -107,17 +107,17 @@ const STATUS_COLORS = {
 // Render reaction buttons for a question card
 function renderReactionBar(q) {
   const rc = q.reactionCounts || {};
-  const emojis = [
-    { key: "thumbsup", glyph: "👍" },
-    { key: "thinking",  glyph: "🤔" },
-    { key: "fire",      glyph: "🔥" }
+  const reactions = [
+    { key: "thumbsup", svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>` },
+    { key: "thinking", svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>` },
+    { key: "fire",     svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.66 11.2c-.23-.3-.51-.56-.77-.82-.67-.6-1.43-1.03-2.07-1.66C13.33 7.26 13 4.85 13.95 3c-1 .23-1.97.8-2.72 1.5C9.08 6.16 8 8.56 8 11c-.76-.03-1.48-.3-2.09-.73-.02.28-.03.56-.03.84 0 3.86 2.62 7.1 6.32 7.84C13.4 19.94 14.67 20 16 20c2.2 0 4-1.79 4-4 0-1.04-.42-2.01-1.16-2.72C18.43 12.67 18.08 11.96 17.66 11.2z"/></svg>` }
   ];
   return `
     <div class="ptc-reaction-bar">
-      ${emojis.map(e => `
+      ${reactions.map(e => `
         <button class="ptc-reaction-btn" data-action="participantReact" data-id="${q.id}" data-key="${e.key}"
           title="${e.key}" aria-label="React with ${e.key}">
-          ${e.glyph}
+          ${e.svg}
           ${rc[e.key] ? `<span class="ptc-reaction-count">${rc[e.key]}</span>` : ""}
         </button>
       `).join("")}
@@ -222,13 +222,13 @@ function renderAdminAnnouncementBanner() {
   const { subject, body, senderName } = _adminAnnouncement;
   return `
     <div class="cv-admin-announcement" role="alert" aria-live="assertive" id="cvAdminAnnouncement">
-      <span class="cv-admin-announce-icon">📢</span>
+      <span class="cv-admin-announce-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M22 4L12 14.01l-4-4L1 17"/><path d="M1 12l3 5 5-3"/><path d="M22 4l-1 6-5-1"/></svg></span>
       <div class="cv-admin-announce-body">
         <strong class="cv-admin-announce-subject">${subject || "Announcement"}</strong>
         ${body ? `<span class="cv-admin-announce-text">${body}</span>` : ""}
         ${senderName ? `<span class="cv-admin-announce-from">— ${senderName}</span>` : ""}
       </div>
-      <button class="cv-admin-announce-dismiss" data-action="dismissAnnouncement" title="Dismiss">✕</button>
+      <button class="cv-admin-announce-dismiss" data-action="dismissAnnouncement" title="Dismiss">&times;</button>
     </div>
   `;
 }
@@ -238,7 +238,7 @@ function renderAnsweringBanner(nowAnswering) {
   if (!nowAnswering?.text) return "";
   return `
     <div class="cv-answering-banner" role="status" aria-live="polite">
-      🎤 <strong>Now answering:</strong> ${nowAnswering.text}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> <strong>Now answering:</strong> ${nowAnswering.text}
     </div>
   `;
 }
@@ -369,7 +369,9 @@ function _paintEndedScreen(container) {
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
                 min-height:60vh;text-align:center;padding:40px;gap:16px">
       <div style="width:72px;height:72px;border-radius:50%;background:#f0fdf4;
-                  display:grid;place-items:center;font-size:32px">🏁</div>
+                  display:grid;place-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:32px;height:32px"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
       <h2 style="font-size:22px;font-weight:800;color:var(--ink)">Meeting has ended</h2>
       <p style="color:var(--muted);font-size:14px;max-width:340px">
         The host has ended this session. Thank you for participating!

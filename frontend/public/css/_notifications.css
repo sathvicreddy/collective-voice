@@ -213,7 +213,7 @@
   text-align: center;
   padding: 56px 24px;
 }
-.nv2-empty-icon  { font-size: 44px; margin-bottom: 14px; }
+.nv2-empty-icon  { margin-bottom: 14px; }
 .nv2-empty-title { font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 8px; }
 .nv2-empty-sub   { font-size: 13.5px; color: var(--muted); max-width: 280px; line-height: 1.6; margin: 0; }
 

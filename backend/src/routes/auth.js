@@ -21,35 +21,23 @@ const db      = require("../db/client");
 const { json, readBody } = require("../utils/helpers");
 const { isRateLimited, retryAfterSeconds, getClientIp } = require("../middleware/rateLimiter");
 const { sendMail } = require("../utils/mailer");
+const config  = require("../config");
 // lazy-require to avoid circular deps at startup
 function _notifyAdmins(opts) {
   try { require("../utils/notify").notifyAdmins(opts).catch(() => {}); } catch { /* ignore */ }
 }
 
-// ── Environment config ─────────────────────────────────────────
-const JWT_SECRET  = process.env.JWT_SECRET  || "cv_dev_secret_change_in_prod";
-const JWT_EXPIRES = process.env.JWT_EXPIRES || "1h";
-const REFRESH_TTL = parseInt(process.env.REFRESH_TTL_DAYS || "30", 10) * 24 * 3600;
-const SALT_ROUNDS = 10;
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
-
-// The one email that is auto-promoted to superadmin on first login.
-// Set SUPERADMIN_EMAIL in your .env file — never hardcode it here.
-const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || "").toLowerCase();
-
-// Google OAuth config
-const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || "";
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
-// GOOGLE_CALLBACK_URL must be set in production via env var.
-// Falls back to localhost only for local dev.
-const GOOGLE_CALLBACK_URL  = process.env.GOOGLE_CALLBACK_URL  ||
-  "http://localhost:3000/api/auth/google/callback";
-
-// Section 3: Fail startup if running in production with the default secret.
-if (process.env.NODE_ENV === "production" && JWT_SECRET === "cv_dev_secret_change_in_prod") {
-  console.error("[Auth] FATAL: JWT_SECRET is the default dev value in production.");
-  process.exit(1);
-}
+// ── Config (via central config module) ────────────────────────
+const JWT_SECRET         = config.auth.jwtSecret;
+const JWT_EXPIRES        = config.auth.jwtExpires;
+const REFRESH_TTL        = config.auth.refreshTtl;
+const SALT_ROUNDS        = config.auth.saltRounds;
+const RESET_TOKEN_TTL_MS = config.auth.resetTokenTtlMs;
+const SUPERADMIN_EMAIL   = config.auth.superadminEmail;
+const GOOGLE_CLIENT_ID     = config.google.clientId;
+const GOOGLE_CLIENT_SECRET = config.google.clientSecret;
+const GOOGLE_CALLBACK_URL  = config.google.callbackUrl;
+// Production safety check is performed once inside config/index.js at startup.
 
 // ── Token helpers ──────────────────────────────────────────────
 

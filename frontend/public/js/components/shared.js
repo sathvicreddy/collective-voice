@@ -229,7 +229,7 @@ export function desktopDashboard() {
         </article>
         ` : `
         <div style="text-align:center;padding:20px 12px;color:var(--muted)">
-          <div style="font-size:28px;margin-bottom:8px">✨</div>
+          <div style="width:48px;height:48px;border-radius:50%;background:#f5f3ff;display:grid;place-items:center;margin:0 auto 8px"><svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
           <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 4px">No activity yet</p>
           <p style="font-size:12px;margin:0 0 12px">Join a meeting to get started.</p>
           <button class="btn secondary" style="width:100%;font-size:12px" data-action="go" data-route="/meetings">${icons.calendar} Browse Meetings</button>

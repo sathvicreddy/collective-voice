@@ -396,7 +396,7 @@ function renderParticipantsPanel(participants, currentSpeakerId) {
       <div class="mod-participants-list">
         ${list.length === 0 ? `
           <div style="text-align:center;padding:32px 16px;color:var(--muted)">
-            <div style="font-size:32px;margin-bottom:10px">👥</div>
+            <div style="width:48px;height:48px;border-radius:50%;background:#f0f4ff;display:grid;place-items:center;margin:0 auto 10px"><svg viewBox="0 0 24 24" fill="none" stroke="#8890b0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <p style="font-weight:600;color:#374151;margin:0 0 4px">No participants yet</p>
             <p style="font-size:12px;margin:0">Share the meeting link to invite people</p>
           </div>
@@ -474,7 +474,7 @@ function renderSpeakerPickerModal(questionId) {
         <div class="mod-speaker-list">
           ${candidates.length === 0 ? `
             <div style="text-align:center;padding:24px 16px;color:var(--muted)">
-              <div style="font-size:28px;margin-bottom:8px">👥</div>
+              <div style="width:44px;height:44px;border-radius:50%;background:#f0f4ff;display:grid;place-items:center;margin:0 auto 8px"><svg viewBox="0 0 24 24" fill="none" stroke="#8890b0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
               <p style="font-weight:600;color:#374151;margin:0 0 4px">No participants in session</p>
               <p style="font-size:12px;margin:0">Participants will appear here once they join</p>
             </div>
@@ -506,13 +506,13 @@ function _modRenderAdminBanner() {
   const { subject, body, senderName } = _modAdminAnnouncement;
   return `
     <div class="cv-admin-announcement" role="alert" aria-live="assertive" id="cvAdminAnnouncement" style="margin-bottom:12px">
-      <span class="cv-admin-announce-icon">📢</span>
+      <span class="cv-admin-announce-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></span>
       <div class="cv-admin-announce-body">
         <strong class="cv-admin-announce-subject">${subject || "Announcement"}</strong>
         ${body ? `<span class="cv-admin-announce-text">${body}</span>` : ""}
         ${senderName ? `<span class="cv-admin-announce-from">— ${senderName}</span>` : ""}
       </div>
-      <button class="cv-admin-announce-dismiss" data-action="dismissAnnouncement" title="Dismiss">✕</button>
+      <button class="cv-admin-announce-dismiss" data-action="dismissAnnouncement" title="Dismiss">&times;</button>
     </div>
   `;
 }
@@ -699,7 +699,7 @@ export async function moderatorBroadcastAnnouncement() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message: msg })
   });
-  dispatch({ type: "QUESTION_ADDED", payload: { id: `ann_${Date.now()}`, type: "announcement", text: `📢 ${msg}` } });
+  dispatch({ type: "QUESTION_ADDED", payload: { id: `ann_${Date.now()}`, type: "announcement", text: `[Announcement] ${msg}` } });
 }
 
 /* ── Poll management handlers ─────────────────────────────────

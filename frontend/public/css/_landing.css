@@ -1646,9 +1646,34 @@
   transform: translateY(-4px);
 }
 
-.ls-event-emoji {
-  font-size: 40px;
-  margin-bottom: 24px;
+.ls-event-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+  flex-shrink: 0;
+}
+.ls-event-icon svg {
+  width: 30px;
+  height: 30px;
+}
+.ls-event-icon--edu {
+  background: linear-gradient(135deg, #ede9ff 0%, #ddd5ff 100%);
+  color: #5b34ff;
+  box-shadow: 0 4px 16px rgba(91, 52, 255, 0.15);
+}
+.ls-event-icon--corp {
+  background: linear-gradient(135deg, #e0f4ff 0%, #bfebff 100%);
+  color: #0284c7;
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.15);
+}
+.ls-event-icon--conf {
+  background: linear-gradient(135deg, #fdf2e9 0%, #fce3c8 100%);
+  color: #d97706;
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.15);
 }
 
 .ls-event-title {

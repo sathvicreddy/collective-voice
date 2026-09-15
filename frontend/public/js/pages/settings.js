@@ -39,7 +39,10 @@ function settingsToast(msg, type = "success") {
       ? "background:#fff0f0;color:#e54040;border:1px solid #ffd0d0"
       : "background:#edfaf0;color:#158b4b;border:1px solid #b8f0c8"
   ].join(";");
-  toast.innerHTML = (type === "error" ? "⚠️ " : "✅ ") + msg;
+  const iconSvg = type === "error"
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"><polyline points="20 6 9 17 4 12"/></svg>`;
+  toast.innerHTML = iconSvg + msg;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3500);
 }
@@ -161,7 +164,7 @@ window.openDeleteAccount = function() {
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:32px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.2)">
       <div style="text-align:center;margin-bottom:20px">
-        <div style="width:56px;height:56px;border-radius:50%;background:#fff0f0;display:grid;place-items:center;margin:0 auto 12px;font-size:24px">🗑️</div>
+        <div style="width:56px;height:56px;border-radius:50%;background:#fff0f0;display:grid;place-items:center;margin:0 auto 12px"><svg viewBox="0 0 24 24" fill="none" stroke="#e54040" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></div>
         <h2 style="font-size:18px;font-weight:800;color:#e54040;margin-bottom:8px">Delete Account</h2>
         <p style="font-size:14px;color:#6a7394;line-height:1.5">This will permanently delete your account, all your meetings, and your question history. <strong>This cannot be undone.</strong></p>
       </div>
@@ -510,9 +513,9 @@ export function renderSettings() {
                 <span class="subtle">Choose your preferred colour scheme</span>
               </div>
               <div class="settings-theme-group" id="themeGroup">
-                <button class="settings-theme-btn ${savedTheme==="light"?"active":""}" id="themeBtn-light"   data-action="setTheme" data-theme="light">☀️ Light</button>
-                <button class="settings-theme-btn ${savedTheme==="dark" ?"active":""}" id="themeBtn-dark"    data-action="setTheme" data-theme="dark">🌙 Dark</button>
-                <button class="settings-theme-btn ${savedTheme==="system"?"active":""}" id="themeBtn-system" data-action="setTheme" data-theme="system">💻 System</button>
+                <button class="settings-theme-btn ${savedTheme==="light"?"active":""}" id="themeBtn-light"   data-action="setTheme" data-theme="light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:-1px"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Light</button>
+                <button class="settings-theme-btn ${savedTheme==="dark" ?"active":""}" id="themeBtn-dark"    data-action="setTheme" data-theme="dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:-1px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> Dark</button>
+                <button class="settings-theme-btn ${savedTheme==="system"?"active":""}" id="themeBtn-system" data-action="setTheme" data-theme="system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:-1px"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> System</button>
               </div>
             </div>
             <div class="settings-toggle-row">
@@ -523,12 +526,12 @@ export function renderSettings() {
               </div>
               <select class="settings-select" id="languageSelect"
                 data-change="savePrefs" data-prefs="language:this.value">
-                <option value="en"    ${(prefs.language||"en")==="en"    ? "selected":""}>🇺🇸 English</option>
-                <option value="hi"    ${(prefs.language||"en")==="hi"    ? "selected":""}>🇮🇳 Hindi</option>
-                <option value="es"    ${(prefs.language||"en")==="es"    ? "selected":""}>🇪🇸 Spanish</option>
-                <option value="fr"    ${(prefs.language||"en")==="fr"    ? "selected":""}>🇫🇷 French</option>
-                <option value="de"    ${(prefs.language||"en")==="de"    ? "selected":""}>🇩🇪 German</option>
-                <option value="pt"    ${(prefs.language||"en")==="pt"    ? "selected":""}>🇧🇷 Portuguese</option>
+                <option value="en"    ${(prefs.language||"en")==="en"    ? "selected":""}>EN — English</option>
+                <option value="hi"    ${(prefs.language||"en")==="hi"    ? "selected":""}>HI — Hindi</option>
+                <option value="es"    ${(prefs.language||"en")==="es"    ? "selected":""}>ES — Spanish</option>
+                <option value="fr"    ${(prefs.language||"en")==="fr"    ? "selected":""}>FR — French</option>
+                <option value="de"    ${(prefs.language||"en")==="de"    ? "selected":""}>DE — German</option>
+                <option value="pt"    ${(prefs.language||"en")==="pt"    ? "selected":""}>PT — Portuguese</option>
               </select>
             </div>
             <div class="settings-toggle-row">
@@ -557,7 +560,7 @@ export function renderSettings() {
                 <strong>Download My Data</strong>
                 <span class="subtle">Get a copy of all your data (profile, meetings, questions) as a JSON file</span>
               </div>
-              <button class="btn" id="exportDataBtn" style="font-size:13px;padding:8px 14px;flex-shrink:0" data-action="downloadUserData">⬇️ Download</button>
+              <button class="btn" id="exportDataBtn" style="font-size:13px;padding:8px 14px;flex-shrink:0" data-action="downloadUserData"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:-1px;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</button>
             </div>
             <div class="settings-toggle-row">
               <div class="icon-box red" style="width:40px;height:40px;flex-shrink:0">${icons.logOut}</div>
@@ -565,7 +568,7 @@ export function renderSettings() {
                 <strong>Delete All My Data</strong>
                 <span class="subtle">Permanently remove your account and all associated data from CollectiveVoice</span>
               </div>
-              <button class="btn secondary" id="deleteDataBtn" style="font-size:13px;padding:8px 14px;color:var(--danger);border-color:var(--danger);flex-shrink:0" data-action="openDeleteAccount">🗑️ Delete</button>
+              <button class="btn secondary" id="deleteDataBtn" style="font-size:13px;padding:8px 14px;color:var(--danger);border-color:var(--danger);flex-shrink:0" data-action="openDeleteAccount"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:-1px;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Delete</button>
             </div>
           </div>
         </div>

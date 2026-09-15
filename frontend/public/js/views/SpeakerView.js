@@ -179,13 +179,13 @@ function _spkRenderAdminBanner() {
   const { subject, body, senderName } = _spkAdminAnnouncement;
   return `
     <div class="cv-admin-announcement" role="alert" aria-live="assertive" id="cvAdminAnnouncement">
-      <span class="cv-admin-announce-icon">📢</span>
+      <span class="cv-admin-announce-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></span>
       <div class="cv-admin-announce-body">
         <strong class="cv-admin-announce-subject">${subject || "Announcement"}</strong>
         ${body ? `<span class="cv-admin-announce-text">${body}</span>` : ""}
         ${senderName ? `<span class="cv-admin-announce-from">— ${senderName}</span>` : ""}
       </div>
-      <button class="cv-admin-announce-dismiss" data-action="dismissAnnouncement" title="Dismiss">✕</button>
+      <button class="cv-admin-announce-dismiss" data-action="dismissAnnouncement" title="Dismiss">&times;</button>
     </div>
   `;
 }
@@ -238,7 +238,7 @@ function paintSpeakerView(container, s) {
 
   // Answering banner — mirrors ParticipantView, gives speaker confirmation
   const answeringBanner = s.nowAnswering?.text
-    ? `<div class="cv-answering-banner" role="status" aria-live="polite">🎤 <strong>Now answering:</strong> ${s.nowAnswering.text}</div>`
+    ? `<div class="cv-answering-banner" role="status" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0;vertical-align:-2px"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> <strong>Now answering:</strong> ${s.nowAnswering.text}</div>`
     : "";
 
   container.innerHTML = `

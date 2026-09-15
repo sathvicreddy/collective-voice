@@ -10,12 +10,14 @@ const fs     = require("fs");
 const path   = require("path");
 const crypto = require("crypto");
 const { WebSocketServer } = require("ws");
+const config           = require("./src/config");
 const handleApiRequest = require("./src/routes/api");
 const { verifyToken, handleAuthRequest } = require("./src/routes/auth");
 const db               = require("./src/db/client");
 const { processQuestion } = require("./src/nlp/engine");
 const { recomputeScores } = require("./src/nlp/scoring");
 const { startScheduler } = require("./src/scheduler");
+const { handleError }  = require("./src/middleware/errorHandler");
 
 // ── Process-level error guards ──────────────────────────────────────────────
 // Transient Neon/DB WebSocket drops are NOT fatal — log and continue.
@@ -64,18 +66,13 @@ process.on("unhandledRejection", (reason) => {
   // Don't exit — transient DB errors would kill OAuth redirects and static file serving.
 });
 
-const PORT       = process.env.PORT || 3000;
+const PORT       = config.server.port;
 const PUBLIC_DIR = path.join(__dirname, "..", "frontend", "public");
 
 // ── CORS allowlist (B9) ─────────────────────────────────────────────────────
 // In production set ALLOWED_ORIGINS to a comma-separated list of trusted domains.
 // Falls back to localhost for dev convenience.
-const ALLOWED_ORIGINS = new Set(
-  (process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://localhost:3001")
-    .split(",")
-    .map(o => o.trim())
-    .filter(Boolean)
-);
+const ALLOWED_ORIGINS = new Set(config.server.allowedOrigins);
 
 function isCorsAllowed(origin, host) {
   if (!origin) return true;           // same-origin / server-to-server
@@ -83,7 +80,7 @@ function isCorsAllowed(origin, host) {
   // Auto-allow same-host requests (browser sends Origin even for same-origin module scripts)
   if (host && (origin === `https://${host}` || origin === `http://${host}`)) return true;
   // Allow any localhost port in development
-  if (process.env.NODE_ENV !== "production" && /^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
+  if (!config.isProduction && /^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
   return false;
 }
 
@@ -102,7 +99,7 @@ const mimeTypes = {
 //                 content-hash filename strategy once you go to production.
 //   Images / fonts — 1-day CDN cache; safe because these change rarely.
 const CACHE_CONTROL = (() => {
-  const isProd = process.env.NODE_ENV === "production";
+  const isProd = config.isProduction;
   return {
     ".html": "no-cache, must-revalidate",
     // In dev: no-cache so every file change is immediately visible in the browser.
@@ -165,7 +162,7 @@ const server = http.createServer(async (req, res) => {
     "connect-src 'self' wss: ws: https://accounts.google.com; " +
     "frame-ancestors 'none';"
   );
-  if (process.env.NODE_ENV === "production") {
+  if (config.isProduction) {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
 
@@ -209,12 +206,7 @@ const server = http.createServer(async (req, res) => {
   // The SPA's handleGoogleCallback() (in app.js) reads the query params and completes auth.
 
   } catch (err) {
-    const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    console.error(`[${new Date().toISOString()}] [${reqId}] HTTP 500 on ${req.method} ${req.url}:`, err.stack || err);
-    if (!res.headersSent) {
-      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: "Internal server error", requestId: reqId }));
-    }
+    handleError(err, res);
     return;
   }
 

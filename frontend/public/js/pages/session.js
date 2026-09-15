@@ -244,15 +244,15 @@ function _showSpeakerInvitePopup(assignedName, participantId, meetingId) {
 
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:36px 32px;max-width:420px;width:92%;text-align:center;box-shadow:0 24px 64px rgba(99,102,241,0.22),0 4px 16px rgba(0,0,0,0.12);animation:cvSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)">
-      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;line-height:1">🎙️</div>
+      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;margin:0 auto 20px"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div>
       <h2 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#1a1035">You've been invited to speak!</h2>
       <p style="margin:0 0 6px;font-size:14px;color:#6b7280;line-height:1.5">
         The moderator has selected <strong style="color:#6366f1">${assignedName}</strong> as the current speaker.
       </p>
       <p style="margin:0 0 28px;font-size:13px;color:#9ca3af">Accept to enter the Speaker view and answer questions live. Decline to stay in the Audience.</p>
       <div style="display:flex;gap:12px">
-        <button id="cv-spk-decline" style="flex:1;padding:13px 20px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;font-size:14px;font-weight:600;color:#6b7280;cursor:pointer;transition:all 0.2s">✕ Decline</button>
-        <button id="cv-spk-accept" style="flex:1;padding:13px 20px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);font-size:14px;font-weight:700;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,0.4);transition:all 0.2s">🎙️ Accept</button>
+        <button id="cv-spk-decline" style="flex:1;padding:13px 20px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;font-size:14px;font-weight:600;color:#6b7280;cursor:pointer;transition:all 0.2s">&times; Decline</button>
+        <button id="cv-spk-accept" style="flex:1;padding:13px 20px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);font-size:14px;font-weight:700;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,0.4);transition:all 0.2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-1px;margin-right:4px"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>Accept</button>
       </div>
     </div>
     <style>

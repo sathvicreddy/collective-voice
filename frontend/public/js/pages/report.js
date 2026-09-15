@@ -212,7 +212,7 @@ function buildHtml(apiData, rd, sess, localQs, ss, meetingId, isLoading) {
           <div>
             <div class="rpt-title-row">
               <h1 class="rpt-page-title">${sessionTitle}</h1>
-              <span class="rpt-type-badge">${m.status === "live" ? "🔴 Live" : "Completed"}</span>
+              <span class="rpt-type-badge">${m.status === "live" ? `<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block"></span>Live</span>` : "Completed"}</span>
             </div>
             <div class="rpt-meta-row">
               <span class="rpt-status-chip">${icons.check} Completed</span>
@@ -227,8 +227,8 @@ function buildHtml(apiData, rd, sess, localQs, ss, meetingId, isLoading) {
           <div class="rpt-export-wrap" style="position:relative;display:inline-block">
             <button class="rpt-primary-btn" id="rptExportBtn">${icons.download} Export ▾</button>
             <div class="rpt-export-menu" id="rptExportMenu" style="display:none;position:absolute;right:0;top:calc(100%+6px);background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;min-width:160px">
-              <div class="rpt-export-item" data-action="rptExport" data-format="json">📄 Export as JSON</div>
-              <div class="rpt-export-item" data-action="rptExport" data-format="csv">📊 Export as CSV</div>
+              <div class="rpt-export-item" data-action="rptExport" data-format="json"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:-1px;margin-right:5px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export as JSON</div>
+              <div class="rpt-export-item" data-action="rptExport" data-format="csv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:-1px;margin-right:5px"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>Export as CSV</div>
             </div>
           </div>
         </div>
